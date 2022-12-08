@@ -1,0 +1,38 @@
+[package]
+name = "perpetuals"
+version = "0.1.0"
+description = "Solana Perpetuals Exchange"
+authors = ["Solana Maintainers <maintainers@solana.foundation>"]
+repository = "https://github.com/askibin/perpetuals"
+categories = ["finance"]
+keywords = ["solana", "dex", "perpetuals", "futures", "exchange"]
+license = "Apache-2.0"
+homepage = "https://solana.com/"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "perpetuals"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+test = []
+default = []
+
+[profile.release]
+lto = true
+codegen-units = 1
+overflow-checks = true
+
+[dependencies]
+anchor-lang = {version = "0.25.0", features = ["init-if-needed"]}
+anchor-spl = "0.25.0"
+solana-program = "1.10.41"
+solana-security-txt = "1.0.2"
+pyth-sdk-solana = "0.6.1"
+ahash = "0.7.6"
+num-traits = "0.2.15"
+num = "0.4.0"
