@@ -282,16 +282,12 @@ impl OraclePrice {
         let price_feed = pyth_sdk_solana::load_price_feed_from_account_info(pyth_price_info)
             .map_err(|_| PerpetualsError::InvalidOracleAccount)?;
         let pyth_price = if use_ema {
-            price_feed
-                .get_ema_price()
-                .ok_or(PerpetualsError::InvalidOracleState)?
+            price_feed.get_ema_price_unchecked()
         } else {
-            price_feed
-                .get_current_price()
-                .ok_or(PerpetualsError::InvalidOracleState)?
+            price_feed.get_price_unchecked()
         };
 
-        let last_update_age_sec = math::checked_sub(current_time, price_feed.publish_time)?;
+        let last_update_age_sec = math::checked_sub(current_time, pyth_price.publish_time)?;
         if last_update_age_sec > max_price_age_sec as i64 {
             msg!("Error: Pyth oracle price is stale");
             return err!(PerpetualsError::StaleOraclePrice);

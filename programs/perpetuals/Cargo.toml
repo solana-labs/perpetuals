@@ -28,11 +28,11 @@ codegen-units = 1
 overflow-checks = true
 
 [dependencies]
-anchor-lang = {version = "0.25.0", features = ["init-if-needed"]}
-anchor-spl = "0.25.0"
-solana-program = "1.10.41"
-solana-security-txt = "1.0.2"
-pyth-sdk-solana = "0.6.1"
-ahash = "0.7.6"
+anchor-lang = {version = "0.26.0", features = ["init-if-needed"]}
+anchor-spl = "0.26.0"
+solana-program = "1.14.13"
+solana-security-txt = "1.1.0"
+pyth-sdk-solana = "0.7.0"
+ahash = "=0.7.6"
 num-traits = "0.2.15"
 num = "0.4.0"
