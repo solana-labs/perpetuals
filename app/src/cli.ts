@@ -57,10 +57,11 @@ async function removePool(poolName: string) {
   client.removePool(poolName);
 }
 
-async function addToken(
+async function addCustody(
   poolName: string,
   tokenMint: PublicKey,
-  tokenOracle: PublicKey
+  tokenOracle: PublicKey,
+  isStable: boolean
 ) {
   // to be loaded from config file
   let oracleConfig = {
@@ -105,9 +106,10 @@ async function addToken(
     max: new BN(20000),
   };
 
-  client.addToken(
+  client.addCustody(
     poolName,
     tokenMint,
+    isStable,
     oracleConfig,
     pricingConfig,
     permissions,
@@ -116,16 +118,16 @@ async function addToken(
   );
 }
 
-async function getToken(poolName: string, tokenMint: PublicKey) {
+async function getCustody(poolName: string, tokenMint: PublicKey) {
   client.prettyPrint(await client.getCustody(poolName, tokenMint));
 }
 
-async function getTokens(poolName: string) {
+async function getCustodies(poolName: string) {
   client.prettyPrint(await client.getCustodies(poolName));
 }
 
-async function removeToken(poolName: string, tokenMint: PublicKey) {
-  client.removeToken(poolName, tokenMint);
+async function removeCustody(poolName: string, tokenMint: PublicKey) {
+  client.removeCustody(poolName, tokenMint);
 }
 
 async function getUserPosition(
@@ -313,43 +315,45 @@ async function getSwapAmountAndFees(
     });
 
   program
-    .command("add-token")
+    .command("add-custody")
     .description("Add a new token custody to the pool")
     .argument("<string>", "Pool name")
     .argument("<pubkey>", "Token mint")
     .argument("<pubkey>", "Token oracle account")
-    .action(async (poolName, tokenMint, tokenOracle) => {
-      await addToken(
+    .argument("<bool>", "Is stable coin (true / false)")
+    .action(async (poolName, tokenMint, tokenOracle, isStable) => {
+      await addCustody(
         poolName,
         new PublicKey(tokenMint),
-        new PublicKey(tokenOracle)
+        new PublicKey(tokenOracle),
+        isStable === "true" || isStable === "1" ? true : false
       );
     });
 
   program
-    .command("get-token")
+    .command("get-custody")
     .description("Print metadata for the token custody")
     .argument("<string>", "Pool name")
     .argument("<pubkey>", "Token mint")
     .action(async (poolName, tokenMint) => {
-      await getToken(poolName, new PublicKey(tokenMint));
+      await getCustody(poolName, new PublicKey(tokenMint));
     });
 
   program
-    .command("get-tokens")
-    .description("Print metadata for all pools")
+    .command("get-custodies")
+    .description("Print metadata for all custodies")
     .argument("<string>", "Pool name")
     .action(async (poolName) => {
-      await getTokens(poolName);
+      await getCustodies(poolName);
     });
 
   program
-    .command("remove-token")
+    .command("remove-custody")
     .description("Remove the token custody from the pool")
     .argument("<string>", "Pool name")
     .argument("<pubkey>", "Token mint")
     .action(async (poolName, tokenMint) => {
-      await removeToken(poolName, new PublicKey(tokenMint));
+      await removeCustody(poolName, new PublicKey(tokenMint));
     });
 
   program

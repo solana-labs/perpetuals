@@ -55,7 +55,7 @@ pub fn set_borrow_rate<'info>(
     let signatures_left = multisig.sign_multisig(
         &ctx.accounts.admin,
         &Multisig::get_account_infos(&ctx)[1..],
-        &Multisig::get_instruction_data(AdminInstruction::SetTokenConfig, params)?,
+        &Multisig::get_instruction_data(AdminInstruction::SetBorrowRate, params)?,
     )?;
     if signatures_left > 0 {
         msg!(

@@ -1,4 +1,4 @@
-//! RemoveToken instruction handler
+//! RemoveCustody instruction handler
 
 use {
     crate::{
@@ -15,7 +15,7 @@ use {
 };
 
 #[derive(Accounts)]
-pub struct RemoveToken<'info> {
+pub struct RemoveCustody<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
 
@@ -75,11 +75,11 @@ pub struct RemoveToken<'info> {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
-pub struct RemoveTokenParams {}
+pub struct RemoveCustodyParams {}
 
-pub fn remove_token<'info>(
-    ctx: Context<'_, '_, '_, 'info, RemoveToken<'info>>,
-    params: &RemoveTokenParams,
+pub fn remove_custody<'info>(
+    ctx: Context<'_, '_, '_, 'info, RemoveCustody<'info>>,
+    params: &RemoveCustodyParams,
 ) -> Result<u8> {
     // validate signatures
     let mut multisig = ctx.accounts.multisig.load_mut()?;
@@ -87,7 +87,7 @@ pub fn remove_token<'info>(
     let signatures_left = multisig.sign_multisig(
         &ctx.accounts.admin,
         &Multisig::get_account_infos(&ctx)[1..],
-        &Multisig::get_instruction_data(AdminInstruction::RemoveToken, params)?,
+        &Multisig::get_instruction_data(AdminInstruction::RemoveCustody, params)?,
     )?;
     if signatures_left > 0 {
         msg!(

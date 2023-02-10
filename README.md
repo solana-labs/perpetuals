@@ -84,28 +84,28 @@ Before the program can accept any liquidity or open a trade, you need to create 
 
 ```
 npx ts-node src/cli.ts -k <ADMIN_WALLET> add-pool <POOL_NAME>
-npx ts-node src/cli.ts -k <ADMIN_WALLET> add-token <POOL_NAME> <TOKEN_MINT> <TOKEN_ORACLE>
+npx ts-node src/cli.ts -k <ADMIN_WALLET> add-custody <POOL_NAME> <TOKEN_MINT> <TOKEN_ORACLE> <IS_STABLE>
 ```
 
-Where `<POOL_NAME>` is a random name you want to assign to the pool, `<TOKEN_MINT>` is the mint address of the token, and `<TOKEN_ORACLE>` is the corresponding Pyth price account that can be found on [this page](https://pyth.network/price-feeds?cluster=devnet). For example:
+Where `<POOL_NAME>` is a random name you want to assign to the pool, `<TOKEN_MINT>` is the mint address of the token, and `<TOKEN_ORACLE>` is the corresponding Pyth price account that can be found on [this page](https://pyth.network/price-feeds?cluster=devnet). `<IS_STABLE>` specifies whether the custody is for a stablecoin. For example:
 
 ```
 npx ts-node src/cli.ts -k <ADMIN_WALLET> add-pool TestPool1
-npx ts-node src/cli.ts -k <ADMIN_WALLET> add-token TestPool1 So11111111111111111111111111111111111111112 J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix
+npx ts-node src/cli.ts -k <ADMIN_WALLET> add-custody TestPool1 So11111111111111111111111111111111111111112 J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix false
 ```
 
-To validate added pools and tokens, run:
+To validate added pools and custodies, run:
 
 ```
 npx ts-node src/cli.ts -k <ADMIN_WALLET> get-pool <POOL_NAME>
-npx ts-node src/cli.ts -k <ADMIN_WALLET> get-token <POOL_NAME> <TOKEN_MINT>
+npx ts-node src/cli.ts -k <ADMIN_WALLET> get-custody <POOL_NAME> <TOKEN_MINT>
 ```
 
 or
 
 ```
 npx ts-node src/cli.ts -k <ADMIN_WALLET> get-pools
-npx ts-node src/cli.ts -k <ADMIN_WALLET> get-tokens <POOL_NAME>
+npx ts-node src/cli.ts -k <ADMIN_WALLET> get-custodies <POOL_NAME>
 ```
 
 CLI offers other useful commands. You can get the list of all of them by running the following:

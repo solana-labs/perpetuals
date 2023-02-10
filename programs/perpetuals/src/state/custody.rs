@@ -93,11 +93,34 @@ pub struct Custody {
     pub mint: Pubkey,
     pub token_account: Pubkey,
     pub decimals: u8,
+    pub is_stable: bool,
     pub oracle: OracleParams,
     pub pricing: PricingParams,
     pub permissions: Permissions,
     pub fees: Fees,
     // borrow rates have implied RATE_DECIMALS decimals
+    pub borrow_rate: u64,
+    pub borrow_rate_sum: u64,
+
+    pub assets: Assets,
+    pub collected_fees: FeesStats,
+    pub volume_stats: VolumeStats,
+    pub trade_stats: TradeStats,
+
+    pub bump: u8,
+    pub token_account_bump: u8,
+}
+
+#[account]
+#[derive(Default, Debug)]
+pub struct DeprecatedCustody {
+    pub token_account: Pubkey,
+    pub mint: Pubkey,
+    pub decimals: u8,
+    pub oracle: OracleParams,
+    pub pricing: PricingParams,
+    pub permissions: Permissions,
+    pub fees: Fees,
     pub borrow_rate: u64,
     pub borrow_rate_sum: u64,
 

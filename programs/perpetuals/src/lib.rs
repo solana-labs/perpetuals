@@ -47,18 +47,18 @@ pub mod perpetuals {
         instructions::remove_pool(ctx, &params)
     }
 
-    pub fn add_token<'info>(
-        ctx: Context<'_, '_, '_, 'info, AddToken<'info>>,
-        params: AddTokenParams,
+    pub fn add_custody<'info>(
+        ctx: Context<'_, '_, '_, 'info, AddCustody<'info>>,
+        params: AddCustodyParams,
     ) -> Result<u8> {
-        instructions::add_token(ctx, &params)
+        instructions::add_custody(ctx, &params)
     }
 
-    pub fn remove_token<'info>(
-        ctx: Context<'_, '_, '_, 'info, RemoveToken<'info>>,
-        params: RemoveTokenParams,
+    pub fn remove_custody<'info>(
+        ctx: Context<'_, '_, '_, 'info, RemoveCustody<'info>>,
+        params: RemoveCustodyParams,
     ) -> Result<u8> {
-        instructions::remove_token(ctx, &params)
+        instructions::remove_custody(ctx, &params)
     }
 
     pub fn set_admin_signers<'info>(
@@ -68,11 +68,11 @@ pub mod perpetuals {
         instructions::set_admin_signers(ctx, &params)
     }
 
-    pub fn set_token_config<'info>(
-        ctx: Context<'_, '_, '_, 'info, SetTokenConfig<'info>>,
-        params: SetTokenConfigParams,
+    pub fn set_custody_config<'info>(
+        ctx: Context<'_, '_, '_, 'info, SetCustodyConfig<'info>>,
+        params: SetCustodyConfigParams,
     ) -> Result<u8> {
-        instructions::set_token_config(ctx, &params)
+        instructions::set_custody_config(ctx, &params)
     }
 
     pub fn set_borrow_rate<'info>(

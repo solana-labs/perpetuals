@@ -1,13 +1,13 @@
 // admin instructions
+pub mod add_custody;
 pub mod add_pool;
-pub mod add_token;
 pub mod init;
+pub mod remove_custody;
 pub mod remove_pool;
-pub mod remove_token;
 pub mod set_admin_signers;
 pub mod set_borrow_rate;
 pub mod set_permissions;
-pub mod set_token_config;
+pub mod set_custody_config;
 pub mod withdraw_fees;
 
 // test instructions
@@ -33,15 +33,15 @@ pub mod remove_liquidity;
 pub mod swap;
 
 // bring everything in scope
+pub use add_custody::*;
 pub use add_pool::*;
-pub use add_token::*;
 pub use init::*;
+pub use remove_custody::*;
 pub use remove_pool::*;
-pub use remove_token::*;
 pub use set_admin_signers::*;
 pub use set_borrow_rate::*;
 pub use set_permissions::*;
-pub use set_token_config::*;
+pub use set_custody_config::*;
 pub use withdraw_fees::*;
 
 pub use set_test_oracle_price::*;

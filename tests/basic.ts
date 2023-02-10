@@ -13,6 +13,7 @@ describe("perpetuals", () => {
   let permissions;
   let fees;
   let ratios;
+  let isStable;
   let perpetualsExpected;
   let multisigExpected;
   let tokenExpected;
@@ -125,7 +126,7 @@ describe("perpetuals", () => {
     await tc.addPool("test pool");
   });
 
-  it("addAndRemoveToken", async () => {
+  it("addAndRemoveCustody", async () => {
     oracleConfig = {
       maxPriceError: new BN(10000),
       maxPriceAgeSec: 60,
@@ -167,8 +168,10 @@ describe("perpetuals", () => {
       min: new BN(10),
       max: new BN(20000),
     };
-    await tc.addToken(
+    isStable = false;
+    await tc.addCustody(
       tc.custodies[0],
+      isStable,
       oracleConfig,
       pricing,
       permissions,
@@ -182,6 +185,7 @@ describe("perpetuals", () => {
       mint: tc.custodies[0].mint.publicKey,
       tokenAccount: tc.custodies[0].tokenAccount,
       decimals: 9,
+      isStable,
       oracle: {
         oracleAccount: tc.custodies[0].oracleAccount,
         oracleType: { test: {} },
@@ -250,8 +254,9 @@ describe("perpetuals", () => {
 
     let oracleConfig2 = Object.assign({}, oracleConfig);
     oracleConfig2.oracleAccount = tc.custodies[1].oracleAccount;
-    await tc.addToken(
+    await tc.addCustody(
       tc.custodies[1],
+      isStable,
       oracleConfig2,
       pricing,
       permissions,
@@ -259,11 +264,12 @@ describe("perpetuals", () => {
       ratios
     );
 
-    await tc.removeToken(tc.custodies[1]);
+    await tc.removeCustody(tc.custodies[1]);
     tc.ensureFails(tc.program.account.custody.fetch(tc.custodies[1].custody));
 
-    await tc.addToken(
+    await tc.addCustody(
       tc.custodies[1],
+      isStable,
       oracleConfig2,
       pricing,
       permissions,
@@ -272,13 +278,14 @@ describe("perpetuals", () => {
     );
   });
 
-  it("setTokenConfig", async () => {
+  it("setCustodyConfig", async () => {
     oracleConfig.maxPriceAgeSec = 90;
     permissions.allowPnlWithdrawal = false;
     fees.liquidation = new BN(200);
     ratios.target = new BN(90);
-    await tc.setTokenConfig(
+    await tc.setCustodyConfig(
       tc.custodies[0],
+      isStable,
       oracleConfig,
       pricing,
       permissions,

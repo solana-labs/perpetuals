@@ -324,9 +324,10 @@ export class PerpetualsClient {
       });
   };
 
-  addToken = async (
+  addCustody = async (
     poolName: string,
     tokenMint: PublicKey,
+    isStable: boolean,
     oracleConfig,
     pricingConfig,
     permissions,
@@ -334,7 +335,8 @@ export class PerpetualsClient {
     ratios
   ) => {
     await this.program.methods
-      .addToken({
+      .addCustody({
+        isStable,
         oracle: oracleConfig,
         pricing: pricingConfig,
         permissions,
@@ -367,9 +369,9 @@ export class PerpetualsClient {
       });
   };
 
-  removeToken = async (poolName: string, tokenMint: PublicKey) => {
+  removeCustody = async (poolName: string, tokenMint: PublicKey) => {
     await this.program.methods
-      .removeToken({})
+      .removeCustody({})
       .accounts({
         admin: this.admin.publicKey,
         multisig: this.multisig.publicKey,

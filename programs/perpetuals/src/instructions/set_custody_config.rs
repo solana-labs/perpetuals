@@ -1,4 +1,4 @@
-//! SetTokenConfig instruction handler
+//! SetCustodyConfig instruction handler
 
 use {
     crate::{
@@ -14,7 +14,7 @@ use {
 };
 
 #[derive(Accounts)]
-pub struct SetTokenConfig<'info> {
+pub struct SetCustodyConfig<'info> {
     #[account()]
     pub admin: Signer<'info>,
 
@@ -44,7 +44,8 @@ pub struct SetTokenConfig<'info> {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
-pub struct SetTokenConfigParams {
+pub struct SetCustodyConfigParams {
+    pub is_stable: bool,
     pub oracle: OracleParams,
     pub pricing: PricingParams,
     pub permissions: Permissions,
@@ -54,9 +55,9 @@ pub struct SetTokenConfigParams {
     pub max_ratio: u64,
 }
 
-pub fn set_token_config<'info>(
-    ctx: Context<'_, '_, '_, 'info, SetTokenConfig<'info>>,
-    params: &SetTokenConfigParams,
+pub fn set_custody_config<'info>(
+    ctx: Context<'_, '_, '_, 'info, SetCustodyConfig<'info>>,
+    params: &SetCustodyConfigParams,
 ) -> Result<u8> {
     // validate inputs
     if params.min_ratio > params.target_ratio || params.target_ratio > params.max_ratio {
@@ -69,7 +70,7 @@ pub fn set_token_config<'info>(
     let signatures_left = multisig.sign_multisig(
         &ctx.accounts.admin,
         &Multisig::get_account_infos(&ctx)[1..],
-        &Multisig::get_instruction_data(AdminInstruction::SetTokenConfig, params)?,
+        &Multisig::get_instruction_data(AdminInstruction::SetCustodyConfig, params)?,
     )?;
     if signatures_left > 0 {
         msg!(
@@ -88,13 +89,14 @@ pub fn set_token_config<'info>(
 
     // update custody data
     let custody = ctx.accounts.custody.as_mut();
+    custody.is_stable = params.is_stable;
     custody.oracle = params.oracle;
     custody.pricing = params.pricing;
     custody.permissions = params.permissions;
     custody.fees = params.fees;
 
     if !custody.validate() {
-        err!(PerpetualsError::InvalidTokenConfig)
+        err!(PerpetualsError::InvalidCustodyConfig)
     } else {
         Ok(0)
     }

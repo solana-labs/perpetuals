@@ -480,8 +480,9 @@ export class TestClient {
     }
   };
 
-  addToken = async (
+  addCustody = async (
     custody,
+    isStable,
     oracleConfig,
     pricing,
     permissions,
@@ -494,7 +495,8 @@ export class TestClient {
     for (let i = 0; i < multisig.minSignatures; ++i) {
       try {
         await this.program.methods
-          .addToken({
+          .addCustody({
+            isStable,
             oracle: oracleConfig,
             pricing,
             permissions,
@@ -527,14 +529,14 @@ export class TestClient {
     }
   };
 
-  removeToken = async (custody) => {
+  removeCustody = async (custody) => {
     let multisig = await this.program.account.multisig.fetch(
       this.multisig.publicKey
     );
     for (let i = 0; i < multisig.minSignatures; ++i) {
       try {
         await this.program.methods
-          .removeToken({})
+          .removeCustody({})
           .accounts({
             admin: this.admins[i].publicKey,
             multisig: this.multisig.publicKey,
@@ -557,8 +559,9 @@ export class TestClient {
     }
   };
 
-  setTokenConfig = async (
+  setCustodyConfig = async (
     custody,
+    isStable,
     oracleConfig,
     pricing,
     permissions,
@@ -571,7 +574,8 @@ export class TestClient {
     for (let i = 0; i < multisig.minSignatures; ++i) {
       try {
         await this.program.methods
-          .setTokenConfig({
+          .setCustodyConfig({
+            isStable,
             oracle: oracleConfig,
             pricing,
             permissions,

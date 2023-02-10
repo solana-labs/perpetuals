@@ -1,4 +1,4 @@
-//! AddToken instruction handler
+//! AddCustody instruction handler
 
 use {
     crate::{
@@ -15,7 +15,7 @@ use {
 };
 
 #[derive(Accounts)]
-pub struct AddToken<'info> {
+pub struct AddCustody<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
 
@@ -82,7 +82,8 @@ pub struct AddToken<'info> {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
-pub struct AddTokenParams {
+pub struct AddCustodyParams {
+    pub is_stable: bool,
     pub oracle: OracleParams,
     pub pricing: PricingParams,
     pub permissions: Permissions,
@@ -92,9 +93,9 @@ pub struct AddTokenParams {
     pub max_ratio: u64,
 }
 
-pub fn add_token<'info>(
-    ctx: Context<'_, '_, '_, 'info, AddToken<'info>>,
-    params: &AddTokenParams,
+pub fn add_custody<'info>(
+    ctx: Context<'_, '_, '_, 'info, AddCustody<'info>>,
+    params: &AddCustodyParams,
 ) -> Result<u8> {
     // validate inputs
     if params.min_ratio > params.target_ratio || params.target_ratio > params.max_ratio {
@@ -107,7 +108,7 @@ pub fn add_token<'info>(
     let signatures_left = multisig.sign_multisig(
         &ctx.accounts.admin,
         &Multisig::get_account_infos(&ctx)[1..],
-        &Multisig::get_instruction_data(AdminInstruction::AddToken, params)?,
+        &Multisig::get_instruction_data(AdminInstruction::AddCustody, params)?,
     )?;
     if signatures_left > 0 {
         msg!(
@@ -136,9 +137,10 @@ pub fn add_token<'info>(
     // record custody data
     let custody = ctx.accounts.custody.as_mut();
     custody.pool = pool.key();
-    custody.token_account = ctx.accounts.custody_token_account.key();
     custody.mint = ctx.accounts.custody_token_mint.key();
+    custody.token_account = ctx.accounts.custody_token_account.key();
     custody.decimals = ctx.accounts.custody_token_mint.decimals;
+    custody.is_stable = params.is_stable;
     custody.oracle = params.oracle;
     custody.pricing = params.pricing;
     custody.permissions = params.permissions;
@@ -150,7 +152,7 @@ pub fn add_token<'info>(
         .ok_or(ProgramError::InvalidSeeds)?;
 
     if !custody.validate() {
-        err!(PerpetualsError::InvalidTokenConfig)
+        err!(PerpetualsError::InvalidCustodyConfig)
     } else {
         Ok(0)
     }

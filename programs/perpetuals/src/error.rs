@@ -32,9 +32,9 @@ pub enum PerpetualsError {
     InvalidPositionState,
     #[msg("Invalid perpetuals config")]
     InvalidPerpetualsConfig,
-    #[msg("Invalid token config")]
-    InvalidTokenConfig,
-    #[msg("Not enough tokens returned")]
+    #[msg("Invalid custody config")]
+    InvalidCustodyConfig,
+    #[msg("Insufficient token amount returned")]
     InsufficientAmountReturned,
     #[msg("Price slippage limit exceeded")]
     MaxPriceSlippage,
