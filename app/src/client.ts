@@ -36,16 +36,14 @@ export type PositionSide = "long" | "short";
 export class PerpetualsClient {
   provider: AnchorProvider;
   program: Program<Perpetuals>;
-
-  admins: Keypair[];
-  adminMetas: AccountMeta[];
+  admin: Keypair;
 
   // pdas
   multisig: { publicKey: PublicKey; bump: number };
   authority: { publicKey: PublicKey; bump: number };
   perpetuals: { publicKey: PublicKey; bump: number };
 
-  constructor(clusterUrl: string, adminKeys: string[]) {
+  constructor(clusterUrl: string, adminKey: string) {
     this.provider = AnchorProvider.local(clusterUrl, {
       commitment: "confirmed",
       preflightCommitment: "confirmed",
@@ -53,20 +51,9 @@ export class PerpetualsClient {
     setProvider(this.provider);
     this.program = workspace.Perpetuals as Program<Perpetuals>;
 
-    this.admins = [];
-    this.adminMetas = [];
-    for (const adminKey of adminKeys) {
-      this.admins.push(
-        Keypair.fromSecretKey(
-          new Uint8Array(JSON.parse(readFileSync(adminKey).toString()))
-        )
-      );
-      this.adminMetas.push({
-        isSigner: false,
-        isWritable: false,
-        pubkey: this.admins.at(-1).publicKey,
-      });
-    }
+    this.admin = Keypair.fromSecretKey(
+      new Uint8Array(JSON.parse(readFileSync(adminKey).toString()))
+    );
 
     this.multisig = this.findProgramAddress("multisig");
     this.authority = this.findProgramAddress("transfer_authority");
@@ -232,11 +219,20 @@ export class PerpetualsClient {
   ///////
   // instructions
 
-  init = async (config) => {
+  init = async (admins: Publickey[], config) => {
     let perpetualsProgramData = PublicKey.findProgramAddressSync(
       [this.program.programId.toBuffer()],
       new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
     )[0];
+
+    let adminMetas = [];
+    for (const admin of admins) {
+      adminMetas.push({
+        isSigner: false,
+        isWritable: false,
+        pubkey: admin,
+      });
+    }
 
     await this.program.methods
       .init(config)
@@ -250,7 +246,7 @@ export class PerpetualsClient {
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
-      .remainingAccounts(this.adminMetas)
+      .remainingAccounts(adminMetas)
       .rpc()
       .catch((err) => {
         console.error(err);
@@ -259,9 +255,6 @@ export class PerpetualsClient {
   };
 
   setAdminSigners = async (admins: Publickey[], minSignatures: number) => {
-    let multisig = await this.program.account.multisig.fetch(
-      this.multisig.publicKey
-    );
     let adminMetas = [];
     for (const admin of admins) {
       adminMetas.push({
@@ -270,77 +263,65 @@ export class PerpetualsClient {
         pubkey: admin,
       });
     }
-    for (let i = 0; i < multisig.minSignatures; ++i) {
-      try {
-        await this.program.methods
-          .setAdminSigners({
-            minSignatures,
-          })
-          .accounts({
-            admin: this.admins[i].publicKey,
-            multisig: this.multisig.publicKey,
-          })
-          .remainingAccounts(adminMetas)
-          .signers([this.admins[i]])
-          .rpc();
-      } catch (err) {
-        if (this.printErrors) {
-          console.log(err);
-        }
-        throw err;
+    try {
+      await this.program.methods
+        .setAdminSigners({
+          minSignatures,
+        })
+        .accounts({
+          admin: this.admin.publicKey,
+          multisig: this.multisig.publicKey,
+        })
+        .remainingAccounts(adminMetas)
+        .signers([this.admin])
+        .rpc();
+    } catch (err) {
+      if (this.printErrors) {
+        console.log(err);
       }
+      throw err;
     }
   };
 
   addPool = async (name: string) => {
-    let multisig = await this.program.account.multisig.fetch(
-      this.multisig.publicKey
-    );
-    for (let i = 0; i < multisig.minSignatures; ++i) {
-      await this.program.methods
-        .addPool({ name })
-        .accounts({
-          admin: this.admins[i].publicKey,
-          multisig: this.multisig.publicKey,
-          transferAuthority: this.authority.publicKey,
-          perpetuals: this.perpetuals.publicKey,
-          pool: this.getPoolKey(name),
-          lpTokenMint: this.getPoolLpTokenKey(name),
-          systemProgram: SystemProgram.programId,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
-        })
-        .signers([this.admins[i]])
-        .rpc()
-        .catch((err) => {
-          console.error(err);
-          throw err;
-        });
-    }
+    await this.program.methods
+      .addPool({ name })
+      .accounts({
+        admin: this.admin.publicKey,
+        multisig: this.multisig.publicKey,
+        transferAuthority: this.authority.publicKey,
+        perpetuals: this.perpetuals.publicKey,
+        pool: this.getPoolKey(name),
+        lpTokenMint: this.getPoolLpTokenKey(name),
+        systemProgram: SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        rent: SYSVAR_RENT_PUBKEY,
+      })
+      .signers([this.admin])
+      .rpc()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
   };
 
   removePool = async (name: string) => {
-    let multisig = await this.program.account.multisig.fetch(
-      this.multisig.publicKey
-    );
-    for (let i = 0; i < multisig.minSignatures; ++i) {
-      await this.program.methods
-        .removePool({})
-        .accounts({
-          admin: this.admins[i].publicKey,
-          multisig: this.multisig.publicKey,
-          transferAuthority: this.authority.publicKey,
-          perpetuals: this.perpetuals.publicKey,
-          pool: this.getPoolKey(name),
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([this.admins[i]])
-        .rpc()
-        .catch((err) => {
-          console.error(err);
-          throw err;
-        });
-    }
+    await this.program.methods
+      .removePool({})
+      .accounts({
+        admin: this.admin.publicKey,
+        multisig: this.multisig.publicKey,
+        transferAuthority: this.authority.publicKey,
+        perpetuals: this.perpetuals.publicKey,
+        pool: this.getPoolKey(name),
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([this.admin])
+      .rpc()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
   };
 
   addToken = async (
@@ -352,73 +333,63 @@ export class PerpetualsClient {
     fees,
     ratios
   ) => {
-    let multisig = await this.program.account.multisig.fetch(
-      this.multisig.publicKey
-    );
-    for (let i = 0; i < multisig.minSignatures; ++i) {
-      await this.program.methods
-        .addToken({
-          oracle: oracleConfig,
-          pricing: pricingConfig,
-          permissions,
-          fees,
-          targetRatio: ratios.target,
-          minRatio: ratios.min,
-          maxRatio: ratios.max,
-        })
-        .accounts({
-          admin: this.admins[i].publicKey,
-          multisig: this.multisig.publicKey,
-          transferAuthority: this.authority.publicKey,
-          perpetuals: this.perpetuals.publicKey,
-          pool: this.getPoolKey(poolName),
-          custody: this.getCustodyKey(poolName, tokenMint),
-          custodyTokenAccount: this.getCustodyTokenAccountKey(
-            poolName,
-            tokenMint
-          ),
-          custodyTokenMint: tokenMint,
-          systemProgram: SystemProgram.programId,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          rent: SYSVAR_RENT_PUBKEY,
-        })
-        .signers([this.admins[i]])
-        .rpc()
-        .catch((err) => {
-          console.error(err);
-          throw err;
-        });
-    }
+    await this.program.methods
+      .addToken({
+        oracle: oracleConfig,
+        pricing: pricingConfig,
+        permissions,
+        fees,
+        targetRatio: ratios.target,
+        minRatio: ratios.min,
+        maxRatio: ratios.max,
+      })
+      .accounts({
+        admin: this.admin.publicKey,
+        multisig: this.multisig.publicKey,
+        transferAuthority: this.authority.publicKey,
+        perpetuals: this.perpetuals.publicKey,
+        pool: this.getPoolKey(poolName),
+        custody: this.getCustodyKey(poolName, tokenMint),
+        custodyTokenAccount: this.getCustodyTokenAccountKey(
+          poolName,
+          tokenMint
+        ),
+        custodyTokenMint: tokenMint,
+        systemProgram: SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        rent: SYSVAR_RENT_PUBKEY,
+      })
+      .signers([this.admin])
+      .rpc()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
   };
 
   removeToken = async (poolName: string, tokenMint: PublicKey) => {
-    let multisig = await this.program.account.multisig.fetch(
-      this.multisig.publicKey
-    );
-    for (let i = 0; i < multisig.minSignatures; ++i) {
-      await this.program.methods
-        .removeToken({})
-        .accounts({
-          admin: this.admins[i].publicKey,
-          multisig: this.multisig.publicKey,
-          transferAuthority: this.authority.publicKey,
-          perpetuals: this.perpetuals.publicKey,
-          pool: this.getPoolKey(poolName),
-          custody: this.getCustodyKey(poolName, tokenMint),
-          custodyTokenAccount: this.getCustodyTokenAccountKey(
-            poolName,
-            tokenMint
-          ),
-          systemProgram: SystemProgram.programId,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        })
-        .signers([this.admins[i]])
-        .rpc()
-        .catch((err) => {
-          console.error(err);
-          throw err;
-        });
-    }
+    await this.program.methods
+      .removeToken({})
+      .accounts({
+        admin: this.admin.publicKey,
+        multisig: this.multisig.publicKey,
+        transferAuthority: this.authority.publicKey,
+        perpetuals: this.perpetuals.publicKey,
+        pool: this.getPoolKey(poolName),
+        custody: this.getCustodyKey(poolName, tokenMint),
+        custodyTokenAccount: this.getCustodyTokenAccountKey(
+          poolName,
+          tokenMint
+        ),
+        systemProgram: SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([this.admin])
+      .rpc()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
   };
 
   getOraclePrice = async (

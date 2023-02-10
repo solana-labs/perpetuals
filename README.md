@@ -15,7 +15,7 @@ Solana Perpetuals protocol is an open-source implementation of a non-custodial d
 
 ### Build
 
-First, generate a new key for the program address with `solana-keygen new -o [PROG_ID_JSON]`. Then replace the existing program ID with the newly generated address in Anchor.toml and `programs/perpetuals/src/lib.rs`.
+First, generate a new key for the program address with `solana-keygen new -o <PROG_ID_JSON>`. Then replace the existing program ID with the newly generated address in Anchor.toml and `programs/perpetuals/src/lib.rs`.
 
 Also, ensure the path to your wallet in Anchor.toml is correct. Alternatively, when running Anchor deploy or test commands, you can specify your wallet with `--provider.wallet` argument. The wallet's pubkey will be set as an upgrade authority upon initial deployment of the program. It is strongly recommended to make upgrade authority a multisig when deploying to the mainnet.
 
@@ -47,41 +47,71 @@ By default, integration tests are executed on a local validator, so it won't cos
 To deploy the program to the devnet and upload the IDL use the following commands:
 
 ```sh
-anchor deploy --provider.cluster devnet --program-keypair [PROG_ID_JSON]
+anchor deploy --provider.cluster devnet --program-keypair <PROG_ID_JSON>
 anchor idl init --provider.cluster devnet --filepath ./target/idl/perpetuals.json
-[PROGRAM ID]
+<PROGRAM ID>
 ```
 
 ### Initialize
 
-A small CLI Typescript client is included to help you initialize the program. Before executing any commands, set `ANCHOR_WALLET` environment variable to point to your wallet:
+A small CLI Typescript client is included to help you initialize and manage the program. By default script uses devnet cluster. Add `-u https://api.mainnet-beta.solana.com` to all of the commands if you plan to execute them on mainnet.
+
+To initialize deployed program, run the following commands:
 
 ```
-export ANCHOR_WALLET=~/.config/solana/id.json
-```
-
-Replace the path above with the correct path to your wallet. `[ADMIN_WALLET]` in the command below could be the same path. CLI script currently accepts only one admin wallet, but the program supports a multisignature scheme for all admin instructions, so you can modify the script to provide multiple admin wallets and enable multisig out of the box.
-
-To initialize the program, run:
-
-```
+cd app
 npm install
 npm install -g npx
-npx ts-node app/src/cli.ts https://api.devnet.solana.com [ADMIN_WALLET] init
+npx ts-node src/cli.ts -k <ADMIN_WALLET> init --min-signatures <int> <ADMIN_WALLET1> <ADMIN_WALLET2> ...
+```
+
+Where `<ADMIN_WALLET>` is the file path to the wallet that was set as the upgrade authority of the program upon deployment. `<ADMIN_WALLET1>`, `<ADMIN_WALLET2>` etc., will be set as protocol admins, and `min-signatures` will be required to execute privileged instructions. To provide multiple signatures, just execute exactly the same command multiple times specifying different `<ADMIN_WALLET>` with `-k` option. The intermediate state is recorded on-chain so that commands can be executed on different computers.
+
+To change protocol admins or minimum required signatures, run:
+
+```
+npx ts-node src/cli.ts -k <ADMIN_WALLET> set-authority --min-signatures <int> <ADMIN_WALLET1> <ADMIN_WALLET2> ...
+```
+
+To validate initialized program:
+
+```
+npx ts-node src/cli.ts -k <ADMIN_WALLET> get-multisig
+npx ts-node src/cli.ts -k <ADMIN_WALLET> get-perpetuals
 ```
 
 Before the program can accept any liquidity or open a trade, you need to create a token pool and add one or more token custodies to it:
 
 ```
-npx ts-node src/cli.ts https://api.devnet.solana.com [ADMIN_WALLET] addPool [POOL_NAME]
-npx ts-node src/cli.ts https://api.devnet.solana.com [ADMIN_WALLET] addToken [POOL_NAME] [TOKEN_MINT] [TOKEN_ORACLE]
+npx ts-node src/cli.ts -k <ADMIN_WALLET> add-pool <POOL_NAME>
+npx ts-node src/cli.ts -k <ADMIN_WALLET> add-token <POOL_NAME> <TOKEN_MINT> <TOKEN_ORACLE>
 ```
 
-Where `[POOL_NAME]` is a random name you want to assign to the pool, `[TOKEN_MINT]` is the mint address of the token, and `[TOKEN_ORACLE]` is the corresponding Pyth price account, that can be found on [this page](https://pyth.network/price-feeds?cluster=devnet). For example:
+Where `<POOL_NAME>` is a random name you want to assign to the pool, `<TOKEN_MINT>` is the mint address of the token, and `<TOKEN_ORACLE>` is the corresponding Pyth price account that can be found on [this page](https://pyth.network/price-feeds?cluster=devnet). For example:
 
 ```
-npx ts-node src/cli.ts https://api.devnet.solana.com [ADMIN_WALLET] addPool TestPool1
-npx ts-node src/cli.ts https://api.devnet.solana.com [ADMIN_WALLET] addToken TestPool1 So11111111111111111111111111111111111111112 J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix
+npx ts-node src/cli.ts -k <ADMIN_WALLET> add-pool TestPool1
+npx ts-node src/cli.ts -k <ADMIN_WALLET> add-token TestPool1 So11111111111111111111111111111111111111112 J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix
+```
+
+To validate added pools and tokens, run:
+
+```
+npx ts-node src/cli.ts -k <ADMIN_WALLET> get-pool <POOL_NAME>
+npx ts-node src/cli.ts -k <ADMIN_WALLET> get-token <POOL_NAME> <TOKEN_MINT>
+```
+
+or
+
+```
+npx ts-node src/cli.ts -k <ADMIN_WALLET> get-pools
+npx ts-node src/cli.ts -k <ADMIN_WALLET> get-tokens <POOL_NAME>
+```
+
+CLI offers other useful commands. You can get the list of all of them by running the following:
+
+```
+npx ts-node src/cli.ts --help
 ```
 
 ### Further Steps

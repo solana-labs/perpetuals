@@ -9,14 +9,14 @@ let client;
 
 function initClient(clusterUrl: string, adminKeyPath: string) {
   process.env["ANCHOR_WALLET"] = adminKeyPath;
-  client = new PerpetualsClient(clusterUrl, [adminKeyPath]);
+  client = new PerpetualsClient(clusterUrl, adminKeyPath);
   client.log("Client Initialized");
 }
 
-async function init() {
+async function init(adminSigners: PublicKey[], minSignatures: number) {
   // to be loaded from config file
   let perpetualsConfig = {
-    minSignatures: 1,
+    minSignatures: minSignatures,
     allowSwap: true,
     allowAddLiquidity: true,
     allowRemoveLiquidity: true,
@@ -26,7 +26,7 @@ async function init() {
     allowCollateralWithdrawal: true,
     allowSizeChange: true,
   };
-  client.init(perpetualsConfig);
+  client.init(adminSigners, perpetualsConfig);
 }
 
 async function setAuthority(adminSigners: PublicKey[], minSignatures: number) {
@@ -246,8 +246,13 @@ async function getSwapAmountAndFees(
   program
     .command("init")
     .description("Initialize the on-chain program")
-    .action(async () => {
-      await init();
+    .requiredOption("-m, --min-signatures <int>", "Minimum signatures")
+    .argument("<paths...>", "Filepaths to admin keypairs")
+    .action(async (args, options) => {
+      await init(
+        args.map((x) => new PublicKey(x)),
+        options.minSignatures
+      );
     });
 
   program
