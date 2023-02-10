@@ -394,6 +394,28 @@ export class PerpetualsClient {
       });
   };
 
+  upgradeCustody = async (
+    poolName: string,
+    tokenMint: PublicKey,
+    isStable: boolean
+  ) => {
+    await this.program.methods
+      .upgradeCustody({ isStable })
+      .accounts({
+        admin: this.admin.publicKey,
+        multisig: this.multisig.publicKey,
+        pool: this.getPoolKey(poolName),
+        custody: this.getCustodyKey(poolName, tokenMint),
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([this.admin])
+      .rpc()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
+  };
+
   getOraclePrice = async (
     poolName: string,
     tokenMint: PublicKey,

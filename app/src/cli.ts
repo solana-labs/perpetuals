@@ -130,6 +130,14 @@ async function removeCustody(poolName: string, tokenMint: PublicKey) {
   client.removeCustody(poolName, tokenMint);
 }
 
+async function upgradeCustody(
+  poolName: string,
+  tokenMint: PublicKey,
+  isStable: boolean
+) {
+  client.upgradeCustody(poolName, tokenMint, isStable);
+}
+
 async function getUserPosition(
   wallet: PublicKey,
   poolName: string,
@@ -320,7 +328,7 @@ async function getSwapAmountAndFees(
     .argument("<string>", "Pool name")
     .argument("<pubkey>", "Token mint")
     .argument("<pubkey>", "Token oracle account")
-    .argument("<bool>", "Is stable coin (true / false)")
+    .argument("<bool>", "Is stablecoin custody (true / false)")
     .action(async (poolName, tokenMint, tokenOracle, isStable) => {
       await addCustody(
         poolName,
@@ -354,6 +362,20 @@ async function getSwapAmountAndFees(
     .argument("<pubkey>", "Token mint")
     .action(async (poolName, tokenMint) => {
       await removeCustody(poolName, new PublicKey(tokenMint));
+    });
+
+  program
+    .command("upgrade-custody")
+    .description("Upgrade deprecated custody to the new version")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .argument("<bool>", "Is stablecoin custody (true / false)")
+    .action(async (poolName, tokenMint, isStable) => {
+      await upgradeCustody(
+        poolName,
+        new PublicKey(tokenMint),
+        isStable === "true" || isStable === "1" ? true : false
+      );
     });
 
   program

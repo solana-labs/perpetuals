@@ -240,4 +240,26 @@ impl Perpetuals {
 
         anchor_lang::system_program::transfer(cpi_context, amount)
     }
+
+    pub fn realloc<'a>(
+        funding_account: AccountInfo<'a>,
+        target_account: AccountInfo<'a>,
+        system_program: AccountInfo<'a>,
+        new_len: usize,
+        zero_init: bool,
+    ) -> Result<()> {
+        let new_minimum_balance = Rent::get()?.minimum_balance(new_len);
+        let lamports_diff = new_minimum_balance.saturating_sub(target_account.try_lamports()?);
+
+        Perpetuals::transfer_sol(
+            funding_account,
+            target_account.clone(),
+            system_program,
+            lamports_diff,
+        )?;
+
+        target_account
+            .realloc(new_len, zero_init)
+            .map_err(|_| ProgramError::InvalidRealloc.into())
+    }
 }

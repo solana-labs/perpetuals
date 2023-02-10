@@ -34,6 +34,7 @@ pub enum AdminInstruction {
     WithdrawFees,
     SetTestOraclePrice,
     SetTestTime,
+    UpgradeCustody,
 }
 
 impl Multisig {

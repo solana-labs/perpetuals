@@ -178,3 +178,7 @@ impl Custody {
             && self.fees.validate()
     }
 }
+
+impl DeprecatedCustody {
+    pub const LEN: usize = 8 + std::mem::size_of::<DeprecatedCustody>();
+}

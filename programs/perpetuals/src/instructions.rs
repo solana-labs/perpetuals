@@ -6,8 +6,9 @@ pub mod remove_custody;
 pub mod remove_pool;
 pub mod set_admin_signers;
 pub mod set_borrow_rate;
-pub mod set_permissions;
 pub mod set_custody_config;
+pub mod set_permissions;
+pub mod upgrade_custody;
 pub mod withdraw_fees;
 
 // test instructions
@@ -40,8 +41,9 @@ pub use remove_custody::*;
 pub use remove_pool::*;
 pub use set_admin_signers::*;
 pub use set_borrow_rate::*;
-pub use set_permissions::*;
 pub use set_custody_config::*;
+pub use set_permissions::*;
+pub use upgrade_custody::*;
 pub use withdraw_fees::*;
 
 pub use set_test_oracle_price::*;

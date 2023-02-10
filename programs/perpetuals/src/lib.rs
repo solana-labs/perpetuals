@@ -96,6 +96,13 @@ pub mod perpetuals {
         instructions::withdraw_fees(ctx, &params)
     }
 
+    pub fn upgrade_custody<'info>(
+        ctx: Context<'_, '_, '_, 'info, UpgradeCustody<'info>>,
+        params: UpgradeCustodyParams,
+    ) -> Result<u8> {
+        instructions::upgrade_custody(ctx, &params)
+    }
+
     // test instructions
 
     pub fn test_init(ctx: Context<TestInit>, params: TestInitParams) -> Result<()> {
