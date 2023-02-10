@@ -30,7 +30,7 @@ pub struct GetLiquidationPrice<'info> {
         seeds = [b"position",
                  position.owner.as_ref(),
                  pool.key().as_ref(),
-                 pool.tokens[position.token_id as usize].custody.as_ref(),
+                 custody.key().as_ref(),
                  &[position.side as u8]],
         bump = position.bump
     )]

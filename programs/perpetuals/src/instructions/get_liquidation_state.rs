@@ -30,7 +30,7 @@ pub struct GetLiquidationState<'info> {
         seeds = [b"position",
                  position.owner.as_ref(),
                  pool.key().as_ref(),
-                 pool.tokens[position.token_id as usize].custody.as_ref(),
+                 custody.key().as_ref(),
                  &[position.side as u8]],
         bump = position.bump
     )]
@@ -57,7 +57,7 @@ pub struct GetLiquidationStateParams {}
 pub fn get_liquidation_state(
     ctx: Context<GetLiquidationState>,
     _params: &GetLiquidationStateParams,
-) -> Result<u64> {
+) -> Result<u8> {
     let custody = ctx.accounts.custody.as_mut();
     let curtime = ctx.accounts.perpetuals.get_time()?;
 

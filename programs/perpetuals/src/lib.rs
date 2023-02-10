@@ -191,7 +191,7 @@ pub mod perpetuals {
     pub fn get_liquidation_state(
         ctx: Context<GetLiquidationState>,
         params: GetLiquidationStateParams,
-    ) -> Result<u64> {
+    ) -> Result<u8> {
         instructions::get_liquidation_state(ctx, &params)
     }
 

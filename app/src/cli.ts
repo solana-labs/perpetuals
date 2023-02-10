@@ -186,6 +186,14 @@ async function getExitPriceAndFee(
   );
 }
 
+async function getOraclePrice(
+  poolName: string,
+  tokenMint: PublicKey,
+  useEma: boolean
+) {
+  client.prettyPrint(await client.getOraclePrice(poolName, tokenMint, useEma));
+}
+
 async function getLiquidationPrice(
   wallet: PublicKey,
   poolName: string,
@@ -328,13 +336,13 @@ async function getSwapAmountAndFees(
     .argument("<string>", "Pool name")
     .argument("<pubkey>", "Token mint")
     .argument("<pubkey>", "Token oracle account")
-    .argument("<bool>", "Is stablecoin custody (true / false)")
-    .action(async (poolName, tokenMint, tokenOracle, isStable) => {
+    .option("-s, --stablecoin", "Custody is for a stablecoin")
+    .action(async (poolName, tokenMint, tokenOracle, options) => {
       await addCustody(
         poolName,
         new PublicKey(tokenMint),
         new PublicKey(tokenOracle),
-        isStable === "true" || isStable === "1" ? true : false
+        options.stablecoin
       );
     });
 
@@ -369,12 +377,12 @@ async function getSwapAmountAndFees(
     .description("Upgrade deprecated custody to the new version")
     .argument("<string>", "Pool name")
     .argument("<pubkey>", "Token mint")
-    .argument("<bool>", "Is stablecoin custody (true / false)")
-    .action(async (poolName, tokenMint, isStable) => {
+    .option("-s, --stablecoin", "Custody is for a stablecoin")
+    .action(async (poolName, tokenMint, options) => {
       await upgradeCustody(
         poolName,
         new PublicKey(tokenMint),
-        isStable === "true" || isStable === "1" ? true : false
+        options.stablecoin
       );
     });
 
@@ -414,16 +422,16 @@ async function getSwapAmountAndFees(
     .description("Compute price and fee to open a position")
     .argument("<string>", "Pool name")
     .argument("<pubkey>", "Token mint")
+    .argument("<string>", "Position side (long / short)")
     .requiredOption("-c, --collateral <bigint>", "Collateral")
-    .requiredOption("-z, --size <bigint>", "Size")
-    .requiredOption("-d, --side <string>", "Side (long / short")
-    .action(async (poolName, tokenMint, options) => {
+    .requiredOption("-s, --size <bigint>", "Size")
+    .action(async (poolName, tokenMint, side, options) => {
       await getEntryPriceAndFee(
         poolName,
         new PublicKey(tokenMint),
         new BN(options.collateral),
         new BN(options.size),
-        options.side
+        side
       );
     });
 
@@ -441,6 +449,16 @@ async function getSwapAmountAndFees(
         new PublicKey(tokenMint),
         side
       );
+    });
+
+  program
+    .command("get-oracle-price")
+    .description("Read oracle price for the token")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .option("-e, --ema", "Return EMA price")
+    .action(async (poolName, tokenMint, options) => {
+      await getOraclePrice(poolName, new PublicKey(tokenMint), options.ema);
     });
 
   program

@@ -197,6 +197,22 @@ export class PerpetualsClient {
     );
   };
 
+  getPoolTokenPositions = async (poolName: string, tokenMint: PublicKey) => {
+    let poolKey = this.getPoolKey(poolName);
+    let data = encode(Buffer.concat([poolKey.toBuffer(), Buffer.from([0])]));
+    let positions = await this.provider.connection.getProgramAccounts(
+      this.program.programId,
+      {
+        filters: [{ dataSize: 152 }, { memcmp: { bytes: data, offset: 40 } }],
+      }
+    );
+    return Promise.all(
+      positions.map((position) => {
+        return this.program.account.position.fetch(position.pubkey);
+      })
+    );
+  };
+
   getAllPositions = async () => {
     return this.program.account.position.all();
   };
@@ -409,6 +425,42 @@ export class PerpetualsClient {
         systemProgram: SystemProgram.programId,
       })
       .signers([this.admin])
+      .rpc()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
+  };
+
+  liquidate = async (
+    wallet: PublicKey,
+    poolName: string,
+    tokenMint: PublicKey,
+    side: PositionSide,
+    receivingAccount: PublicKey,
+    rewardsReceivingAccount: PublicKey
+  ) => {
+    return await this.program.methods
+      .liquidate({})
+      .accounts({
+        signer: this.provider.wallet.publicKey,
+        receivingAccount,
+        rewardsReceivingAccount,
+        transferAuthority: this.authority.publicKey,
+        perpetuals: this.perpetuals.publicKey,
+        pool: this.getPoolKey(poolName),
+        position: this.getPositionKey(wallet, poolName, tokenMint, side),
+        custody: this.getCustodyKey(poolName, tokenMint),
+        custodyOracleAccount: await this.getCustodyOracleAccountKey(
+          poolName,
+          tokenMint
+        ),
+        custodyTokenAccount: this.getCustodyTokenAccountKey(
+          poolName,
+          tokenMint
+        ),
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
       .rpc()
       .catch((err) => {
         console.error(err);
