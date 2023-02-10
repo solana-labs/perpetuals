@@ -77,18 +77,18 @@ export class TestClient {
     }
 
     // pdas
-    this.multisig = await this.findProgramAddress("multisig");
-    this.authority = await this.findProgramAddress("transfer_authority");
-    this.perpetuals = await this.findProgramAddress("perpetuals");
-    this.pool = await this.findProgramAddress("pool", "test pool");
-    this.lpToken = await this.findProgramAddress("lp_token_mint", [
+    this.multisig = this.findProgramAddress("multisig");
+    this.authority = this.findProgramAddress("transfer_authority");
+    this.perpetuals = this.findProgramAddress("perpetuals");
+    this.pool = this.findProgramAddress("pool", "test pool");
+    this.lpToken = this.findProgramAddress("lp_token_mint", [
       this.pool.publicKey,
     ]);
 
     // custodies
     this.custodies = [];
-    this.custodies.push(await this.generateCustody(9));
-    this.custodies.push(await this.generateCustody(6));
+    this.custodies.push(this.generateCustody(9));
+    this.custodies.push(this.generateCustody(6));
 
     this.custodyMetas = [];
     for (const custody of this.custodies) {
@@ -153,24 +153,20 @@ export class TestClient {
         );
         tokenAccounts.push(tokenAccount);
 
-        let positionAccount = (
-          await this.findProgramAddress("position", [
-            wallet.publicKey,
-            this.pool.publicKey,
-            custody.custody,
-            [1],
-          ])
-        ).publicKey;
+        let positionAccount = this.findProgramAddress("position", [
+          wallet.publicKey,
+          this.pool.publicKey,
+          custody.custody,
+          [1],
+        ]).publicKey;
         positionAccountsLong.push(positionAccount);
 
-        positionAccount = (
-          await this.findProgramAddress("position", [
-            wallet.publicKey,
-            this.pool.publicKey,
-            custody.custody,
-            [2],
-          ])
-        ).publicKey;
+        positionAccount = this.findProgramAddress("position", [
+          wallet.publicKey,
+          this.pool.publicKey,
+          custody.custody,
+          [2],
+        ]).publicKey;
         positionAccountsShort.push(positionAccount);
       }
 
@@ -207,26 +203,20 @@ export class TestClient {
     );
   };
 
-  generateCustody = async (decimals: number) => {
+  generateCustody = (decimals: number) => {
     let mint = Keypair.generate();
-    let tokenAccount = (
-      await this.findProgramAddress("custody_token_account", [
-        this.pool.publicKey,
-        mint.publicKey,
-      ])
-    ).publicKey;
-    let oracleAccount = (
-      await this.findProgramAddress("oracle_account", [
-        this.pool.publicKey,
-        mint.publicKey,
-      ])
-    ).publicKey;
-    let custody = (
-      await this.findProgramAddress("custody", [
-        this.pool.publicKey,
-        mint.publicKey,
-      ])
-    ).publicKey;
+    let tokenAccount = this.findProgramAddress("custody_token_account", [
+      this.pool.publicKey,
+      mint.publicKey,
+    ]).publicKey;
+    let oracleAccount = this.findProgramAddress("oracle_account", [
+      this.pool.publicKey,
+      mint.publicKey,
+    ]).publicKey;
+    let custody = this.findProgramAddress("custody", [
+      this.pool.publicKey,
+      mint.publicKey,
+    ]).publicKey;
     return {
       mint,
       tokenAccount,
@@ -236,7 +226,7 @@ export class TestClient {
     };
   };
 
-  findProgramAddress = async (label: string, extraSeeds = null) => {
+  findProgramAddress = (label: string, extraSeeds = null) => {
     let seeds = [Buffer.from(anchor.utils.bytes.utf8.encode(label))];
     if (extraSeeds) {
       for (let extraSeed of extraSeeds) {
@@ -249,7 +239,7 @@ export class TestClient {
         }
       }
     }
-    let res = await PublicKey.findProgramAddress(seeds, this.program.programId);
+    let res = PublicKey.findProgramAddressSync(seeds, this.program.programId);
     return { publicKey: res[0], bump: res[1] };
   };
 
@@ -567,7 +557,14 @@ export class TestClient {
     }
   };
 
-  setTokenConfig = async (custody, oracleConfig, permissions, fees, ratios) => {
+  setTokenConfig = async (
+    custody,
+    oracleConfig,
+    pricing,
+    permissions,
+    fees,
+    ratios
+  ) => {
     let multisig = await this.program.account.multisig.fetch(
       this.multisig.publicKey
     );
@@ -576,6 +573,7 @@ export class TestClient {
         await this.program.methods
           .setTokenConfig({
             oracle: oracleConfig,
+            pricing,
             permissions,
             fees,
             targetRatio: ratios.target,

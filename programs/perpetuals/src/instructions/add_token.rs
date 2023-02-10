@@ -135,6 +135,7 @@ pub fn add_token<'info>(
 
     // record custody data
     let custody = ctx.accounts.custody.as_mut();
+    custody.pool = pool.key();
     custody.token_account = ctx.accounts.custody_token_account.key();
     custody.mint = ctx.accounts.custody_token_mint.key();
     custody.decimals = ctx.accounts.custody_token_mint.decimals;

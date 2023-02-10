@@ -4,7 +4,7 @@ use {
     crate::{
         error::PerpetualsError,
         state::{
-            custody::{Custody, Fees, OracleParams},
+            custody::{Custody, Fees, OracleParams, PricingParams},
             multisig::{AdminInstruction, Multisig},
             perpetuals::Permissions,
             pool::Pool,
@@ -46,6 +46,7 @@ pub struct SetTokenConfig<'info> {
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct SetTokenConfigParams {
     pub oracle: OracleParams,
+    pub pricing: PricingParams,
     pub permissions: Permissions,
     pub fees: Fees,
     pub target_ratio: u64,
@@ -88,6 +89,7 @@ pub fn set_token_config<'info>(
     // update custody data
     let custody = ctx.accounts.custody.as_mut();
     custody.oracle = params.oracle;
+    custody.pricing = params.pricing;
     custody.permissions = params.permissions;
     custody.fees = params.fees;
 

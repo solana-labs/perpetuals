@@ -1,22 +1,20 @@
-//@ts-nocheck
+/// Command-line interface for basic admin functions
+
 import { BN } from "@project-serum/anchor";
 import { PublicKey } from "@solana/web3.js";
-import { PerpetualsClient } from "./client";
+import { PerpetualsClient, PositionSide } from "./client";
+import { Command } from "commander";
 
-(async function main() {
-  // read args
-  if (process.argv.length < 5) {
-    throw new Error(
-      "Usage: npx ts-node src/cli.ts CLUSTER_URL ADMIN_KEY_PATH COMMAND [PARAMS]"
-    );
-  }
-  let clusterUrl = process.argv[2];
-  let adminKey = process.argv[3];
-  let command = process.argv[4];
-  let poolName = process.argv[5];
-  let tokenMint;
+let client;
 
-  // constants and params, to be loaded from config files
+function initClient(clusterUrl: string, adminKeyPath: string) {
+  process.env["ANCHOR_WALLET"] = adminKeyPath;
+  client = new PerpetualsClient(clusterUrl, [adminKeyPath]);
+  client.log("Client Initialized");
+}
+
+async function init() {
+  // to be loaded from config file
   let perpetualsConfig = {
     minSignatures: 1,
     allowSwap: true,
@@ -28,11 +26,48 @@ import { PerpetualsClient } from "./client";
     allowCollateralWithdrawal: true,
     allowSizeChange: true,
   };
+  client.init(perpetualsConfig);
+}
+
+async function setAuthority(adminSigners: PublicKey[], minSignatures: number) {
+  client.setAdminSigners(adminSigners, minSignatures);
+}
+
+async function getMultisig() {
+  client.prettyPrint(await client.getMultisig());
+}
+
+async function getPerpetuals() {
+  client.prettyPrint(await client.getPerpetuals());
+}
+
+async function addPool(poolName: string) {
+  client.addPool(poolName);
+}
+
+async function getPool(poolName: string) {
+  client.prettyPrint(await client.getPool(poolName));
+}
+
+async function getPools() {
+  client.prettyPrint(await client.getPools());
+}
+
+async function removePool(poolName: string) {
+  client.removePool(poolName);
+}
+
+async function addToken(
+  poolName: string,
+  tokenMint: PublicKey,
+  tokenOracle: PublicKey
+) {
+  // to be loaded from config file
   let oracleConfig = {
     maxPriceError: new BN(10000),
     maxPriceAgeSec: 60,
     oracleType: { pyth: {} },
-    oracleAccount: null,
+    oracleAccount: tokenOracle,
   };
   let pricingConfig = {
     useEma: true,
@@ -70,39 +105,380 @@ import { PerpetualsClient } from "./client";
     max: new BN(20000),
   };
 
-  // init client
-  let client = new PerpetualsClient(clusterUrl, [adminKey]);
-  client.log("Client Initialized");
+  client.addToken(
+    poolName,
+    tokenMint,
+    oracleConfig,
+    pricingConfig,
+    permissions,
+    fees,
+    ratios
+  );
+}
 
-  client.log("Processing command: " + command);
-  switch (command) {
-    case "init":
-      await client.init(perpetualsConfig);
-      client.prettyPrint(await client.getPerpetuals());
-      break;
-    case "addPool":
-      await client.addPool(poolName);
-      client.prettyPrint(await client.getPool(poolName));
-      break;
-    case "removePool":
-      await client.removePool(poolName);
-      break;
-    case "addToken":
-      tokenMint = new PublicKey(process.argv[6]);
-      oracleConfig.oracleAccount = new PublicKey(process.argv[7]);
-      await client.addToken(
-        poolName,
-        tokenMint,
-        oracleConfig,
-        pricingConfig,
-        permissions,
-        fees,
-        ratios
+async function getToken(poolName: string, tokenMint: PublicKey) {
+  client.prettyPrint(await client.getCustody(poolName, tokenMint));
+}
+
+async function getTokens(poolName: string) {
+  client.prettyPrint(await client.getCustodies(poolName));
+}
+
+async function removeToken(poolName: string, tokenMint: PublicKey) {
+  client.removeToken(poolName, tokenMint);
+}
+
+async function getUserPosition(
+  wallet: PublicKey,
+  poolName: string,
+  tokenMint: PublicKey,
+  side: PositionSide
+) {
+  client.prettyPrint(
+    await client.getUserPosition(wallet, poolName, tokenMint, side)
+  );
+}
+
+async function getUserPositions(wallet: PublicKey) {
+  client.prettyPrint(await client.getUserPositions(wallet));
+}
+
+async function getAllPositions() {
+  client.prettyPrint(await client.getAllPositions());
+}
+
+async function getEntryPriceAndFee(
+  poolName: string,
+  tokenMint: PublicKey,
+  collateral: BN,
+  size: BN,
+  side: PositionSide
+) {
+  client.prettyPrint(
+    await client.getEntryPriceAndFee(
+      poolName,
+      tokenMint,
+      collateral,
+      size,
+      side
+    )
+  );
+}
+
+async function getExitPriceAndFee(
+  wallet: PublicKey,
+  poolName: string,
+  tokenMint: PublicKey,
+  side: PositionSide
+) {
+  client.prettyPrint(
+    await client.getExitPriceAndFee(wallet, poolName, tokenMint, side)
+  );
+}
+
+async function getLiquidationPrice(
+  wallet: PublicKey,
+  poolName: string,
+  tokenMint: PublicKey,
+  side: PositionSide
+) {
+  client.prettyPrint(
+    await client.getLiquidationPrice(wallet, poolName, tokenMint, side)
+  );
+}
+
+async function getLiquidationState(
+  wallet: PublicKey,
+  poolName: string,
+  tokenMint: PublicKey,
+  side: PositionSide
+) {
+  client.prettyPrint(
+    await client.getLiquidationState(wallet, poolName, tokenMint, side)
+  );
+}
+
+async function getPnl(
+  wallet: PublicKey,
+  poolName: string,
+  tokenMint: PublicKey,
+  side: PositionSide
+) {
+  client.prettyPrint(await client.getPnl(wallet, poolName, tokenMint, side));
+}
+
+async function getSwapAmountAndFees(
+  poolName: string,
+  tokenMintIn: PublicKey,
+  tokenMintOut: PublicKey,
+  amountIn: BN
+) {
+  client.prettyPrint(
+    await client.getSwapAmountAndFees(
+      poolName,
+      tokenMintIn,
+      tokenMintOut,
+      amountIn
+    )
+  );
+}
+
+(async function main() {
+  const program = new Command();
+  program
+    .name("cli.ts")
+    .description("CLI to Solana Perpetuals Exchange Program")
+    .version("0.1.0")
+    .option(
+      "-u, --url <string>",
+      "URL for Solana's JSON RPC",
+      "https://api.devnet.solana.com"
+    )
+    .requiredOption("-k, --keypair <path>", "Filepath to the admin keypair")
+    .hook("preSubcommand", (thisCommand, subCommand) => {
+      initClient(program.opts().url, program.opts().keypair);
+      client.log(`Processing command '${thisCommand.args[0]}'`);
+    })
+    .hook("postAction", () => {
+      client.log("Done");
+    });
+
+  program
+    .command("init")
+    .description("Initialize the on-chain program")
+    .action(async () => {
+      await init();
+    });
+
+  program
+    .command("set-authority")
+    .description("Set protocol admins")
+    .requiredOption("-m, --min-signatures <int>", "Minimum signatures")
+    .argument("<paths...>", "Filepaths to admin keypairs")
+    .action(async (args, options) => {
+      await setAuthority(
+        args.map((x) => new PublicKey(x)),
+        options.minSignatures
       );
-      client.prettyPrint(await client.getCustody(poolName, tokenMint));
-      break;
-    case "removeToken":
-      await client.removeToken(poolName, tokenMint);
-      break;
+    });
+
+  program
+    .command("get-multisig")
+    .description("Print multisig state")
+    .action(async () => {
+      await getMultisig();
+    });
+
+  program
+    .command("get-perpetuals")
+    .description("Print perpetuals global state")
+    .action(async () => {
+      await getPerpetuals();
+    });
+
+  program
+    .command("add-pool")
+    .description("Create a new pool")
+    .argument("<string>", "Pool name")
+    .action(async (poolName) => {
+      await addPool(poolName);
+    });
+
+  program
+    .command("get-pool")
+    .description("Print metadata for the pool")
+    .argument("<string>", "Pool name")
+    .action(async (poolName) => {
+      await getPool(poolName);
+    });
+
+  program
+    .command("get-pools")
+    .description("Print metadata for all pools")
+    .action(async () => {
+      await getPools();
+    });
+
+  program
+    .command("remove-pool")
+    .description("Remove the pool")
+    .argument("<string>", "Pool name")
+    .action(async (poolName) => {
+      await removePool(poolName);
+    });
+
+  program
+    .command("add-token")
+    .description("Add a new token custody to the pool")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .argument("<pubkey>", "Token oracle account")
+    .action(async (poolName, tokenMint, tokenOracle) => {
+      await addToken(
+        poolName,
+        new PublicKey(tokenMint),
+        new PublicKey(tokenOracle)
+      );
+    });
+
+  program
+    .command("get-token")
+    .description("Print metadata for the token custody")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .action(async (poolName, tokenMint) => {
+      await getToken(poolName, new PublicKey(tokenMint));
+    });
+
+  program
+    .command("get-tokens")
+    .description("Print metadata for all pools")
+    .argument("<string>", "Pool name")
+    .action(async (poolName) => {
+      await getTokens(poolName);
+    });
+
+  program
+    .command("remove-token")
+    .description("Remove the token custody from the pool")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .action(async (poolName, tokenMint) => {
+      await removeToken(poolName, new PublicKey(tokenMint));
+    });
+
+  program
+    .command("get-user-position")
+    .description("Print user position metadata")
+    .argument("<pubkey>", "User wallet")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .argument("<string>", "Position side (long / short)")
+    .action(async (wallet, poolName, tokenMint, side) => {
+      await getUserPosition(
+        new PublicKey(wallet),
+        poolName,
+        new PublicKey(tokenMint),
+        side
+      );
+    });
+
+  program
+    .command("get-user-positions")
+    .description("Print all user positions")
+    .argument("<pubkey>", "User wallet")
+    .action(async (wallet) => {
+      await getUserPositions(new PublicKey(wallet));
+    });
+
+  program
+    .command("get-all-positions")
+    .description("Print all open positions")
+    .action(async () => {
+      await getAllPositions();
+    });
+
+  program
+    .command("get-entry-price-and-fee")
+    .description("Compute price and fee to open a position")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .requiredOption("-c, --collateral <bigint>", "Collateral")
+    .requiredOption("-z, --size <bigint>", "Size")
+    .requiredOption("-d, --side <string>", "Side (long / short")
+    .action(async (poolName, tokenMint, options) => {
+      await getEntryPriceAndFee(
+        poolName,
+        new PublicKey(tokenMint),
+        new BN(options.collateral),
+        new BN(options.size),
+        options.side
+      );
+    });
+
+  program
+    .command("get-exit-price-and-fee")
+    .description("Compute price and fee to close the position")
+    .argument("<pubkey>", "User wallet")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .argument("<string>", "Position side (long / short)")
+    .action(async (wallet, poolName, tokenMint, side) => {
+      await getExitPriceAndFee(
+        new PublicKey(wallet),
+        poolName,
+        new PublicKey(tokenMint),
+        side
+      );
+    });
+
+  program
+    .command("get-liquidation-price")
+    .description("Compute liquidation price for the position")
+    .argument("<pubkey>", "User wallet")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .argument("<string>", "Position side (long / short)")
+    .action(async (wallet, poolName, tokenMint, side) => {
+      await getLiquidationPrice(
+        new PublicKey(wallet),
+        poolName,
+        new PublicKey(tokenMint),
+        side
+      );
+    });
+
+  program
+    .command("get-liquidation-state")
+    .description("Get liquidation state of the position")
+    .argument("<pubkey>", "User wallet")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .argument("<string>", "Position side (long / short)")
+    .action(async (wallet, poolName, tokenMint, side) => {
+      await getLiquidationState(
+        new PublicKey(wallet),
+        poolName,
+        new PublicKey(tokenMint),
+        side
+      );
+    });
+
+  program
+    .command("get-pnl")
+    .description("Compute PnL of the position")
+    .argument("<pubkey>", "User wallet")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .argument("<string>", "Position side (long / short)")
+    .action(async (wallet, poolName, tokenMint, side) => {
+      await getPnl(
+        new PublicKey(wallet),
+        poolName,
+        new PublicKey(tokenMint),
+        side
+      );
+    });
+
+  program
+    .command("get-swap-amount-and-fees")
+    .description("Compute amount out and fees for the swap")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint in")
+    .argument("<pubkey>", "Token mint out")
+    .requiredOption("-i, --amount-in <bigint>", "Token amount to be swapped")
+    .action(async (poolName, tokenMintIn, tokenMintOut, options) => {
+      await getSwapAmountAndFees(
+        poolName,
+        new PublicKey(tokenMintIn),
+        new PublicKey(tokenMintOut),
+        new BN(options.amountIn)
+      );
+    });
+
+  await program.parseAsync(process.argv);
+
+  if (!process.argv.slice(2).length) {
+    program.outputHelp();
   }
 })();

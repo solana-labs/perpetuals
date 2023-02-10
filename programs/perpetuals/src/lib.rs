@@ -181,6 +181,20 @@ pub mod perpetuals {
         instructions::get_liquidation_price(ctx, &params)
     }
 
+    pub fn get_liquidation_state(
+        ctx: Context<GetLiquidationState>,
+        params: GetLiquidationStateParams,
+    ) -> Result<u64> {
+        instructions::get_liquidation_state(ctx, &params)
+    }
+
+    pub fn get_oracle_price(
+        ctx: Context<GetOraclePrice>,
+        params: GetOraclePriceParams,
+    ) -> Result<u64> {
+        instructions::get_oracle_price(ctx, &params)
+    }
+
     pub fn get_swap_amount_and_fees(
         ctx: Context<GetSwapAmountAndFees>,
         params: GetSwapAmountAndFeesParams,

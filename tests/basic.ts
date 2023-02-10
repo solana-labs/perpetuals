@@ -178,8 +178,9 @@ describe("perpetuals", () => {
 
     let token = await tc.program.account.custody.fetch(tc.custodies[0].custody);
     tokenExpected = {
-      tokenAccount: tc.custodies[0].tokenAccount,
+      pool: tc.pool.publicKey,
       mint: tc.custodies[0].mint.publicKey,
+      tokenAccount: tc.custodies[0].tokenAccount,
       decimals: 9,
       oracle: {
         oracleAccount: tc.custodies[0].oracleAccount,
@@ -279,6 +280,7 @@ describe("perpetuals", () => {
     await tc.setTokenConfig(
       tc.custodies[0],
       oracleConfig,
+      pricing,
       permissions,
       fees,
       ratios

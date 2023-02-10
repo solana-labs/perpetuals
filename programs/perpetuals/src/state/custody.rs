@@ -89,8 +89,9 @@ pub struct PricingParams {
 #[account]
 #[derive(Default, Debug)]
 pub struct Custody {
-    pub token_account: Pubkey,
+    pub pool: Pubkey,
     pub mint: Pubkey,
+    pub token_account: Pubkey,
     pub decimals: u8,
     pub oracle: OracleParams,
     pub pricing: PricingParams,
