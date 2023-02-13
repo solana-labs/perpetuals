@@ -81,8 +81,14 @@ pub fn get_pnl(ctx: Context<GetPnl>, _params: &GetPnlParams) -> Result<ProfitAnd
     )?;
 
     // compute pnl
-    let (profit, loss, _) =
-        pool.get_pnl_usd(position, &token_price, &token_ema_price, custody, false)?;
+    let (profit, loss, _) = pool.get_pnl_usd(
+        pool.get_token_id(&custody.key())?,
+        position,
+        &token_price,
+        &token_ema_price,
+        custody,
+        false,
+    )?;
 
     Ok(ProfitAndLoss { profit, loss })
 }

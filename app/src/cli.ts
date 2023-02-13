@@ -138,6 +138,15 @@ async function upgradeCustody(
   client.upgradeCustody(poolName, tokenMint, isStable);
 }
 
+async function setBorrowRate(
+  poolName: string,
+  tokenMint: PublicKey,
+  borrowRate: BN,
+  borrowRateSum: BN
+) {
+  client.setBorrowRate(poolName, tokenMint, borrowRate, borrowRateSum);
+}
+
 async function getUserPosition(
   wallet: PublicKey,
   poolName: string,
@@ -383,6 +392,22 @@ async function getSwapAmountAndFees(
         poolName,
         new PublicKey(tokenMint),
         options.stablecoin
+      );
+    });
+
+  program
+    .command("set-borrow-rate")
+    .description("Set borrow rate for the token")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .requiredOption("-r, --rate <bigint>", "Borrow rate")
+    .requiredOption("-s, --ratesum <bigint>", "Borrow rate sum")
+    .action(async (poolName, tokenMint, options) => {
+      await setBorrowRate(
+        poolName,
+        new PublicKey(tokenMint),
+        new BN(options.rate),
+        new BN(options.ratesum)
       );
     });
 

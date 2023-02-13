@@ -187,7 +187,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
 
     position.owner = ctx.accounts.owner.key();
     position.pool = pool.key();
-    position.token_id = token_id as u16;
+    position.custody = custody.key();
     position.open_time = perpetuals.get_time()?;
     position.update_time = 0;
     position.side = params.side;
@@ -206,7 +206,14 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     // check position risk
     msg!("Check position risks");
     require!(
-        pool.check_leverage(position, &token_price, &token_ema_price, custody, true)?,
+        pool.check_leverage(
+            token_id,
+            position,
+            &token_price,
+            &token_ema_price,
+            custody,
+            true
+        )?,
         PerpetualsError::MaxLeverage
     );
 

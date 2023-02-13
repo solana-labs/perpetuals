@@ -69,7 +69,10 @@ pub fn get_liquidation_price(
         curtime,
     )?;
 
-    ctx.accounts
-        .pool
-        .get_liquidation_price(&ctx.accounts.position, &token_price, custody)
+    ctx.accounts.pool.get_liquidation_price(
+        ctx.accounts.pool.get_token_id(&custody.key())?,
+        &ctx.accounts.position,
+        &token_price,
+        custody,
+    )
 }

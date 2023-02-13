@@ -111,6 +111,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     }
     let position = ctx.accounts.position.as_mut();
     let pool = ctx.accounts.pool.as_mut();
+    let token_id = pool.get_token_id(&custody.key())?;
 
     // compute exit price
     let curtime = perpetuals.get_time()?;
@@ -143,12 +144,20 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     // check position risk
     msg!("Check position risks");
     require!(
-        pool.check_leverage(position, &token_price, &token_ema_price, custody, false)?,
+        pool.check_leverage(
+            token_id,
+            position,
+            &token_price,
+            &token_ema_price,
+            custody,
+            false
+        )?,
         PerpetualsError::MaxLeverage
     );
 
     msg!("Settle position");
     let (transfer_amount, fee_amount, profit_usd, loss_usd) = pool.get_close_amount(
+        token_id,
         position,
         &token_price,
         &token_ema_price,

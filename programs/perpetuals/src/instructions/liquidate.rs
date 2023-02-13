@@ -110,6 +110,7 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
 
     let position = ctx.accounts.position.as_mut();
     let pool = ctx.accounts.pool.as_mut();
+    let token_id = pool.get_token_id(&custody.key())?;
 
     // check if position can be liquidated
     msg!("Check position state");
@@ -132,12 +133,20 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
     )?;
 
     require!(
-        !pool.check_leverage(position, &token_price, &token_ema_price, custody, false)?,
+        !pool.check_leverage(
+            token_id,
+            position,
+            &token_price,
+            &token_ema_price,
+            custody,
+            false
+        )?,
         PerpetualsError::InvalidPositionState
     );
 
     msg!("Settle position");
     let (mut transfer_amount, fee_amount, profit_usd, loss_usd) = pool.get_close_amount(
+        token_id,
         position,
         &token_price,
         &token_ema_price,
@@ -146,7 +155,7 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
         true,
     )?;
 
-    if transfer_amount < custody.assets.owned {
+    if transfer_amount > custody.assets.owned {
         transfer_amount = custody.assets.owned;
     }
 

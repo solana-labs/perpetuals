@@ -432,6 +432,28 @@ export class PerpetualsClient {
       });
   };
 
+  setBorrowRate = async (
+    poolName: string,
+    tokenMint: PublicKey,
+    borrowRate: typeof BN,
+    borrowRateSum: typeof BN
+  ) => {
+    await this.program.methods
+      .setBorrowRate({ borrowRate, borrowRateSum })
+      .accounts({
+        admin: this.admin.publicKey,
+        multisig: this.multisig.publicKey,
+        pool: this.getPoolKey(poolName),
+        custody: this.getCustodyKey(poolName, tokenMint),
+      })
+      .signers([this.admin])
+      .rpc()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
+  };
+
   liquidate = async (
     wallet: PublicKey,
     poolName: string,
