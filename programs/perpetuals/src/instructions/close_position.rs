@@ -181,7 +181,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     );
 
     // unlock pool funds
-    pool.unlock_funds(position.locked_funds, custody)?;
+    pool.unlock_funds(position.size, custody)?;
 
     // transfer tokens
     msg!("Transfer tokens");
@@ -205,6 +205,8 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         .close_position_usd
         .wrapping_add(position.size_usd);
 
+    custody.assets.collateral_usd =
+        math::checked_sub(custody.assets.collateral_usd, position.collateral_usd)?;
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
 
     if position.side == Side::Long {

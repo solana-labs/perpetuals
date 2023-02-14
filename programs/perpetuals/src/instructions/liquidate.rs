@@ -171,7 +171,7 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
     msg!("Reward: {}", reward);
 
     // unlock pool funds
-    pool.unlock_funds(position.locked_funds, custody)?;
+    pool.unlock_funds(position.size, custody)?;
 
     // transfer tokens
     msg!("Transfer tokens");
@@ -201,6 +201,8 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
     custody.volume_stats.liquidation_usd =
         math::checked_add(custody.volume_stats.liquidation_usd, position.size_usd)?;
 
+    custody.assets.collateral_usd =
+        math::checked_sub(custody.assets.collateral_usd, position.collateral_usd)?;
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
 
     if position.side == Side::Long {

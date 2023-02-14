@@ -192,12 +192,12 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     position.update_time = 0;
     position.side = params.side;
     position.price = position_price;
+    position.size = params.size;
     position.size_usd = size_usd;
     position.collateral_usd = collateral_usd;
     position.unrealized_profit_usd = 0;
     position.unrealized_loss_usd = 0;
     position.borrow_rate_sum = custody.borrow_rate_sum;
-    position.locked_funds = params.size;
     position.bump = *ctx
         .bumps
         .get("position")
@@ -242,6 +242,8 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         .open_position_usd
         .wrapping_add(size_usd);
 
+    custody.assets.collateral_usd =
+        math::checked_add(custody.assets.collateral_usd, collateral_usd)?;
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
 
     if params.side == Side::Long {

@@ -178,6 +178,8 @@ pub fn add_collateral(ctx: Context<AddCollateral>, params: &AddCollateralParams)
         .open_position_usd
         .wrapping_add(token_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
 
+    custody.assets.collateral_usd =
+        math::checked_add(custody.assets.collateral_usd, collateral_usd)?;
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
 
     Ok(())

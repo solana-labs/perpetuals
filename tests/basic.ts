@@ -224,7 +224,12 @@ describe("perpetuals", () => {
       },
       borrowRate: "0",
       borrowRateSum: "0",
-      assets: { collateral: "0", protocolFees: "0", owned: "0", locked: "0" },
+      assets: {
+        collateralUsd: "0",
+        protocolFees: "0",
+        owned: "0",
+        locked: "0",
+      },
       collectedFees: {
         swapUsd: "0",
         addLiquidityUsd: "0",
@@ -401,12 +406,12 @@ describe("perpetuals", () => {
       updateTime: "0",
       side: { long: {} },
       price: "124230000",
+      size: "7000000000",
       sizeUsd: "861000000",
       collateralUsd: "123000000",
       unrealizedProfitUsd: "0",
       unrealizedLossUsd: "0",
       borrowRateSum: "5000000",
-      lockedFunds: "7000000000",
       bump: position.bump,
     };
 
@@ -425,7 +430,7 @@ describe("perpetuals", () => {
 
   it("removeCollateral", async () => {
     await tc.removeCollateral(
-      tc.toTokenAmount(1, tc.custodies[0].decimals),
+      tc.toTokenAmount(1, 6),
       tc.users[0],
       tc.users[0].tokenAccounts[0],
       tc.users[0].positionAccountsLong[0],

@@ -89,7 +89,7 @@ pub struct RemoveCollateral<'info> {
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct RemoveCollateralParams {
-    collateral: u64,
+    collateral_usd: u64,
 }
 
 pub fn remove_collateral(
@@ -108,10 +108,10 @@ pub fn remove_collateral(
 
     // validate inputs
     msg!("Validate inputs");
-    if params.collateral == 0 {
+    let position = ctx.accounts.position.as_mut();
+    if params.collateral_usd == 0 || params.collateral_usd >= position.collateral_usd {
         return Err(ProgramError::InvalidArgument.into());
     }
-    let position = ctx.accounts.position.as_mut();
     let pool = ctx.accounts.pool.as_mut();
     let token_id = pool.get_token_id(&custody.key())?;
 
@@ -135,12 +135,12 @@ pub fn remove_collateral(
     )?;
 
     // compute fee
-    let fee_amount =
-        pool.get_remove_liquidity_fee(token_id, params.collateral, custody, &token_price)?;
+    let collateral = token_price.get_token_amount(params.collateral_usd, custody.decimals)?;
+    let fee_amount = pool.get_remove_liquidity_fee(token_id, collateral, custody, &token_price)?;
     msg!("Collected fee: {}", fee_amount);
 
     // compute amount to transfer
-    let transfer_amount = math::checked_sub(params.collateral, fee_amount)?;
+    let transfer_amount = math::checked_sub(collateral, fee_amount)?;
     msg!("Amount out: {}", transfer_amount);
 
     // check pool constraints
@@ -154,14 +154,8 @@ pub fn remove_collateral(
 
     // update existing position
     msg!("Update existing position");
-    let collateral_usd = token_price.get_asset_amount_usd(params.collateral, custody.decimals)?;
-    require_gt!(
-        position.collateral_usd,
-        collateral_usd,
-        PerpetualsError::MaxLeverage
-    );
     position.update_time = perpetuals.get_time()?;
-    position.collateral_usd = math::checked_sub(position.collateral_usd, collateral_usd)?;
+    position.collateral_usd = math::checked_sub(position.collateral_usd, params.collateral_usd)?;
 
     // check position risk
     msg!("Check position risks");
@@ -194,6 +188,8 @@ pub fn remove_collateral(
         .open_position_usd
         .wrapping_add(token_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
 
+    custody.assets.collateral_usd =
+        math::checked_sub(custody.assets.collateral_usd, params.collateral_usd)?;
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
 
     Ok(())

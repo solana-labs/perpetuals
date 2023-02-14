@@ -124,6 +124,7 @@ impl Pool {
         self.get_remove_liquidity_fee(token_id, collateral, custody, token_price)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn get_close_amount(
         &self,
         token_id: usize,

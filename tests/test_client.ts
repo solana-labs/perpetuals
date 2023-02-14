@@ -918,7 +918,7 @@ export class TestClient {
   };
 
   removeCollateral = async (
-    collateral: typeof BN,
+    collateralUsd: typeof BN,
     user,
     receivingAccount: PublicKey,
     positionAccount: PublicKey,
@@ -927,7 +927,7 @@ export class TestClient {
     try {
       await this.program.methods
         .removeCollateral({
-          collateral,
+          collateralUsd,
         })
         .accounts({
           owner: user.wallet.publicKey,

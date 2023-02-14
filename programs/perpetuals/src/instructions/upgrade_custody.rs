@@ -122,7 +122,7 @@ pub fn upgrade_custody<'info>(
     if custody_account.try_data_len()? != DeprecatedCustody::LEN {
         return Err(ProgramError::InvalidAccountData.into());
     }
-    let deprecated_custody = Account::<DeprecatedCustody>::try_from_unchecked(&custody_account)?;
+    let deprecated_custody = Account::<DeprecatedCustody>::try_from_unchecked(custody_account)?;
 
     // update custody data
     let custody_data = Custody {

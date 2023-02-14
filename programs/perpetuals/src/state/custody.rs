@@ -58,7 +58,8 @@ pub struct TradeStats {
 
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
 pub struct Assets {
-    pub collateral: u64,
+    // collateral debt expressed in USD
+    pub collateral_usd: u64,
     // protocol_fees are part of the collected fees that is reserved for the protocol
     pub protocol_fees: u64,
     // owned = total_assets - collateral + collected_fees - protocol_fees
