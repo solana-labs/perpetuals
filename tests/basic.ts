@@ -140,6 +140,7 @@ describe("perpetuals", () => {
       swapSpread: new BN(200),
       minInitialLeverage: new BN(10000),
       maxLeverage: new BN(1000000),
+      maxPayoffMult: new BN(10000),
     };
     permissions = {
       allowSwap: true,
@@ -199,6 +200,7 @@ describe("perpetuals", () => {
         swapSpread: "200",
         minInitialLeverage: "10000",
         maxLeverage: "1000000",
+        maxPayoffMult: "10000",
       },
       permissions: {
         allowSwap: true,
@@ -225,7 +227,7 @@ describe("perpetuals", () => {
       borrowRate: "0",
       borrowRateSum: "0",
       assets: {
-        collateralUsd: "0",
+        collateral: "0",
         protocolFees: "0",
         owned: "0",
         locked: "0",
@@ -406,12 +408,13 @@ describe("perpetuals", () => {
       updateTime: "0",
       side: { long: {} },
       price: "124230000",
-      size: "7000000000",
       sizeUsd: "861000000",
       collateralUsd: "123000000",
       unrealizedProfitUsd: "0",
       unrealizedLossUsd: "0",
       borrowRateSum: "5000000",
+      lockedAmount: "7000000000",
+      collateralAmount: "1000000000",
       bump: position.bump,
     };
 

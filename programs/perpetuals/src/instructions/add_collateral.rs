@@ -130,22 +130,24 @@ pub fn add_collateral(ctx: Context<AddCollateral>, params: &AddCollateralParams)
 
     // compute amount to transfer
     let transfer_amount = math::checked_add(params.collateral, fee_amount)?;
+    let collateral_usd = token_price.get_asset_amount_usd(params.collateral, custody.decimals)?;
     msg!("Amount in: {}", transfer_amount);
+    msg!("Collateral added in USD: {}", collateral_usd);
 
     // check pool constraints
     msg!("Check pool constraints");
     let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
     let deposit_amount = math::checked_sub(transfer_amount, protocol_fee)?;
     require!(
-        pool.check_amount_in_out(token_id, deposit_amount, 0, custody, &token_price)?,
-        PerpetualsError::PoolAmountLimit
+        pool.check_token_ratio(token_id, deposit_amount, 0, custody, &token_price)?,
+        PerpetualsError::TokenRatioOutOfRange
     );
 
     // update existing position
     msg!("Update existing position");
-    let collateral_usd = token_price.get_asset_amount_usd(params.collateral, custody.decimals)?;
     position.update_time = perpetuals.get_time()?;
     position.collateral_usd = math::checked_add(position.collateral_usd, collateral_usd)?;
+    position.collateral_amount = math::checked_add(position.collateral_amount, params.collateral)?;
 
     // check position risk
     msg!("Check position risks");
@@ -178,8 +180,7 @@ pub fn add_collateral(ctx: Context<AddCollateral>, params: &AddCollateralParams)
         .open_position_usd
         .wrapping_add(token_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
 
-    custody.assets.collateral_usd =
-        math::checked_add(custody.assets.collateral_usd, collateral_usd)?;
+    custody.assets.collateral = math::checked_add(custody.assets.collateral, params.collateral)?;
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
 
     Ok(())

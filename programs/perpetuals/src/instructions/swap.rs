@@ -216,20 +216,20 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
     let withdrawal_amount = math::checked_add(no_fee_amount, protocol_fee_out)?;
 
     require!(
-        pool.check_amount_in_out(
+        pool.check_token_ratio(
             token_id_in,
             deposit_amount,
             0,
             receiving_custody,
             &received_token_price
-        )? && pool.check_amount_in_out(
+        )? && pool.check_token_ratio(
             token_id_out,
             0,
             withdrawal_amount,
             dispensing_custody,
             &dispensed_token_price
         )?,
-        PerpetualsError::PoolAmountLimit
+        PerpetualsError::TokenRatioOutOfRange
     );
 
     // transfer tokens

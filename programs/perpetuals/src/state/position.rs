@@ -37,12 +37,13 @@ pub struct Position {
     pub update_time: i64,
     pub side: Side,
     pub price: u64,
-    pub size: u64,
     pub size_usd: u64,
     pub collateral_usd: u64,
     pub unrealized_profit_usd: u64,
     pub unrealized_loss_usd: u64,
     pub borrow_rate_sum: u64,
+    pub locked_amount: u64,
+    pub collateral_amount: u64,
 
     pub bump: u8,
 }

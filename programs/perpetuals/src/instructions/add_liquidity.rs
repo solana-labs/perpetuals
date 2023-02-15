@@ -132,8 +132,8 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
     let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
     let deposit_amount = math::checked_sub(params.amount, protocol_fee)?;
     require!(
-        pool.check_amount_in_out(token_id, deposit_amount, 0, custody, &token_price)?,
-        PerpetualsError::PoolAmountLimit
+        pool.check_token_ratio(token_id, deposit_amount, 0, custody, &token_price)?,
+        PerpetualsError::TokenRatioOutOfRange
     );
 
     // transfer tokens

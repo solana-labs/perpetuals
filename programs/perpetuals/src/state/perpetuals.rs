@@ -200,16 +200,6 @@ impl Perpetuals {
             .ok_or(ProgramError::InsufficientFunds)?;
 
         let source_balance = program_owned_source_account.try_lamports()?;
-
-        if source_balance < amount {
-            msg!(
-                "Error: Not enough funds to withdraw {} lamports from {}",
-                amount,
-                program_owned_source_account.key
-            );
-            return Err(ProgramError::InsufficientFunds.into());
-        }
-
         **program_owned_source_account.try_borrow_mut_lamports()? = source_balance
             .checked_sub(amount)
             .ok_or(ProgramError::InsufficientFunds)?;
@@ -223,15 +213,6 @@ impl Perpetuals {
         system_program: AccountInfo<'a>,
         amount: u64,
     ) -> Result<()> {
-        if source_account.try_lamports()? < amount {
-            msg!(
-                "Error: Not enough funds to withdraw {} lamports from {}",
-                amount,
-                source_account.key
-            );
-            return Err(ProgramError::InsufficientFunds.into());
-        }
-
         let cpi_accounts = anchor_lang::system_program::Transfer {
             from: source_account,
             to: destination_account,

@@ -140,6 +140,9 @@ pub fn remove_collateral(
     msg!("Collected fee: {}", fee_amount);
 
     // compute amount to transfer
+    if collateral > position.collateral_amount {
+        return Err(ProgramError::InsufficientFunds.into());
+    }
     let transfer_amount = math::checked_sub(collateral, fee_amount)?;
     msg!("Amount out: {}", transfer_amount);
 
@@ -148,14 +151,15 @@ pub fn remove_collateral(
     let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
     let withdrawal_amount = math::checked_add(transfer_amount, protocol_fee)?;
     require!(
-        pool.check_amount_in_out(token_id, 0, withdrawal_amount, custody, &token_price)?,
-        PerpetualsError::PoolAmountLimit
+        pool.check_token_ratio(token_id, 0, withdrawal_amount, custody, &token_price)?,
+        PerpetualsError::TokenRatioOutOfRange
     );
 
     // update existing position
     msg!("Update existing position");
     position.update_time = perpetuals.get_time()?;
     position.collateral_usd = math::checked_sub(position.collateral_usd, params.collateral_usd)?;
+    position.collateral_amount = math::checked_sub(position.collateral_amount, collateral)?;
 
     // check position risk
     msg!("Check position risks");
@@ -188,8 +192,7 @@ pub fn remove_collateral(
         .open_position_usd
         .wrapping_add(token_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
 
-    custody.assets.collateral_usd =
-        math::checked_sub(custody.assets.collateral_usd, params.collateral_usd)?;
+    custody.assets.collateral = math::checked_sub(custody.assets.collateral, collateral)?;
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
 
     Ok(())

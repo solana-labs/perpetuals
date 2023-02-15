@@ -145,7 +145,7 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
     );
 
     msg!("Settle position");
-    let (mut transfer_amount, fee_amount, profit_usd, loss_usd) = pool.get_close_amount(
+    let (total_amount_out, fee_amount, profit_usd, loss_usd) = pool.get_close_amount(
         token_id,
         position,
         &token_price,
@@ -155,23 +155,26 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
         true,
     )?;
 
-    if transfer_amount > custody.assets.owned {
-        transfer_amount = custody.assets.owned;
-    }
-
     let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
 
     msg!("Net profit: {}, loss: {}", profit_usd, loss_usd);
     msg!("Collected fee: {}", fee_amount);
 
-    let reward = Pool::get_fee_amount(custody.fees.liquidation, transfer_amount)?;
-    let transfer_amount = math::checked_sub(transfer_amount, reward)?;
+    let reward = Pool::get_fee_amount(custody.fees.liquidation, total_amount_out)?;
+    let user_amount = math::checked_sub(total_amount_out, reward)?;
 
-    msg!("Amount out: {}", transfer_amount);
+    msg!("Amount out: {}", user_amount);
     msg!("Reward: {}", reward);
 
     // unlock pool funds
-    pool.unlock_funds(position.size, custody)?;
+    pool.unlock_funds(position.locked_amount, custody)?;
+
+    // check pool constraints
+    msg!("Check pool constraints");
+    require!(
+        pool.check_available_amount(total_amount_out, custody)?,
+        PerpetualsError::PoolAmountLimit
+    );
 
     // transfer tokens
     msg!("Transfer tokens");
@@ -180,7 +183,7 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
         ctx.accounts.receiving_account.to_account_info(),
         ctx.accounts.transfer_authority.to_account_info(),
         ctx.accounts.token_program.to_account_info(),
-        transfer_amount,
+        user_amount,
     )?;
 
     perpetuals.transfer_tokens(
@@ -201,24 +204,22 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
     custody.volume_stats.liquidation_usd =
         math::checked_add(custody.volume_stats.liquidation_usd, position.size_usd)?;
 
-    custody.assets.collateral_usd =
-        math::checked_sub(custody.assets.collateral_usd, position.collateral_usd)?;
+    let amount_lost = total_amount_out.saturating_sub(position.collateral_amount);
+    custody.assets.owned = math::checked_sub(custody.assets.owned, amount_lost)?;
+    custody.assets.collateral =
+        math::checked_sub(custody.assets.collateral, position.collateral_amount)?;
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
 
     if position.side == Side::Long {
-        if custody.trade_stats.oi_long_usd > position.size_usd {
-            custody.trade_stats.oi_long_usd =
-                math::checked_sub(custody.trade_stats.oi_long_usd, position.size_usd)?;
-        } else {
-            custody.trade_stats.oi_long_usd = 0;
-        }
-    }
-
-    if custody.trade_stats.oi_short_usd > position.size_usd {
-        custody.trade_stats.oi_short_usd =
-            math::checked_sub(custody.trade_stats.oi_short_usd, position.size_usd)?;
+        custody.trade_stats.oi_long_usd = custody
+            .trade_stats
+            .oi_long_usd
+            .saturating_sub(position.size_usd);
     } else {
-        custody.trade_stats.oi_short_usd = 0;
+        custody.trade_stats.oi_short_usd = custody
+            .trade_stats
+            .oi_short_usd
+            .saturating_sub(position.size_usd);
     }
 
     custody.trade_stats.profit_usd = custody.trade_stats.profit_usd.wrapping_add(profit_usd);

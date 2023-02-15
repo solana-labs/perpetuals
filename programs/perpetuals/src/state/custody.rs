@@ -58,8 +58,8 @@ pub struct TradeStats {
 
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
 pub struct Assets {
-    // collateral debt expressed in USD
-    pub collateral_usd: u64,
+    // collateral debt
+    pub collateral: u64,
     // protocol_fees are part of the collected fees that is reserved for the protocol
     pub protocol_fees: u64,
     // owned = total_assets - collateral + collected_fees - protocol_fees
@@ -85,6 +85,8 @@ pub struct PricingParams {
     pub swap_spread: u64,
     pub min_initial_leverage: u64,
     pub max_leverage: u64,
+    // max_user_profit = position_size * max_payoff_mult
+    pub max_payoff_mult: u64,
 }
 
 #[account]
@@ -161,10 +163,12 @@ impl OracleParams {
 
 impl PricingParams {
     pub fn validate(&self) -> bool {
-        self.min_initial_leverage <= self.max_leverage
+        (self.min_initial_leverage as u128) >= Perpetuals::BPS_POWER
+            && self.min_initial_leverage <= self.max_leverage
             && (self.trade_spread_long as u128) < Perpetuals::BPS_POWER
             && (self.trade_spread_short as u128) < Perpetuals::BPS_POWER
             && (self.swap_spread as u128) < Perpetuals::BPS_POWER
+            && self.max_payoff_mult > 0
     }
 }
 

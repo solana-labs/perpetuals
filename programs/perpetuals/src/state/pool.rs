@@ -162,8 +162,14 @@ impl Pool {
         };
 
         let close_amount = token_price.get_token_amount(close_amount_usd, custody.decimals)?;
+        let max_amount = math::checked_add(position.locked_amount, position.collateral_amount)?;
 
-        Ok((close_amount, fee_amount, profit_usd, loss_usd))
+        Ok((
+            std::cmp::min(max_amount, close_amount),
+            fee_amount,
+            profit_usd,
+            loss_usd,
+        ))
     }
 
     pub fn get_swap_price(
@@ -301,7 +307,7 @@ impl Pool {
         )
     }
 
-    pub fn check_amount_in_out(
+    pub fn check_token_ratio(
         &self,
         token_id: usize,
         amount_add: u64,
@@ -313,6 +319,14 @@ impl Pool {
 
         Ok(new_ratio <= self.tokens[token_id].max_ratio
             && new_ratio >= self.tokens[token_id].min_ratio)
+    }
+
+    pub fn check_available_amount(&self, amount: u64, custody: &Custody) -> Result<bool> {
+        let available_amount = math::checked_sub(
+            math::checked_add(custody.assets.owned, custody.assets.collateral)?,
+            custody.assets.locked,
+        )?;
+        Ok(available_amount >= amount)
     }
 
     pub fn get_interest_amount_usd(&self, position: &Position, custody: &Custody) -> Result<u64> {
@@ -344,10 +358,6 @@ impl Pool {
             custody,
             false,
         )?;
-
-        if profit_usd >= position.size_usd {
-            return Ok(u64::MAX);
-        }
 
         let current_margin_usd = if profit_usd > 0 {
             math::checked_add(position.collateral_usd, profit_usd)?
@@ -523,8 +533,11 @@ impl Pool {
                 math::checked_add(potential_profit_usd, position.unrealized_profit_usd)?;
 
             if potential_profit_usd >= unrealized_loss_usd {
+                let cur_profit_usd = math::checked_sub(potential_profit_usd, unrealized_loss_usd)?;
+                let max_profit_usd =
+                    token_price.get_asset_amount_usd(position.locked_amount, custody.decimals)?;
                 Ok((
-                    math::checked_sub(potential_profit_usd, unrealized_loss_usd)?,
+                    std::cmp::min(max_profit_usd, cur_profit_usd),
                     0u64,
                     exit_fee,
                 ))
@@ -553,8 +566,12 @@ impl Pool {
                     exit_fee,
                 ))
             } else {
+                let cur_profit_usd =
+                    math::checked_sub(position.unrealized_profit_usd, potential_loss_usd)?;
+                let max_profit_usd =
+                    token_price.get_asset_amount_usd(position.locked_amount, custody.decimals)?;
                 Ok((
-                    math::checked_sub(position.unrealized_profit_usd, potential_loss_usd)?,
+                    std::cmp::min(max_profit_usd, cur_profit_usd),
                     0u64,
                     exit_fee,
                 ))
@@ -840,6 +857,7 @@ mod test {
             swap_spread: 300,
             min_initial_leverage: 10000,
             max_leverage: 100000,
+            max_payoff_mult: 10000,
         };
 
         let permissions = Permissions {
@@ -882,6 +900,8 @@ mod test {
             price: scale(120, Perpetuals::PRICE_DECIMALS),
             size_usd: scale(1000, Perpetuals::USD_DECIMALS),
             collateral_usd: scale(200, Perpetuals::USD_DECIMALS),
+            locked_amount: scale(9, 5),
+            collateral_amount: scale(1, 5),
             ..Position::default()
         };
 

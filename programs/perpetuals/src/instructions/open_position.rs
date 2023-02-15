@@ -176,8 +176,8 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
     let deposit_amount = math::checked_sub(transfer_amount, protocol_fee)?;
     require!(
-        pool.check_amount_in_out(token_id, deposit_amount, 0, custody, &token_price)?,
-        PerpetualsError::PoolAmountLimit
+        pool.check_token_ratio(token_id, deposit_amount, 0, custody, &token_price)?,
+        PerpetualsError::TokenRatioOutOfRange
     );
 
     // init new position
@@ -192,12 +192,16 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     position.update_time = 0;
     position.side = params.side;
     position.price = position_price;
-    position.size = params.size;
     position.size_usd = size_usd;
     position.collateral_usd = collateral_usd;
     position.unrealized_profit_usd = 0;
     position.unrealized_loss_usd = 0;
     position.borrow_rate_sum = custody.borrow_rate_sum;
+    position.locked_amount = math::checked_as_u64(math::checked_div(
+        math::checked_mul(params.size as u128, custody.pricing.max_payoff_mult as u128)?,
+        Perpetuals::BPS_POWER,
+    )?)?;
+    position.collateral_amount = params.collateral;
     position.bump = *ctx
         .bumps
         .get("position")
@@ -205,6 +209,10 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
 
     // check position risk
     msg!("Check position risks");
+    require!(
+        position.locked_amount > 0,
+        PerpetualsError::InsufficientAmountReturned
+    );
     require!(
         pool.check_leverage(
             token_id,
@@ -218,7 +226,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     );
 
     // lock funds for potential profit payoff
-    pool.lock_funds(params.size, custody)?;
+    pool.lock_funds(position.locked_amount, custody)?;
 
     // transfer tokens
     msg!("Transfer tokens");
@@ -242,8 +250,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         .open_position_usd
         .wrapping_add(size_usd);
 
-    custody.assets.collateral_usd =
-        math::checked_add(custody.assets.collateral_usd, collateral_usd)?;
+    custody.assets.collateral = math::checked_add(custody.assets.collateral, params.collateral)?;
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
 
     if params.side == Side::Long {

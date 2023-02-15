@@ -42,6 +42,8 @@ pub enum PerpetualsError {
     MaxLeverage,
     #[msg("Pool amount limit exceeded")]
     PoolAmountLimit,
+    #[msg("Token ratio out of range")]
+    TokenRatioOutOfRange,
     #[msg("Token is not supported")]
     UnsupportedToken,
     #[msg("Instruction is not allowed at this time")]

@@ -141,20 +141,6 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         require_gte!(params.price, exit_price, PerpetualsError::MaxPriceSlippage);
     }
 
-    // check position risk
-    msg!("Check position risks");
-    require!(
-        pool.check_leverage(
-            token_id,
-            position,
-            &token_price,
-            &token_ema_price,
-            custody,
-            false
-        )?,
-        PerpetualsError::MaxLeverage
-    );
-
     msg!("Settle position");
     let (transfer_amount, fee_amount, profit_usd, loss_usd) = pool.get_close_amount(
         token_id,
@@ -167,21 +153,20 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     )?;
 
     let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
-    require!(transfer_amount > 0, PerpetualsError::MaxLeverage);
 
     msg!("Net profit: {}, loss: {}", profit_usd, loss_usd);
     msg!("Collected fee: {}", fee_amount);
     msg!("Amount out: {}", transfer_amount);
 
+    // unlock pool funds
+    pool.unlock_funds(position.locked_amount, custody)?;
+
     // check pool constraints
     msg!("Check pool constraints");
     require!(
-        transfer_amount <= custody.assets.owned,
+        pool.check_available_amount(transfer_amount, custody)?,
         PerpetualsError::PoolAmountLimit
     );
-
-    // unlock pool funds
-    pool.unlock_funds(position.size, custody)?;
 
     // transfer tokens
     msg!("Transfer tokens");
@@ -205,24 +190,22 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         .close_position_usd
         .wrapping_add(position.size_usd);
 
-    custody.assets.collateral_usd =
-        math::checked_sub(custody.assets.collateral_usd, position.collateral_usd)?;
+    let amount_lost = transfer_amount.saturating_sub(position.collateral_amount);
+    custody.assets.owned = math::checked_sub(custody.assets.owned, amount_lost)?;
+    custody.assets.collateral =
+        math::checked_sub(custody.assets.collateral, position.collateral_amount)?;
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
 
     if position.side == Side::Long {
-        if custody.trade_stats.oi_long_usd > position.size_usd {
-            custody.trade_stats.oi_long_usd =
-                math::checked_sub(custody.trade_stats.oi_long_usd, position.size_usd)?;
-        } else {
-            custody.trade_stats.oi_long_usd = 0;
-        }
-    }
-
-    if custody.trade_stats.oi_short_usd > position.size_usd {
-        custody.trade_stats.oi_short_usd =
-            math::checked_sub(custody.trade_stats.oi_short_usd, position.size_usd)?;
+        custody.trade_stats.oi_long_usd = custody
+            .trade_stats
+            .oi_long_usd
+            .saturating_sub(position.size_usd);
     } else {
-        custody.trade_stats.oi_short_usd = 0;
+        custody.trade_stats.oi_short_usd = custody
+            .trade_stats
+            .oi_short_usd
+            .saturating_sub(position.size_usd);
     }
 
     custody.trade_stats.profit_usd = custody.trade_stats.profit_usd.wrapping_add(profit_usd);
