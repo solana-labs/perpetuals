@@ -12,6 +12,7 @@ describe("perpetuals", () => {
   let pricing;
   let permissions;
   let fees;
+  let borrowRate;
   let ratios;
   let isStable;
   let perpetualsExpected;
@@ -164,6 +165,12 @@ describe("perpetuals", () => {
       liquidation: new BN(100),
       protocolShare: new BN(10),
     };
+    borrowRate = {
+      baseRate: new BN(0),
+      slope1: new BN(80000),
+      slope2: new BN(120000),
+      optimalUtilization: new BN(800000000),
+    };
     ratios = {
       target: new BN(5000),
       min: new BN(10),
@@ -177,6 +184,7 @@ describe("perpetuals", () => {
       pricing,
       permissions,
       fees,
+      borrowRate,
       ratios
     );
 
@@ -224,8 +232,12 @@ describe("perpetuals", () => {
         liquidation: "100",
         protocolShare: "10",
       },
-      borrowRate: "0",
-      borrowRateSum: "0",
+      borrowRate: {
+        baseRate: "0",
+        slope1: "80000",
+        slope2: "120000",
+        optimalUtilization: "800000000",
+      },
       assets: {
         collateral: "0",
         protocolFees: "0",
@@ -254,6 +266,11 @@ describe("perpetuals", () => {
         oiLongUsd: "0",
         oiShortUsd: "0",
       },
+      borrowRateState: {
+        currentRate: "0",
+        cumulativeInterest: "0",
+        lastUpdate: "0",
+      },
       bump: token.bump,
       tokenAccountBump: token.tokenAccountBump,
     };
@@ -268,6 +285,7 @@ describe("perpetuals", () => {
       pricing,
       permissions,
       fees,
+      borrowRate,
       ratios
     );
 
@@ -281,6 +299,7 @@ describe("perpetuals", () => {
       pricing,
       permissions,
       fees,
+      borrowRate,
       ratios
     );
   });
@@ -297,6 +316,7 @@ describe("perpetuals", () => {
       pricing,
       permissions,
       fees,
+      borrowRate,
       ratios
     );
 
@@ -304,15 +324,6 @@ describe("perpetuals", () => {
     tokenExpected.oracle.maxPriceAgeSec = 90;
     tokenExpected.permissions.allowPnlWithdrawal = false;
     tokenExpected.fees.liquidation = "200";
-    expect(JSON.stringify(token)).to.equal(JSON.stringify(tokenExpected));
-  });
-
-  it("setBorrowRate", async () => {
-    await tc.setBorrowRate(tc.custodies[0], new BN(200), new BN(5000000));
-
-    let token = await tc.program.account.custody.fetch(tc.custodies[0].custody);
-    tokenExpected.borrowRate = "200";
-    tokenExpected.borrowRateSum = "5000000";
     expect(JSON.stringify(token)).to.equal(JSON.stringify(tokenExpected));
   });
 
@@ -412,7 +423,7 @@ describe("perpetuals", () => {
       collateralUsd: "123000000",
       unrealizedProfitUsd: "0",
       unrealizedLossUsd: "0",
-      borrowRateSum: "5000000",
+      cumulativeInterestSnapshot: "0",
       lockedAmount: "7000000000",
       collateralAmount: "1000000000",
       bump: position.bump,

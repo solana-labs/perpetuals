@@ -198,6 +198,8 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
 
     custody.assets.owned = math::checked_add(custody.assets.owned, deposit_amount)?;
 
+    custody.update_borrow_rate(curtime)?;
+
     // update pool stats
     msg!("Update pool stats");
     pool.aum_usd = pool_amount_usd;

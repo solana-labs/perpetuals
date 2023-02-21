@@ -75,13 +75,6 @@ pub mod perpetuals {
         instructions::set_custody_config(ctx, &params)
     }
 
-    pub fn set_borrow_rate<'info>(
-        ctx: Context<'_, '_, '_, 'info, SetBorrowRate<'info>>,
-        params: SetBorrowRateParams,
-    ) -> Result<u8> {
-        instructions::set_borrow_rate(ctx, &params)
-    }
-
     pub fn set_permissions<'info>(
         ctx: Context<'_, '_, '_, 'info, SetPermissions<'info>>,
         params: SetPermissionsParams,

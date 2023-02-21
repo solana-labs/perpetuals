@@ -82,7 +82,7 @@ pub fn add_pool<'info>(
     params: &AddPoolParams,
 ) -> Result<u8> {
     // validate inputs
-    if params.name.is_empty() {
+    if params.name.is_empty() || params.name.len() > 64 {
         return Err(ProgramError::InvalidArgument.into());
     }
 
@@ -109,6 +109,7 @@ pub fn add_pool<'info>(
         // return error if pool is already initialized
         return Err(ProgramError::AccountAlreadyInitialized.into());
     }
+    msg!("Record pool: {}", params.name);
     pool.inception_time = perpetuals.get_time()?;
     pool.name = params.name.clone();
     pool.bump = *ctx.bumps.get("pool").ok_or(ProgramError::InvalidSeeds)?;

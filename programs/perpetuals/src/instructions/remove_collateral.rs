@@ -170,6 +170,7 @@ pub fn remove_collateral(
             &token_price,
             &token_ema_price,
             custody,
+            curtime,
             false
         )?,
         PerpetualsError::MaxLeverage

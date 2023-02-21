@@ -4,7 +4,7 @@ use {
     crate::{
         error::PerpetualsError,
         state::{
-            custody::{Custody, Fees, OracleParams, PricingParams},
+            custody::{BorrowRateParams, Custody, Fees, OracleParams, PricingParams},
             multisig::{AdminInstruction, Multisig},
             perpetuals::Permissions,
             pool::Pool,
@@ -50,6 +50,7 @@ pub struct SetCustodyConfigParams {
     pub pricing: PricingParams,
     pub permissions: Permissions,
     pub fees: Fees,
+    pub borrow_rate: BorrowRateParams,
     pub target_ratio: u64,
     pub min_ratio: u64,
     pub max_ratio: u64,
@@ -94,6 +95,7 @@ pub fn set_custody_config<'info>(
     custody.pricing = params.pricing;
     custody.permissions = params.permissions;
     custody.fees = params.fees;
+    custody.borrow_rate = params.borrow_rate;
 
     if !custody.validate() {
         err!(PerpetualsError::InvalidCustodyConfig)

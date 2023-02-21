@@ -348,6 +348,7 @@ export class PerpetualsClient {
     pricingConfig,
     permissions,
     fees,
+    borrowRate,
     ratios
   ) => {
     await this.program.methods
@@ -357,6 +358,7 @@ export class PerpetualsClient {
         pricing: pricingConfig,
         permissions,
         fees,
+        borrowRate,
         targetRatio: ratios.target,
         minRatio: ratios.min,
         maxRatio: ratios.max,
@@ -410,41 +412,15 @@ export class PerpetualsClient {
       });
   };
 
-  upgradeCustody = async (
-    poolName: string,
-    tokenMint: PublicKey,
-    isStable: boolean
-  ) => {
+  upgradeCustody = async (poolName: string, tokenMint: PublicKey) => {
     await this.program.methods
-      .upgradeCustody({ isStable })
+      .upgradeCustody({})
       .accounts({
         admin: this.admin.publicKey,
         multisig: this.multisig.publicKey,
         pool: this.getPoolKey(poolName),
         custody: this.getCustodyKey(poolName, tokenMint),
         systemProgram: SystemProgram.programId,
-      })
-      .signers([this.admin])
-      .rpc()
-      .catch((err) => {
-        console.error(err);
-        throw err;
-      });
-  };
-
-  setBorrowRate = async (
-    poolName: string,
-    tokenMint: PublicKey,
-    borrowRate: typeof BN,
-    borrowRateSum: typeof BN
-  ) => {
-    await this.program.methods
-      .setBorrowRate({ borrowRate, borrowRateSum })
-      .accounts({
-        admin: this.admin.publicKey,
-        multisig: this.multisig.publicKey,
-        pool: this.getPoolKey(poolName),
-        custody: this.getCustodyKey(poolName, tokenMint),
       })
       .signers([this.admin])
       .rpc()

@@ -158,6 +158,7 @@ pub fn add_collateral(ctx: Context<AddCollateral>, params: &AddCollateralParams)
             &token_price,
             &token_ema_price,
             custody,
+            curtime,
             false
         )?,
         PerpetualsError::MaxLeverage

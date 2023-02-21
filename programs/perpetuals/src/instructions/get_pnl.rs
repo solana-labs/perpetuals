@@ -87,6 +87,7 @@ pub fn get_pnl(ctx: Context<GetPnl>, _params: &GetPnlParams) -> Result<ProfitAnd
         &token_price,
         &token_ema_price,
         custody,
+        curtime,
         false,
     )?;
 

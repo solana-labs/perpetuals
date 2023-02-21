@@ -287,5 +287,8 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
     dispensing_custody.assets.owned =
         math::checked_sub(dispensing_custody.assets.owned, withdrawal_amount)?;
 
+    receiving_custody.update_borrow_rate(curtime)?;
+    dispensing_custody.update_borrow_rate(curtime)?;
+
     Ok(())
 }

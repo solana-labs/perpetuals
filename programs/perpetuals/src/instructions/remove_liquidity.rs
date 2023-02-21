@@ -195,6 +195,8 @@ pub fn remove_liquidity(
 
     custody.assets.owned = math::checked_sub(custody.assets.owned, withdrawal_amount)?;
 
+    custody.update_borrow_rate(curtime)?;
+
     // update pool stats
     msg!("Update pool stats");
     pool.aum_usd = pool_amount_usd;

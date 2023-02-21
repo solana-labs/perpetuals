@@ -4,7 +4,7 @@ use {
     crate::{
         error::PerpetualsError,
         state::{
-            custody::{Custody, Fees, OracleParams, PricingParams},
+            custody::{BorrowRateParams, Custody, Fees, OracleParams, PricingParams},
             multisig::{AdminInstruction, Multisig},
             perpetuals::{Permissions, Perpetuals},
             pool::{Pool, PoolToken},
@@ -88,6 +88,7 @@ pub struct AddCustodyParams {
     pub pricing: PricingParams,
     pub permissions: Permissions,
     pub fees: Fees,
+    pub borrow_rate: BorrowRateParams,
     pub target_ratio: u64,
     pub min_ratio: u64,
     pub max_ratio: u64,
@@ -145,6 +146,9 @@ pub fn add_custody<'info>(
     custody.pricing = params.pricing;
     custody.permissions = params.permissions;
     custody.fees = params.fees;
+    custody.borrow_rate = params.borrow_rate;
+    custody.borrow_rate_state.current_rate = params.borrow_rate.base_rate;
+    custody.borrow_rate_state.last_update = ctx.accounts.perpetuals.get_time()?;
     custody.bump = *ctx.bumps.get("custody").ok_or(ProgramError::InvalidSeeds)?;
     custody.token_account_bump = *ctx
         .bumps

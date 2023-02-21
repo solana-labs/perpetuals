@@ -83,6 +83,7 @@ pub fn get_liquidation_state(
         &token_price,
         &token_ema_price,
         custody,
+        curtime,
         false,
     )? {
         Ok(0)

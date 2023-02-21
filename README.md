@@ -37,7 +37,7 @@ cargo test -- --nocapture
 Integration tests can be started as follows:
 
 ```sh
-anchor test
+anchor test -- --features test
 ```
 
 By default, integration tests are executed on a local validator, so it won't cost you any SOL.

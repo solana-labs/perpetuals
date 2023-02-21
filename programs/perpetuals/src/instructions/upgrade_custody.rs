@@ -4,7 +4,7 @@ use {
     crate::{
         error::PerpetualsError,
         state::{
-            custody::{Custody, DeprecatedCustody},
+            custody::{BorrowRateParams, BorrowRateState, Custody, DeprecatedCustody},
             multisig::{AdminInstruction, Multisig},
             perpetuals::Perpetuals,
             pool::Pool,
@@ -90,7 +90,7 @@ pub struct UpgradeCustody<'info> {
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct UpgradeCustodyParams {
-    is_stable: bool,
+    borrow_rate: BorrowRateParams,
 }
 
 pub fn upgrade_custody<'info>(
@@ -124,23 +124,29 @@ pub fn upgrade_custody<'info>(
     }
     let deprecated_custody = Account::<DeprecatedCustody>::try_from_unchecked(custody_account)?;
 
+    let borrow_rate_state = BorrowRateState {
+        current_rate: deprecated_custody.borrow_rate,
+        cumulative_interest: deprecated_custody.borrow_rate_sum as u128,
+        last_update: 0,
+    };
+
     // update custody data
     let custody_data = Custody {
-        pool: ctx.accounts.pool.key(),
+        pool: deprecated_custody.pool,
         mint: deprecated_custody.mint,
         token_account: deprecated_custody.token_account,
         decimals: deprecated_custody.decimals,
-        is_stable: params.is_stable,
+        is_stable: deprecated_custody.is_stable,
         oracle: deprecated_custody.oracle,
         pricing: deprecated_custody.pricing,
         permissions: deprecated_custody.permissions,
         fees: deprecated_custody.fees,
-        borrow_rate: deprecated_custody.borrow_rate,
-        borrow_rate_sum: deprecated_custody.borrow_rate_sum,
+        borrow_rate: params.borrow_rate,
         assets: deprecated_custody.assets,
         collected_fees: deprecated_custody.collected_fees,
         volume_stats: deprecated_custody.volume_stats,
         trade_stats: deprecated_custody.trade_stats,
+        borrow_rate_state,
         bump: deprecated_custody.bump,
         token_account_bump: deprecated_custody.token_account_bump,
     };

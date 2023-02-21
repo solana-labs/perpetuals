@@ -487,6 +487,7 @@ export class TestClient {
     pricing,
     permissions,
     fees,
+    borrowRate,
     ratios
   ) => {
     let multisig = await this.program.account.multisig.fetch(
@@ -501,6 +502,7 @@ export class TestClient {
             pricing,
             permissions,
             fees,
+            borrowRate,
             targetRatio: ratios.target,
             minRatio: ratios.min,
             maxRatio: ratios.max,
@@ -566,6 +568,7 @@ export class TestClient {
     pricing,
     permissions,
     fees,
+    borrowRate,
     ratios
   ) => {
     let multisig = await this.program.account.multisig.fetch(
@@ -580,41 +583,10 @@ export class TestClient {
             pricing,
             permissions,
             fees,
+            borrowRate,
             targetRatio: ratios.target,
             minRatio: ratios.min,
             maxRatio: ratios.max,
-          })
-          .accounts({
-            admin: this.admins[i].publicKey,
-            multisig: this.multisig.publicKey,
-            pool: this.pool.publicKey,
-            custody: custody.custody,
-          })
-          .signers([this.admins[i]])
-          .rpc();
-      } catch (err) {
-        if (this.printErrors) {
-          console.log(err);
-        }
-        throw err;
-      }
-    }
-  };
-
-  setBorrowRate = async (
-    custody,
-    borrowRate: typeof BN,
-    borrowRateSum: typeof BN
-  ) => {
-    let multisig = await this.program.account.multisig.fetch(
-      this.multisig.publicKey
-    );
-    for (let i = 0; i < multisig.minSignatures; ++i) {
-      try {
-        await this.program.methods
-          .setBorrowRate({
-            borrowRate,
-            borrowRateSum,
           })
           .accounts({
             admin: this.admins[i].publicKey,

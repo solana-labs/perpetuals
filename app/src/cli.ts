@@ -100,6 +100,12 @@ async function addCustody(
     liquidation: new BN(100),
     protocolShare: new BN(10),
   };
+  let borrowRate = {
+    baseRate: new BN(0),
+    slope1: new BN(80000),
+    slope2: new BN(120000),
+    optimalUtilization: new BN(800000000),
+  };
   let ratios = {
     target: new BN(5000),
     min: new BN(10),
@@ -114,6 +120,7 @@ async function addCustody(
     pricingConfig,
     permissions,
     fees,
+    borrowRate,
     ratios
   );
 }
@@ -130,21 +137,8 @@ async function removeCustody(poolName: string, tokenMint: PublicKey) {
   client.removeCustody(poolName, tokenMint);
 }
 
-async function upgradeCustody(
-  poolName: string,
-  tokenMint: PublicKey,
-  isStable: boolean
-) {
-  client.upgradeCustody(poolName, tokenMint, isStable);
-}
-
-async function setBorrowRate(
-  poolName: string,
-  tokenMint: PublicKey,
-  borrowRate: BN,
-  borrowRateSum: BN
-) {
-  client.setBorrowRate(poolName, tokenMint, borrowRate, borrowRateSum);
+async function upgradeCustody(poolName: string, tokenMint: PublicKey) {
+  client.upgradeCustody(poolName, tokenMint);
 }
 
 async function getUserPosition(
@@ -386,29 +380,8 @@ async function getSwapAmountAndFees(
     .description("Upgrade deprecated custody to the new version")
     .argument("<string>", "Pool name")
     .argument("<pubkey>", "Token mint")
-    .option("-s, --stablecoin", "Custody is for a stablecoin")
     .action(async (poolName, tokenMint, options) => {
-      await upgradeCustody(
-        poolName,
-        new PublicKey(tokenMint),
-        options.stablecoin
-      );
-    });
-
-  program
-    .command("set-borrow-rate")
-    .description("Set borrow rate for the token")
-    .argument("<string>", "Pool name")
-    .argument("<pubkey>", "Token mint")
-    .requiredOption("-r, --rate <bigint>", "Borrow rate")
-    .requiredOption("-s, --ratesum <bigint>", "Borrow rate sum")
-    .action(async (poolName, tokenMint, options) => {
-      await setBorrowRate(
-        poolName,
-        new PublicKey(tokenMint),
-        new BN(options.rate),
-        new BN(options.ratesum)
-      );
+      await upgradeCustody(poolName, new PublicKey(tokenMint));
     });
 
   program
