@@ -1,5 +1,9 @@
 //! Init instruction handler
 
+use anchor_spl::token::Mint;
+
+use crate::{math, state::cortex::Cortex};
+
 use {
     crate::{
         error::PerpetualsError,
@@ -33,6 +37,26 @@ pub struct Init<'info> {
         bump
     )]
     pub transfer_authority: AccountInfo<'info>,
+
+    #[account(
+        init,
+        payer = upgrade_authority,
+        space = Cortex::LEN,
+        seeds = [b"cortex"],
+        bump
+    )]
+    pub cortex: Box<Account<'info, Cortex>>,
+
+    #[account(
+        init,
+        payer = upgrade_authority,
+        mint::authority = transfer_authority,
+        mint::freeze_authority = transfer_authority,
+        mint::decimals = Perpetuals::LM_DECIMALS,
+        seeds = [b"lm_token_mint"],
+        bump
+    )]
+    pub lm_token_mint: Box<Account<'info, Mint>>,
 
     #[account(
         init,
@@ -106,6 +130,15 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
     if !perpetuals.validate() {
         return err!(PerpetualsError::InvalidPerpetualsConfig);
     }
+
+    // record cortex
+    let cortex = ctx.accounts.cortex.as_mut();
+    cortex.lm_token_bump = *ctx
+        .bumps
+        .get("lm_token_mint")
+        .ok_or(ProgramError::InvalidSeeds)?;
+    cortex.cortex_bump = *ctx.bumps.get("cortex").ok_or(ProgramError::InvalidSeeds)?;
+    cortex.inception_epoch = cortex.get_epoch()?;
 
     Ok(())
 }

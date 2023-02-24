@@ -151,6 +151,7 @@ pub fn upgrade_custody<'info>(
         borrow_rate: deprecated_custody.borrow_rate,
         assets: deprecated_custody.assets,
         collected_fees: deprecated_custody.collected_fees,
+        distributed_rewards: deprecated_custody.distributed_rewards,
         volume_stats: deprecated_custody.volume_stats,
         trade_stats: deprecated_custody.trade_stats,
         long_positions: PositionStats::default(),

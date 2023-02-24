@@ -4,10 +4,13 @@ use {
     crate::{
         error::PerpetualsError,
         math,
-        state::{custody::Custody, oracle::OraclePrice, perpetuals::Perpetuals, pool::Pool},
+        state::{
+            cortex::Cortex, custody::Custody, oracle::OraclePrice, perpetuals::Perpetuals,
+            pool::Pool,
+        },
     },
     anchor_lang::prelude::*,
-    anchor_spl::token::{Token, TokenAccount},
+    anchor_spl::token::{Mint, Token, TokenAccount},
     solana_program::program_error::ProgramError,
 };
 
@@ -31,12 +34,25 @@ pub struct Swap<'info> {
     )]
     pub receiving_account: Box<Account<'info, TokenAccount>>,
 
+    #[account(
+        mut,
+        constraint = lm_token_account.mint == lm_token_mint.key(),
+        has_one = owner
+    )]
+    pub lm_token_account: Box<Account<'info, TokenAccount>>,
+
     /// CHECK: empty PDA, authority for token accounts
     #[account(
         seeds = [b"transfer_authority"],
         bump = perpetuals.transfer_authority_bump
     )]
     pub transfer_authority: AccountInfo<'info>,
+
+    #[account(
+        seeds = [b"cortex"],
+        bump = cortex.cortex_bump
+    )]
+    pub cortex: Box<Account<'info, Cortex>>,
 
     #[account(
         seeds = [b"perpetuals"],
@@ -99,6 +115,13 @@ pub struct Swap<'info> {
         bump = dispensing_custody.token_account_bump
     )]
     pub dispensing_custody_token_account: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        seeds = [b"lm_token_mint"],
+        bump = cortex.lm_token_bump
+    )]
+    pub lm_token_mint: Box<Account<'info, Mint>>,
 
     token_program: Program<'info, Token>,
 }
@@ -265,6 +288,21 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
         no_fee_amount,
     )?;
 
+    // compute amount of lm token to mint
+    let cortex = ctx.accounts.cortex.as_mut();
+    let lm_rewards_amounts = cortex.get_swap_lm_rewards_amounts(fees)?;
+
+    let lm_rewards_amount = math::checked_add(lm_rewards_amounts.0, lm_rewards_amounts.1)?;
+    // mint lm tokens
+    perpetuals.mint_tokens(
+        ctx.accounts.lm_token_mint.to_account_info(),
+        ctx.accounts.lm_token_account.to_account_info(),
+        ctx.accounts.transfer_authority.to_account_info(),
+        ctx.accounts.token_program.to_account_info(),
+        lm_rewards_amount,
+    )?;
+    msg!("Amount LM rewards out: {}", lm_rewards_amount);
+
     // update custody stats
     msg!("Update custody stats");
     receiving_custody.volume_stats.swap_usd = receiving_custody.volume_stats.swap_usd.wrapping_add(
@@ -275,6 +313,11 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
         receiving_custody.collected_fees.swap_usd.wrapping_add(
             dispensed_token_price.get_asset_amount_usd(fees.0, dispensing_custody.decimals)?,
         );
+
+    receiving_custody.distributed_rewards.swap_lm = receiving_custody
+        .distributed_rewards
+        .swap_lm
+        .wrapping_add(lm_rewards_amounts.0);
 
     receiving_custody.assets.owned =
         math::checked_add(receiving_custody.assets.owned, deposit_amount)?;
@@ -291,6 +334,11 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
         dispensing_custody.volume_stats.swap_usd.wrapping_add(
             dispensed_token_price.get_asset_amount_usd(amount_out, dispensing_custody.decimals)?,
         );
+
+    dispensing_custody.distributed_rewards.swap_lm = dispensing_custody
+        .distributed_rewards
+        .swap_lm
+        .wrapping_add(lm_rewards_amounts.0);
 
     dispensing_custody.assets.protocol_fees =
         math::checked_add(dispensing_custody.assets.protocol_fees, protocol_fee_out)?;

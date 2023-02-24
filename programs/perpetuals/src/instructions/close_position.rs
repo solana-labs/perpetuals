@@ -5,6 +5,7 @@ use {
         error::PerpetualsError,
         math,
         state::{
+            cortex::Cortex,
             custody::Custody,
             oracle::OraclePrice,
             perpetuals::Perpetuals,
@@ -13,7 +14,7 @@ use {
         },
     },
     anchor_lang::prelude::*,
-    anchor_spl::token::{Token, TokenAccount},
+    anchor_spl::token::{Mint, Token, TokenAccount},
 };
 
 #[derive(Accounts)]
@@ -28,12 +29,25 @@ pub struct ClosePosition<'info> {
     )]
     pub receiving_account: Box<Account<'info, TokenAccount>>,
 
+    #[account(
+        mut,
+        constraint = lm_token_account.mint == lm_token_mint.key(),
+        has_one = owner
+    )]
+    pub lm_token_account: Box<Account<'info, TokenAccount>>,
+
     /// CHECK: empty PDA, authority for token accounts
     #[account(
         seeds = [b"transfer_authority"],
         bump = perpetuals.transfer_authority_bump
     )]
     pub transfer_authority: AccountInfo<'info>,
+
+    #[account(
+        seeds = [b"cortex"],
+        bump = cortex.cortex_bump
+    )]
+    pub cortex: Box<Account<'info, Cortex>>,
 
     #[account(
         seeds = [b"perpetuals"],
@@ -85,6 +99,13 @@ pub struct ClosePosition<'info> {
         bump = custody.token_account_bump
     )]
     pub custody_token_account: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        seeds = [b"lm_token_mint"],
+        bump = cortex.lm_token_bump
+    )]
+    pub lm_token_mint: Box<Account<'info, Mint>>,
 
     token_program: Program<'info, Token>,
 }
@@ -178,12 +199,31 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         transfer_amount,
     )?;
 
+    // compute amount of lm token to mint
+    let cortex = ctx.accounts.cortex.as_mut();
+    let lm_rewards_amount = cortex.get_lm_rewards_amount(fee_amount)?;
+
+    // mint lm tokens
+    perpetuals.mint_tokens(
+        ctx.accounts.lm_token_mint.to_account_info(),
+        ctx.accounts.lm_token_account.to_account_info(),
+        ctx.accounts.transfer_authority.to_account_info(),
+        ctx.accounts.token_program.to_account_info(),
+        lm_rewards_amount,
+    )?;
+    msg!("Amount LM rewards out: {}", lm_rewards_amount);
+
     // update custody stats
     msg!("Update custody stats");
     custody.collected_fees.close_position_usd = custody
         .collected_fees
         .close_position_usd
         .wrapping_add(token_ema_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
+
+    custody.distributed_rewards.close_position_lm = custody
+        .distributed_rewards
+        .close_position_lm
+        .wrapping_add(lm_rewards_amount);
 
     custody.volume_stats.close_position_usd = custody
         .volume_stats
