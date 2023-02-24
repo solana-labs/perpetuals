@@ -223,6 +223,11 @@ pub fn remove_collateral(
         .open_position_lm
         .wrapping_add(lm_rewards_amount);
 
+    custody.distributed_rewards.open_position_lm = custody
+        .distributed_rewards
+        .open_position_lm
+        .wrapping_add(lm_rewards_amount);
+
     custody.assets.collateral = math::checked_sub(custody.assets.collateral, collateral)?;
 
     let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;

@@ -72,6 +72,7 @@ impl Perpetuals {
     pub const PRICE_DECIMALS: u8 = 6;
     pub const USD_DECIMALS: u8 = 6;
     pub const LP_DECIMALS: u8 = Self::USD_DECIMALS;
+    pub const LM_DECIMALS: u8 = Self::USD_DECIMALS;
     pub const RATE_DECIMALS: u8 = 9;
     pub const RATE_POWER: u128 = 10i64.pow(Self::RATE_DECIMALS as u32) as u128;
 

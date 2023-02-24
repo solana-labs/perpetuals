@@ -272,6 +272,11 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         .open_position_lm
         .wrapping_add(lm_rewards_amount);
 
+    custody.distributed_rewards.open_position_lm = custody
+        .distributed_rewards
+        .open_position_lm
+        .wrapping_add(lm_rewards_amount);
+
     custody.volume_stats.open_position_usd = custody
         .volume_stats
         .open_position_usd

@@ -1,7 +1,7 @@
 //! Init instruction handler
 use {
-    crate::adapters::SplGovernanceV3Adapter,
     crate::{
+        adapters::SplGovernanceV3Adapter,
         error::PerpetualsError,
         state::{cortex::Cortex, multisig::Multisig, perpetuals::Perpetuals},
     },

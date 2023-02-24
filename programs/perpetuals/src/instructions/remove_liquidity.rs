@@ -254,6 +254,11 @@ pub fn remove_liquidity(
         .remove_liquidity_lm
         .wrapping_add(lm_rewards_amount);
 
+    custody.distributed_rewards.remove_liquidity_lm = custody
+        .distributed_rewards
+        .remove_liquidity_lm
+        .wrapping_add(lm_rewards_amount);
+
     custody.volume_stats.remove_liquidity_usd = custody
         .volume_stats
         .remove_liquidity_usd

@@ -219,6 +219,11 @@ pub fn add_collateral(ctx: Context<AddCollateral>, params: &AddCollateralParams)
         .open_position_lm
         .wrapping_add(lm_rewards_amount);
 
+    custody.distributed_rewards.open_position_lm = custody
+        .distributed_rewards
+        .open_position_lm
+        .wrapping_add(lm_rewards_amount);
+
     custody.assets.collateral = math::checked_add(custody.assets.collateral, params.collateral)?;
 
     let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
