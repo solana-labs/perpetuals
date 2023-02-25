@@ -6,6 +6,9 @@ use crate::math;
 
 use super::perpetuals::Perpetuals;
 
+// lenght of our epoch relative to Solana epochs (1 Solana epoch is ~2-3 days)
+const ADRENA_EPOCH: u8 = 10;
+
 #[account]
 #[derive(Default, Debug)]
 pub struct Cortex {
@@ -43,11 +46,11 @@ impl Cortex {
     }
 
     fn get_emission_rate(inception_epoch: u64, current_epoch: u64) -> Result<u64> {
-        let elapsed_epoches = std::cmp::max(math::checked_sub(current_epoch, inception_epoch)?, 1);
+        let elapsed_epochs = std::cmp::max(math::checked_sub(current_epoch, inception_epoch)?, 1);
 
         math::checked_div(
             Self::INCEPTION_EMISSION_RATE as u64,
-            std::cmp::max(elapsed_epoches / 10, 1) as u64,
+            std::cmp::max(elapsed_epochs / ADRENA_EPOCH as u64, 1) as u64,
         )
     }
 
