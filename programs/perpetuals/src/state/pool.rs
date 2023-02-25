@@ -784,21 +784,18 @@ impl Pool {
         let new_ratio = self.get_new_ratio(amount_add, amount_remove, custody, token_price)?;
 
         let fee = match new_ratio.cmp(&token.target_ratio) {
-            Ordering::Equal => custody.fees.open_position,
+            Ordering::Equal => base_fee,
             Ordering::Greater => {
                 let max_fee_change = math::checked_as_u64(math::checked_div(
-                    math::checked_mul(
-                        custody.fees.max_increase as u128,
-                        custody.fees.open_position as u128,
-                    )?,
+                    math::checked_mul(custody.fees.max_increase as u128, base_fee as u128)?,
                     Perpetuals::BPS_POWER,
                 )?)?;
 
                 if token.max_ratio <= token.target_ratio || token.max_ratio <= new_ratio {
-                    math::checked_add(custody.fees.open_position, max_fee_change)?
+                    math::checked_add(base_fee, max_fee_change)?
                 } else {
                     math::checked_add(
-                        custody.fees.open_position,
+                        base_fee,
                         math::checked_as_u64(math::checked_ceil_div(
                             math::checked_mul(
                                 math::checked_sub(
@@ -814,15 +811,12 @@ impl Pool {
             }
             Ordering::Less => {
                 let max_fee_change = math::checked_as_u64(math::checked_div(
-                    math::checked_mul(
-                        custody.fees.max_decrease as u128,
-                        custody.fees.open_position as u128,
-                    )?,
+                    math::checked_mul(custody.fees.max_decrease as u128, base_fee as u128)?,
                     Perpetuals::BPS_POWER,
                 )?)?;
 
                 if token.target_ratio <= token.min_ratio || token.max_ratio <= new_ratio {
-                    math::checked_sub(custody.fees.open_position, max_fee_change)?
+                    math::checked_sub(base_fee, max_fee_change)?
                 } else {
                     let fee_reduce = math::checked_as_u64(math::checked_ceil_div(
                         math::checked_mul(
@@ -834,8 +828,8 @@ impl Pool {
                         )?,
                         math::checked_sub(token.target_ratio, token.min_ratio)? as u128,
                     )?)?;
-                    if custody.fees.open_position > fee_reduce {
-                        math::checked_sub(custody.fees.open_position, fee_reduce)?
+                    if base_fee > fee_reduce {
+                        math::checked_sub(base_fee, fee_reduce)?
                     } else {
                         0
                     }
