@@ -1,8 +1,6 @@
 //! Init instruction handler
 
-use anchor_spl::token::Mint;
-
-use crate::{math, state::cortex::Cortex};
+use crate::{anchor_spl::token::Mint, state::cortex::Cortex};
 
 use {
     crate::{
