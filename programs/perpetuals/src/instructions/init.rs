@@ -1,14 +1,12 @@
 //! Init instruction handler
 
-use crate::{anchor_spl::token::Mint, state::cortex::Cortex};
-
 use {
     crate::{
         error::PerpetualsError,
-        state::{multisig::Multisig, perpetuals::Perpetuals},
+        state::{cortex::Cortex, multisig::Multisig, perpetuals::Perpetuals},
     },
     anchor_lang::prelude::*,
-    anchor_spl::token::Token,
+    anchor_spl::token::{Mint, Token},
     solana_program::program_error::ProgramError,
 };
 

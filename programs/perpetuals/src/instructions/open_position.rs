@@ -248,8 +248,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     )?;
 
     // compute amount of lm token to mint
-    let cortex = ctx.accounts.cortex.as_mut();
-    let lm_rewards_amount = cortex.get_lm_rewards_amount(fee_amount)?;
+    let lm_rewards_amount = ctx.accounts.cortex.get_lm_rewards_amount(fee_amount)?;
 
     // mint lm tokens
     perpetuals.mint_tokens(
