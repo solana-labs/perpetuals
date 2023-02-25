@@ -21,10 +21,10 @@ impl Cortex {
     const INCEPTION_EMISSION_RATE: u64 = Perpetuals::RATE_POWER as u64; // 100%
     pub const FEE_TO_REWARD_RATIO_BPS: u8 = 10; //  0.10% of fees paid become rewards
 
-    pub fn get_swap_lm_rewards_amounts(&self, fees: (u64, u64)) -> Result<(u64, u64)> {
+    pub fn get_swap_lm_rewards_amounts(&self, (fee_in, fee_out): (u64, u64)) -> Result<(u64, u64)> {
         Ok((
-            self.get_lm_rewards_amount(fees.0)?,
-            self.get_lm_rewards_amount(fees.1)?,
+            self.get_lm_rewards_amount(fee_in)?,
+            self.get_lm_rewards_amount(fee_out)?,
         ))
     }
 
