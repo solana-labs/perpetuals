@@ -8,10 +8,10 @@ Solana Perpetuals protocol is an open-source implementation of a non-custodial d
 
 ### Setup Environment
 
-1. Clone the repository from https://github.com/askibin/perpetuals.git.
-2. Install the latest Solana tools from https://docs.solana.com/cli/install-solana-cli-tools. If you already have Solana tools, run `solana-install update` to get the latest compatible version.
-3. Install the latest Rust stable from https://rustup.rs/. If you already have Rust, run `rustup update` to get the latest version.
-4. Install the latest Anchor framework from https://www.anchor-lang.com/docs/installation. If you already have Anchor, run `avm update` to get the latest version.
+1. Clone the repository from <https://github.com/askibin/perpetuals.git>.
+2. Install the latest Solana tools from <https://docs.solana.com/cli/install-solana-cli-tools>. If you already have Solana tools, run `solana-install update` to get the latest compatible version.
+3. Install the latest Rust stable from <https://rustup.rs/>. If you already have Rust, run `rustup update` to get the latest version.
+4. Install the latest Anchor framework from <https://www.anchor-lang.com/docs/installation>. If you already have Anchor, run `avm update` to get the latest version.
 
 ### Build
 
@@ -34,7 +34,13 @@ Unit tests are executed with the `cargo test` command:
 cargo test -- --nocapture
 ```
 
-Integration tests can be started as follows:
+Integration tests (Rust) can be started as follows:
+
+```sh
+cargo test-bpf -- --nocapture
+```
+
+Integration tests (Typescript) can be started as follows:
 
 ```sh
 anchor test -- --features test

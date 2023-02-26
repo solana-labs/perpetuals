@@ -92,7 +92,7 @@ pub struct RemoveLiquidity<'info> {
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct RemoveLiquidityParams {
-    lp_amount: u64,
+    pub lp_amount: u64,
 }
 
 pub fn remove_liquidity(
@@ -154,6 +154,7 @@ pub fn remove_liquidity(
         pool.check_token_ratio(token_id, 0, withdrawal_amount, custody, &token_price)?,
         PerpetualsError::TokenRatioOutOfRange
     );
+
     require!(
         math::checked_sub(custody.assets.owned, custody.assets.locked)? >= withdrawal_amount,
         PerpetualsError::PoolAmountLimit
@@ -199,7 +200,12 @@ pub fn remove_liquidity(
 
     // update pool stats
     msg!("Update pool stats");
-    pool.aum_usd = pool_amount_usd;
+    pool.aum_usd = math::checked_sub(
+        pool_amount_usd,
+        token_price
+            .get_token_amount(withdrawal_amount, custody.decimals)?
+            .into(),
+    )?;
 
     Ok(())
 }

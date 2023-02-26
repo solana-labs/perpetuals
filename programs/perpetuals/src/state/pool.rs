@@ -46,7 +46,7 @@ impl Pool {
         self.tokens
             .iter()
             .position(|&k| k.custody == *custody)
-            .ok_or(PerpetualsError::UnsupportedToken.into())
+            .ok_or_else(|| PerpetualsError::UnsupportedToken.into())
     }
 
     pub fn get_entry_price(
@@ -680,6 +680,7 @@ impl Pool {
         } else if amount_add > 0 {
             let added_aum_usd =
                 token_price.get_asset_amount_usd(amount_add, custody.decimals)? as u128;
+
             (
                 token_price.get_asset_amount_usd(
                     math::checked_add(custody.assets.owned, amount_add)?,

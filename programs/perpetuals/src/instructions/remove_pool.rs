@@ -88,7 +88,7 @@ pub fn remove_pool<'info>(
         .pools
         .iter()
         .position(|x| *x == ctx.accounts.pool.key())
-        .ok_or::<Error>(PerpetualsError::InvalidPoolState.into())?;
+        .ok_or(PerpetualsError::InvalidPoolState)?;
     perpetuals.pools.remove(pool_idx);
 
     Ok(0)

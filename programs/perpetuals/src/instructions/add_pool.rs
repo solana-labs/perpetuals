@@ -105,6 +105,7 @@ pub fn add_pool<'info>(
     // record pool data
     let perpetuals = ctx.accounts.perpetuals.as_mut();
     let pool = ctx.accounts.pool.as_mut();
+
     if pool.inception_time != 0 {
         // return error if pool is already initialized
         return Err(ProgramError::AccountAlreadyInitialized.into());

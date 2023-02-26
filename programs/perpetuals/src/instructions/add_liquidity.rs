@@ -92,7 +92,7 @@ pub struct AddLiquidity<'info> {
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct AddLiquidityParams {
-    amount: u64,
+    pub amount: u64,
 }
 
 pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) -> Result<()> {
@@ -202,7 +202,12 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
 
     // update pool stats
     msg!("Update pool stats");
-    pool.aum_usd = pool_amount_usd;
+    pool.aum_usd = math::checked_add(
+        pool_amount_usd,
+        token_price
+            .get_asset_amount_usd(deposit_amount, custody.decimals)?
+            .into(),
+    )?;
 
     Ok(())
 }

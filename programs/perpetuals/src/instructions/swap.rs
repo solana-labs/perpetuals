@@ -103,10 +103,10 @@ pub struct Swap<'info> {
     token_program: Program<'info, Token>,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
 pub struct SwapParams {
-    amount_in: u64,
-    min_amount_out: u64,
+    pub amount_in: u64,
+    pub min_amount_out: u64,
 }
 
 pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {

@@ -58,7 +58,7 @@ pub struct Init<'info> {
     // remaining accounts: 1 to Multisig::MAX_SIGNERS admin signers (read-only, unsigned)
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize)]
+#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub struct InitParams {
     pub min_signatures: u8,
     pub allow_swap: bool,

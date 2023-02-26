@@ -89,9 +89,9 @@ pub struct ClosePosition<'info> {
     token_program: Program<'info, Token>,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
 pub struct ClosePositionParams {
-    price: u64,
+    pub price: u64,
 }
 
 pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams) -> Result<()> {

@@ -59,7 +59,7 @@ pub struct SetTestOraclePrice<'info> {
     system_program: Program<'info, System>,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize)]
+#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub struct SetTestOraclePriceParams {
     pub price: u64,
     pub expo: i32,

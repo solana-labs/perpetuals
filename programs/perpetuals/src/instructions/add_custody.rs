@@ -81,7 +81,7 @@ pub struct AddCustody<'info> {
     rent: Sysvar<'info, Rent>,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
 pub struct AddCustodyParams {
     pub is_stable: bool,
     pub oracle: OracleParams,

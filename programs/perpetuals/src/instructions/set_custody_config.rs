@@ -43,7 +43,7 @@ pub struct SetCustodyConfig<'info> {
     pub custody: Box<Account<'info, Custody>>,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
 pub struct SetCustodyConfigParams {
     pub is_stable: bool,
     pub oracle: OracleParams,

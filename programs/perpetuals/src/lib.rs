@@ -2,10 +2,10 @@
 
 #![allow(clippy::result_large_err)]
 
-mod error;
-mod instructions;
-mod math;
-mod state;
+pub mod error;
+pub mod instructions;
+pub mod math;
+pub mod state;
 
 use {
     anchor_lang::prelude::*,

@@ -92,12 +92,12 @@ pub struct OpenPosition<'info> {
     token_program: Program<'info, Token>,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
 pub struct OpenPositionParams {
-    price: u64,
-    collateral: u64,
-    size: u64,
-    side: Side,
+    pub price: u64,
+    pub collateral: u64,
+    pub size: u64,
+    pub side: Side,
 }
 
 pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) -> Result<()> {
