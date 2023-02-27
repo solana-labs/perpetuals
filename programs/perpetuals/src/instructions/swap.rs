@@ -50,7 +50,7 @@ pub struct Swap<'info> {
 
     #[account(
         seeds = [b"cortex"],
-        bump = cortex.cortex_bump
+        bump = cortex.bump
     )]
     pub cortex: Box<Account<'info, Cortex>>,
 

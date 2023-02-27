@@ -3,7 +3,7 @@ use {
     anchor_lang::{prelude::AccountMeta, ToAccountMetas},
     perpetuals::{
         instructions::InitParams,
-        state::{multisig::Multisig, perpetuals::Perpetuals},
+        state::{cortex::Cortex, multisig::Multisig, perpetuals::Perpetuals},
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
@@ -20,12 +20,16 @@ pub async fn test_init(
     let (multisig_pda, multisig_bump) = pda::get_multisig_pda();
     let (transfer_authority_pda, transfer_authority_bump) = pda::get_transfer_authority_pda();
     let (perpetuals_pda, perpetuals_bump) = pda::get_perpetuals_pda();
+    let (cortex_pda, cortex_bump) = pda::get_cortex_pda();
+    let (lm_token_mint_pda, lm_token_mint_bump) = pda::get_lm_token_mint_pda();
 
     let accounts_meta = {
         let accounts = perpetuals::accounts::Init {
             upgrade_authority: upgrade_authority.pubkey(),
             multisig: multisig_pda,
             transfer_authority: transfer_authority_pda,
+            // cortex: cortex_pda,
+            // lm_token_mint: lm_token_mint_pda,
             perpetuals: perpetuals_pda,
             perpetuals_program: perpetuals::ID,
             perpetuals_program_data: perpetuals_program_data_pda,
@@ -82,8 +86,18 @@ pub async fn test_init(
     );
     assert_eq!(perpetuals_account.perpetuals_bump, perpetuals_bump);
 
-    let multisig_account = utils::get_account::<Multisig>(program_test_ctx, multisig_pda).await;
+    let cortex_account = utils::get_account::<Cortex>(program_test_ctx, cortex_pda).await;
+    // Assert cortex
+    {
+        assert_eq!(cortex_account.bump, cortex_bump);
+        assert_eq!(cortex_account.lm_token_bump, lm_token_mint_bump);
+        assert_eq!(
+            cortex_account.inception_epoch,
+            cortex_account.get_epoch().unwrap()
+        );
+    }
 
+    let multisig_account = utils::get_account::<Multisig>(program_test_ctx, multisig_pda).await;
     // Assert multisig
     {
         assert_eq!(multisig_account.bump, multisig_bump);

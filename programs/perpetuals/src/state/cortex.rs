@@ -13,7 +13,7 @@ const ADRENA_EPOCH: u8 = 10;
 #[derive(Default, Debug)]
 pub struct Cortex {
     // emission have implied RATE_DECIMALS decimals
-    pub cortex_bump: u8,
+    pub bump: u8,
     pub lm_token_bump: u8,
     pub inception_epoch: u64,
 }
@@ -54,6 +54,7 @@ impl Cortex {
         )
     }
 
+    // REPLACE WITH warp to slot
     #[cfg(feature = "test")]
     pub fn get_epoch(&self) -> Result<u64> {
         Ok(20)
@@ -77,7 +78,7 @@ mod test {
 
     fn get_fixture() -> Cortex {
         let cortex = Cortex {
-            cortex_bump: 255,
+            bump: 255,
             lm_token_bump: 255,
             inception_epoch: 0,
         };

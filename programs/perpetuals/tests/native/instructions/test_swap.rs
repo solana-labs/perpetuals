@@ -28,11 +28,15 @@ pub async fn test_swap(
     let receiving_custody_pda = pda::get_custody_pda(pool_pda, receiving_custody_token_mint).0;
     let receiving_custody_token_account_pda =
         pda::get_custody_token_account_pda(pool_pda, receiving_custody_token_mint).0;
+    let cortex_pda = pda::get_cortex_pda().0;
+    let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
 
     let funding_account_address =
         utils::find_associated_token_account(&owner.pubkey(), receiving_custody_token_mint).0;
     let receiving_account_address =
         utils::find_associated_token_account(&owner.pubkey(), dispensing_custody_token_mint).0;
+    let lm_token_account_address =
+        utils::find_associated_token_account(&owner.pubkey(), &lm_token_mint_pda).0;
 
     let dispensing_custody_account =
         utils::get_account::<Custody>(program_test_ctx, dispensing_custody_pda).await;
@@ -48,6 +52,10 @@ pub async fn test_swap(
         .get_token_account(funding_account_address)
         .await
         .unwrap();
+    let owner_lm_token_account_before = program_test_ctx
+        .get_token_account(lm_token_account_address)
+        .await
+        .unwrap();
     let custody_receiving_account_before = program_test_ctx
         .get_token_account(receiving_account_address)
         .await
@@ -59,7 +67,9 @@ pub async fn test_swap(
             owner: owner.pubkey(),
             funding_account: funding_account_address,
             receiving_account: receiving_account_address,
+            lm_token_account: lm_token_account_address,
             transfer_authority: transfer_authority_pda,
+            cortex: cortex_pda,
             perpetuals: perpetuals_pda,
             pool: *pool_pda,
             receiving_custody: receiving_custody_pda,
@@ -68,6 +78,7 @@ pub async fn test_swap(
             dispensing_custody: dispensing_custody_pda,
             dispensing_custody_oracle_account: dispensing_custody_oracle_account_address,
             dispensing_custody_token_account: dispensing_custody_token_account_pda,
+            lm_token_mint: lm_token_mint_pda,
             token_program: anchor_spl::token::ID,
         }
         .to_account_metas(None),
@@ -83,12 +94,17 @@ pub async fn test_swap(
         .get_token_account(funding_account_address)
         .await
         .unwrap();
+    let owner_lm_token_account_after = program_test_ctx
+        .get_token_account(lm_token_account_address)
+        .await
+        .unwrap();
     let custody_receiving_account_after = program_test_ctx
         .get_token_account(receiving_account_address)
         .await
         .unwrap();
 
     assert!(owner_funding_account_after.amount < owner_funding_account_before.amount);
+    assert!(owner_lm_token_account_after.amount > owner_lm_token_account_before.amount);
     assert!(custody_receiving_account_after.amount > custody_receiving_account_before.amount);
 
     Ok(())

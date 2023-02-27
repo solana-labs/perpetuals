@@ -12,6 +12,14 @@ pub fn get_perpetuals_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(&["perpetuals".as_ref()], &perpetuals::id())
 }
 
+pub fn get_cortex_pda() -> (Pubkey, u8) {
+    Pubkey::find_program_address(&["cortex".as_ref()], &perpetuals::id())
+}
+
+pub fn get_lm_token_mint_pda() -> (Pubkey, u8) {
+    Pubkey::find_program_address(&["lm_token_mint".as_ref()], &perpetuals::id())
+}
+
 pub fn get_program_data_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[perpetuals::id().as_ref()],

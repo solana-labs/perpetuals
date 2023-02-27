@@ -80,6 +80,7 @@ impl Perpetuals {
         true
     }
 
+    // REPLACE WITH warp to slot
     #[cfg(feature = "test")]
     pub fn get_time(&self) -> Result<i64> {
         Ok(self.inception_time)
