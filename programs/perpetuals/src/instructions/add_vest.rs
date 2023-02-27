@@ -1,18 +1,18 @@
 //! AddVest instruction handler
 
 use {
-    crate::adapters,
-    crate::adapters::*,
-    crate::error::PerpetualsError,
-    crate::state::{
-        cortex::Cortex,
-        multisig::{AdminInstruction, Multisig},
-        perpetuals::Perpetuals,
-        vest::Vest,
+    crate::{
+        adapters,
+        error::PerpetualsError,
+        state::{
+            cortex::Cortex,
+            multisig::{AdminInstruction, Multisig},
+            perpetuals::Perpetuals,
+            vest::Vest,
+        },
     },
     anchor_lang::prelude::*,
-    anchor_spl::token::TokenAccount,
-    anchor_spl::token::{Mint, Token},
+    anchor_spl::token::{Mint, Token, TokenAccount},
 };
 
 #[derive(Accounts)]

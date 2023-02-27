@@ -1,8 +1,8 @@
 use {
-    crate::state::{cortex::Cortex, perpetuals::Perpetuals, vest::Vest},
     crate::{
         adapters::{self, SplGovernanceV3Adapter},
         error::PerpetualsError,
+        state::{cortex::Cortex, perpetuals::Perpetuals, vest::Vest},
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},

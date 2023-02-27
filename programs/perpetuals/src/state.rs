@@ -1,7 +1,6 @@
 // Program state handling.
 
 pub mod cortex;
-pub mod cortex;
 pub mod custody;
 pub mod multisig;
 pub mod oracle;
