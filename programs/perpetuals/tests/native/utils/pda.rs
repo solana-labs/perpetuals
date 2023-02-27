@@ -1,5 +1,5 @@
 use {
-    perpetuals::adapters::spl_governance_program_adapter, perpetuals::state::position::Side,
+    perpetuals::{adapters::spl_governance_program_adapter, state::position::Side},
     solana_sdk::pubkey::Pubkey,
 };
 

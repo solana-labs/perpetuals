@@ -1,9 +1,11 @@
 use {
     crate::utils::{self, pda},
-    anchor_lang::prelude::Pubkey,
-    anchor_lang::{prelude::AccountMeta, ToAccountMetas},
-    perpetuals::adapters::spl_governance_program_adapter,
+    anchor_lang::{
+        prelude::{AccountMeta, Pubkey},
+        ToAccountMetas,
+    },
     perpetuals::{
+        adapters::spl_governance_program_adapter,
         instructions::InitParams,
         state::{cortex::Cortex, multisig::Multisig, perpetuals::Perpetuals},
     },
