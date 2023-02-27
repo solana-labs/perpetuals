@@ -1,6 +1,7 @@
 // admin instructions
 pub mod add_custody;
 pub mod add_pool;
+pub mod add_vest;
 pub mod init;
 pub mod remove_custody;
 pub mod remove_pool;
@@ -19,6 +20,7 @@ pub mod test_init;
 // public instructions
 pub mod add_collateral;
 pub mod add_liquidity;
+pub mod claim_vest;
 pub mod close_position;
 pub mod get_add_liquidity_amount_and_fee;
 pub mod get_assets_under_management;
@@ -38,8 +40,8 @@ pub mod swap;
 
 // bring everything in scope
 pub use {
-    add_collateral::*, add_custody::*, add_liquidity::*, add_pool::*, close_position::*,
-    get_add_liquidity_amount_and_fee::*, get_assets_under_management::*,
+    add_collateral::*, add_custody::*, add_liquidity::*, add_pool::*, add_vest::*, claim_vest::*,
+    close_position::*, get_add_liquidity_amount_and_fee::*, get_assets_under_management::*,
     get_entry_price_and_fee::*, get_exit_price_and_fee::*, get_liquidation_price::*,
     get_liquidation_state::*, get_oracle_price::*, get_pnl::*,
     get_remove_liquidity_amount_and_fee::*, get_swap_amount_and_fees::*, init::*, liquidate::*,

@@ -48,7 +48,7 @@ pub struct Init<'info> {
         payer = upgrade_authority,
         mint::authority = transfer_authority,
         mint::freeze_authority = transfer_authority,
-        mint::decimals = Perpetuals::LM_DECIMALS,
+        mint::decimals = Cortex::LM_DECIMALS,
         seeds = [b"lm_token_mint"],
         bump
     )]

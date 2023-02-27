@@ -8,6 +8,10 @@ pub fn get_transfer_authority_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(&["transfer_authority".as_ref()], &perpetuals::id())
 }
 
+pub fn get_cortex_pda() -> (Pubkey, u8) {
+    Pubkey::find_program_address(&["cortex".as_ref()], &perpetuals::id())
+}
+
 pub fn get_perpetuals_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(&["perpetuals".as_ref()], &perpetuals::id())
 }
