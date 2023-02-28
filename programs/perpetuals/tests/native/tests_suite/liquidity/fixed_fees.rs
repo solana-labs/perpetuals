@@ -76,6 +76,17 @@ pub async fn fixed_fees() {
             )
             .await;
         }
+
+        // Alice: create LM rewards token account
+        {
+            let lm_token_mint = utils::pda::get_lm_token_mint_pda().0;
+            utils::initialize_token_account(
+                &mut program_test_ctx,
+                &lm_token_mint,
+                &keypairs[USER_ALICE].pubkey(),
+            )
+            .await;
+        }
     }
 
     let (pool_pda, _, _, _, custodies_info) = utils::setup_pool_with_custodies_and_liquidity(

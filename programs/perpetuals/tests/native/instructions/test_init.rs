@@ -28,8 +28,8 @@ pub async fn test_init(
             upgrade_authority: upgrade_authority.pubkey(),
             multisig: multisig_pda,
             transfer_authority: transfer_authority_pda,
-            // cortex: cortex_pda,
-            // lm_token_mint: lm_token_mint_pda,
+            cortex: cortex_pda,
+            lm_token_mint: lm_token_mint_pda,
             perpetuals: perpetuals_pda,
             perpetuals_program: perpetuals::ID,
             perpetuals_program_data: perpetuals_program_data_pda,
@@ -91,10 +91,7 @@ pub async fn test_init(
     {
         assert_eq!(cortex_account.bump, cortex_bump);
         assert_eq!(cortex_account.lm_token_bump, lm_token_mint_bump);
-        assert_eq!(
-            cortex_account.inception_epoch,
-            cortex_account.get_epoch().unwrap()
-        );
+        assert_eq!(cortex_account.inception_epoch, 0);
     }
 
     let multisig_account = utils::get_account::<Multisig>(program_test_ctx, multisig_pda).await;
