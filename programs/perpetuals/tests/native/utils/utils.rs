@@ -5,6 +5,7 @@ use {
     anchor_spl::token::spl_token,
     bonfida_test_utils::ProgramTestContextExt,
     perpetuals::{
+        adapters::SplGovernanceV3Adapter,
         instructions::{
             AddCustodyParams, AddLiquidityParams, SetCustodyConfigParams, SetTestOraclePriceParams,
         },
@@ -138,6 +139,52 @@ pub async fn mint_tokens(
         .mint_tokens(mint_authority, mint, token_account, amount)
         .await
         .unwrap();
+}
+
+pub async fn add_spl_governance_program(
+    program_test: &mut ProgramTest,
+    upgrade_authority: &Keypair,
+) {
+    let mut program_bytes = read_file(std::env::current_dir().unwrap().join(Path::new(
+        "tests/native/external_programs_binaries/spl_governance_3_1_0.so",
+    )));
+
+    let program_data_pda = Pubkey::find_program_address(
+        &[SplGovernanceV3Adapter::id().as_ref()],
+        &solana_program::bpf_loader_upgradeable::id(),
+    )
+    .0;
+
+    let program = UpgradeableLoaderState::Program {
+        programdata_address: program_data_pda,
+    };
+    let program_data = UpgradeableLoaderState::ProgramData {
+        slot: 1,
+        upgrade_authority_address: Some(upgrade_authority.pubkey()),
+    };
+
+    let serialized_program = bincode::serialize(&program).unwrap();
+
+    let mut serialzed_program_data = bincode::serialize(&program_data).unwrap();
+    serialzed_program_data.append(&mut program_bytes);
+
+    let program_account = account::Account {
+        lamports: Rent::default().minimum_balance(serialized_program.len()),
+        data: serialized_program,
+        owner: bpf_loader_upgradeable::ID,
+        executable: true,
+        rent_epoch: Epoch::default(),
+    };
+    let program_data_account = account::Account {
+        lamports: Rent::default().minimum_balance(serialzed_program_data.len()),
+        data: serialzed_program_data,
+        owner: bpf_loader_upgradeable::ID,
+        executable: false,
+        rent_epoch: Epoch::default(),
+    };
+
+    program_test.add_account(SplGovernanceV3Adapter::id(), program_account);
+    program_test.add_account(program_data_pda, program_data_account);
 }
 
 // Deploy the perpetuals program onchain as upgradeable program

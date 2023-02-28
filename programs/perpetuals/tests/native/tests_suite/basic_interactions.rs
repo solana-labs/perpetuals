@@ -45,8 +45,10 @@ pub async fn basic_interactions() {
         .add_mint(None, ETH_DECIMALS, &keypairs[ROOT_AUTHORITY].pubkey())
         .0;
 
-    // Deploy the perpetuals program onchain as upgradeable program
+    // Deploy programs
     utils::add_perpetuals_program(&mut program_test, &keypairs[PERPETUALS_UPGRADE_AUTHORITY]).await;
+    utils::add_spl_governance_program(&mut program_test, &keypairs[PERPETUALS_UPGRADE_AUTHORITY])
+        .await;
 
     // Start the client and connect to localnet validator
     let mut program_test_ctx = program_test.start_with_context().await;

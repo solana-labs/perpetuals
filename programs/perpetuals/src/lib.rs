@@ -6,6 +6,7 @@ pub mod error;
 pub mod instructions;
 pub mod math;
 pub mod state;
+pub mod adapters;
 
 use {
     anchor_lang::prelude::*,
