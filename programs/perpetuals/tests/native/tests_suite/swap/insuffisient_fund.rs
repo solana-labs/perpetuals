@@ -63,7 +63,9 @@ pub async fn insuffisient_fund() {
 
     // Initialize and fund associated token accounts
     {
-        // Alice: mint 7.5k USDC and 5 ETH
+        let lm_token_mint = utils::pda::get_lm_token_mint_pda().0;
+
+        // Alice: mint 7.5k USDC and 5 ETH, create LM token account
         {
             utils::initialize_and_fund_token_account(
                 &mut program_test_ctx,
@@ -82,9 +84,16 @@ pub async fn insuffisient_fund() {
                 utils::scale(5, ETH_DECIMALS),
             )
             .await;
+
+            utils::initialize_token_account(
+                &mut program_test_ctx,
+                &lm_token_mint,
+                &keypairs[USER_ALICE].pubkey(),
+            )
+            .await;
         }
 
-        // Martin: mint 1k USDC, 10 ETH
+        // Martin: mint 1k USDC, 10 ETH, creates LM token account
         {
             utils::initialize_and_fund_token_account(
                 &mut program_test_ctx,
@@ -101,6 +110,13 @@ pub async fn insuffisient_fund() {
                 &keypairs[USER_MARTIN].pubkey(),
                 &keypairs[ROOT_AUTHORITY],
                 utils::scale(10, ETH_DECIMALS),
+            )
+            .await;
+
+            utils::initialize_token_account(
+                &mut program_test_ctx,
+                &lm_token_mint,
+                &keypairs[USER_MARTIN].pubkey(),
             )
             .await;
         }

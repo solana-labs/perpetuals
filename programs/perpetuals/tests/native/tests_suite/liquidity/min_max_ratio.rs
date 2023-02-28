@@ -62,8 +62,10 @@ pub async fn min_max_ratio() {
 
     // Initialize and fund associated token accounts
     {
-        // Alice: mint 100k USDC and 50 ETH
+        // Alice: mint 100k USDC and 50 ETH, create LM token account
         {
+            let lm_token_mint = utils::pda::get_lm_token_mint_pda().0;
+
             utils::initialize_and_fund_token_account(
                 &mut program_test_ctx,
                 &usdc_mint,
@@ -79,6 +81,13 @@ pub async fn min_max_ratio() {
                 &keypairs[USER_ALICE].pubkey(),
                 &keypairs[ROOT_AUTHORITY],
                 utils::scale(50, ETH_DECIMALS),
+            )
+            .await;
+
+            utils::initialize_token_account(
+                &mut program_test_ctx,
+                &lm_token_mint,
+                &keypairs[USER_ALICE].pubkey(),
             )
             .await;
         }

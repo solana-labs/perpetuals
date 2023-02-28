@@ -65,8 +65,10 @@ pub async fn fixed_fees() {
 
     // Initialize and fund associated token accounts
     {
-        // Alice: mint 100k USDC
+        // Alice: mint 100k USDC, create LM token account
         {
+            let lm_token_mint = utils::pda::get_lm_token_mint_pda().0;
+
             utils::initialize_and_fund_token_account(
                 &mut program_test_ctx,
                 &usdc_mint,
@@ -75,11 +77,7 @@ pub async fn fixed_fees() {
                 utils::scale(100_000, USDC_DECIMALS),
             )
             .await;
-        }
 
-        // Alice: create LM rewards token account
-        {
-            let lm_token_mint = utils::pda::get_lm_token_mint_pda().0;
             utils::initialize_token_account(
                 &mut program_test_ctx,
                 &lm_token_mint,
