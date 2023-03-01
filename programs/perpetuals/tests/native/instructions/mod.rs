@@ -14,7 +14,7 @@ pub mod test_swap;
 
 pub use {
     test_add_custody::*, test_add_liquidity::*, test_add_pool::*, test_add_vest::*,
-    test_close_position::*, test_init::*, test_liquidate::*, test_open_position::*,
-    test_remove_liquidity::*, test_set_custody_config::*, test_set_test_oracle_price::*,
-    test_swap::*,
+    test_claim_vest::*, test_close_position::*, test_init::*, test_liquidate::*,
+    test_open_position::*, test_remove_liquidity::*, test_set_custody_config::*,
+    test_set_test_oracle_price::*, test_swap::*,
 };

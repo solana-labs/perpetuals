@@ -1,12 +1,12 @@
 use {
     crate::utils::{self, pda},
-    anchor_lang::prelude::Pubkey,
-    anchor_lang::ToAccountMetas,
+    anchor_lang::{prelude::Pubkey, ToAccountMetas},
     bonfida_test_utils::ProgramTestContextExt,
-    perpetuals::adapters::spl_governance_program_adapter,
-    perpetuals::state::{cortex::Cortex, vest::Vest},
-    solana_program_test::BanksClientError,
-    solana_program_test::ProgramTestContext,
+    perpetuals::{
+        adapters::spl_governance_program_adapter,
+        state::{cortex::Cortex, vest::Vest},
+    },
+    solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 

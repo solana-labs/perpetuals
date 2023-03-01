@@ -1,9 +1,7 @@
 use {
-    crate::adapters,
-    crate::utils::pda,
     crate::{
-        instructions,
-        utils::{self, fixtures},
+        adapters, instructions,
+        utils::{self, fixtures, pda},
     },
     bonfida_test_utils::ProgramTestExt,
     perpetuals::{
