@@ -35,6 +35,17 @@ pub mod perpetuals {
         instructions::init(ctx, &params)
     }
 
+    pub fn add_vest<'info>(
+        ctx: Context<'_, '_, '_, 'info, AddVest<'info>>,
+        params: AddVestParams,
+    ) -> Result<u8> {
+        instructions::add_vest(ctx, &params)
+    }
+
+    pub fn claim_vest<'info>(ctx: Context<'_, '_, '_, 'info, ClaimVest<'info>>) -> Result<u8> {
+        instructions::claim_vest(ctx)
+    }
+
     pub fn add_pool<'info>(
         ctx: Context<'_, '_, '_, 'info, AddPool<'info>>,
         params: AddPoolParams,

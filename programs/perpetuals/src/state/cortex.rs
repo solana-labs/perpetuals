@@ -10,7 +10,7 @@ const ADRENA_EPOCH: u8 = 10;
 #[derive(Default, Debug)]
 pub struct Cortex {
     pub vests: Vec<Pubkey>,
-    pub cortex_bump: u8,
+    pub bump: u8,
     pub lm_token_bump: u8,
     pub inception_epoch: u64,
 }
@@ -62,14 +62,14 @@ impl Cortex {
 mod test {
     use {super::*, proptest::prelude::*};
 
-    fn get_fixture() -> Cortex {
-        Cortex {
-            vests: Vec::new(),
-            cortex_bump: 255,
-            lm_token_bump: 255,
-            inception_epoch: 0,
-        }
-    }
+    // fn get_fixture() -> Cortex {
+    //     Cortex {
+    //         vests: Vec::new(),
+    //         bump: 255,
+    //         lm_token_bump: 255,
+    //         inception_epoch: 0,
+    //     }
+    // }
 
     // fn scale_f64(amount: f64, decimals: u8) -> u64 {
     //     math::checked_as_u64(

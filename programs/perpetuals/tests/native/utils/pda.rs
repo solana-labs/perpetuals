@@ -16,10 +16,6 @@ pub fn get_perpetuals_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(&["perpetuals".as_ref()], &perpetuals::id())
 }
 
-pub fn get_cortex_pda() -> (Pubkey, u8) {
-    Pubkey::find_program_address(&["cortex".as_ref()], &perpetuals::id())
-}
-
 pub fn get_lm_token_mint_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(&["lm_token_mint".as_ref()], &perpetuals::id())
 }
@@ -33,6 +29,10 @@ pub fn get_program_data_pda() -> (Pubkey, u8) {
 
 pub fn get_pool_pda(name: String) -> (Pubkey, u8) {
     Pubkey::find_program_address(&["pool".as_ref(), name.as_bytes()], &perpetuals::id())
+}
+
+pub fn get_vest_pda(owner: Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&["vest".as_ref(), owner.as_ref()], &perpetuals::id())
 }
 
 pub fn get_lp_token_mint_pda(pool_pda: &Pubkey) -> (Pubkey, u8) {

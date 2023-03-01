@@ -17,7 +17,7 @@ pub async fn test_open_position(
     pool_pda: &Pubkey,
     custody_token_mint: &Pubkey,
     params: OpenPositionParams,
-) -> std::result::Result<(solana_sdk::pubkey::Pubkey, u8), BanksClientError> {
+) -> std::result::Result<(Pubkey, u8), BanksClientError> {
     // ==== WHEN ==============================================================
 
     // Prepare PDA and addresses

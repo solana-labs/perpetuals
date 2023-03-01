@@ -22,7 +22,7 @@ pub async fn test_add_custody(
     custody_token_decimals: u8,
     params: AddCustodyParams,
     multisig_signers: &[&Keypair],
-) -> std::result::Result<(anchor_lang::prelude::Pubkey, u8), BanksClientError> {
+) -> std::result::Result<(Pubkey, u8), BanksClientError> {
     // ==== WHEN ==============================================================
     let multisig_pda = pda::get_multisig_pda().0;
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;

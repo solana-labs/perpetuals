@@ -1,7 +1,5 @@
 //! AddVest instruction handler
 
-use std::num::{NonZeroU32, NonZeroU64};
-
 use {
     crate::state::{
         cortex::Cortex,
@@ -42,7 +40,7 @@ pub struct AddVest<'info> {
         realloc::payer = admin,
         realloc::zero = false,
         seeds = [b"cortex"],
-        bump = cortex.cortex_bump
+        bump = cortex.bump
     )]
     pub cortex: Box<Account<'info, Cortex>>,
 
@@ -81,8 +79,8 @@ pub struct AddVest<'info> {
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct AddVestParams {
-    pub amount: NonZeroU64,
-    pub unlock_share: NonZeroU32,
+    pub amount: u64,
+    pub unlock_share: u64,
 }
 
 pub fn add_vest<'info>(
@@ -90,6 +88,9 @@ pub fn add_vest<'info>(
     params: &AddVestParams,
 ) -> Result<u8> {
     // validate inputs
+    if params.amount == 0 || params.unlock_share == 0 {
+        return Err(ProgramError::InvalidArgument.into());
+    }
 
     // validate signatures
     let mut multisig = ctx.accounts.multisig.load_mut()?;
@@ -115,12 +116,13 @@ pub fn add_vest<'info>(
         return Err(ProgramError::AccountAlreadyInitialized.into());
     }
     msg!(
-        "Record vest: share {}%, owner {}",
+        "Record vest: share {} BPS, owner {}",
         params.unlock_share,
         ctx.accounts.owner.key
     );
+    vest.amount = params.amount;
+    vest.unlock_share = params.unlock_share;
     vest.owner = ctx.accounts.owner.key();
-    vest.unlock_share = params.unlock_share.clone();
     vest.bump = *ctx.bumps.get("vest").ok_or(ProgramError::InvalidSeeds)?;
     vest.inception_time = ctx.accounts.perpetuals.get_time()?;
 
