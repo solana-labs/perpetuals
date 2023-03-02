@@ -1,8 +1,7 @@
-use bonfida_test_utils::ProgramTestContextExt;
-
 use {
     crate::utils::{self, pda},
     anchor_lang::ToAccountMetas,
+    bonfida_test_utils::ProgramTestContextExt,
     perpetuals::state::{cortex::Cortex, vest::Vest},
     solana_program_test::BanksClientError,
     solana_program_test::ProgramTestContext,

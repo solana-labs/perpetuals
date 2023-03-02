@@ -277,6 +277,35 @@ pub async fn create_and_execute_perpetuals_ix<T: InstructionData, U: Signers>(
     Ok(())
 }
 
+pub async fn create_and_execute_spl_governance_ix<U: Signers>(
+    program_test_ctx: &mut ProgramTestContext,
+    accounts_meta: Vec<AccountMeta>,
+    data: Vec<u8>,
+    payer: Option<&Pubkey>,
+    signing_keypairs: &U,
+) -> std::result::Result<(), BanksClientError> {
+    let ix = solana_sdk::instruction::Instruction {
+        program_id: SplGovernanceV3Adapter::id(),
+        accounts: accounts_meta,
+        data,
+    };
+    
+    let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[ix],
+        payer,
+        signing_keypairs,
+        program_test_ctx.last_blockhash,
+    );
+
+    let result = program_test_ctx.banks_client.process_transaction(tx).await;
+
+    if result.is_err() {
+        return Err(result.err().unwrap());
+    }
+
+    Ok(())
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn set_custody_ratios(
     program_test_ctx: &mut ProgramTestContext,

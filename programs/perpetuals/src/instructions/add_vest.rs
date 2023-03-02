@@ -1,6 +1,7 @@
 //! AddVest instruction handler
 
 use {
+    crate::adapters::SplGovernanceV3Adapter,
     crate::state::{
         cortex::Cortex,
         multisig::{AdminInstruction, Multisig},
@@ -17,6 +18,7 @@ pub struct AddVest<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
 
+    /// CHECK: can be any wallet
     #[account()]
     pub owner: AccountInfo<'info>,
 
@@ -71,6 +73,25 @@ pub struct AddVest<'info> {
         bump
     )]
     pub lm_token_mint: Box<Account<'info, Mint>>,
+
+    /// CHECK: checked by spl governance v3 program
+    /// A realm represent one project (ADRENA, MANGO etc.) within the governance program
+    pub governance_realm: UncheckedAccount<'info>,
+
+    /// CHECK: checked by spl governance v3 program
+    pub governance_realm_config: UncheckedAccount<'info>,
+
+    /// CHECK: checked by spl governance v3 program
+    /// Token account owned by governance program holding user's locked tokens
+    #[account(mut)]
+    pub governance_governing_token_holding: UncheckedAccount<'info>,
+
+    /// CHECK: checked by spl governance v3 program
+    /// Account owned by governance storing user informations
+    #[account(mut)]
+    pub governance_governing_token_owner_record: UncheckedAccount<'info>,
+
+    pub governance_program: Program<'info, SplGovernanceV3Adapter>,
 
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,

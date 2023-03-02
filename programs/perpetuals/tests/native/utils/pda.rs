@@ -1,4 +1,7 @@
-use {perpetuals::state::position::Side, solana_sdk::pubkey::Pubkey};
+use {
+    perpetuals::adapters::spl_governance_program_adapter, perpetuals::state::position::Side,
+    solana_sdk::pubkey::Pubkey,
+};
 
 pub fn get_multisig_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(&["multisig".as_ref()], &perpetuals::id())
@@ -93,5 +96,49 @@ pub fn get_test_oracle_account(pool_pda: &Pubkey, custody_mint: &Pubkey) -> (Pub
             custody_mint.as_ref(),
         ],
         &perpetuals::id(),
+    )
+}
+
+pub fn get_governance_realm_pda(name: String) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &["governance".as_ref(), name.as_ref()],
+        &spl_governance_program_adapter::ID,
+    )
+}
+
+pub fn get_governance_governing_token_holding_pda(
+    governance_realm_pda: &Pubkey,
+    staked_mint: &Pubkey,
+) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[
+            "governance".as_ref(),
+            governance_realm_pda.as_ref(),
+            staked_mint.as_ref(),
+        ],
+        &spl_governance_program_adapter::ID,
+    )
+}
+
+pub fn get_governance_realm_config_pda(governance_realm_pda: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &["realm-config".as_ref(), governance_realm_pda.as_ref()],
+        &spl_governance_program_adapter::ID,
+    )
+}
+
+pub fn get_governance_governing_token_owner_record_pda(
+    governance_realm_pda: &Pubkey,
+    staked_mint: &Pubkey,
+    owner: &Pubkey,
+) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[
+            "governance".as_ref(),
+            governance_realm_pda.as_ref(),
+            staked_mint.as_ref(),
+            owner.as_ref(),
+        ],
+        &spl_governance_program_adapter::ID,
     )
 }

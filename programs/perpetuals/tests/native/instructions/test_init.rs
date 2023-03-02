@@ -1,6 +1,8 @@
 use {
     crate::utils::{self, pda},
+    anchor_lang::prelude::Pubkey,
     anchor_lang::{prelude::AccountMeta, ToAccountMetas},
+    perpetuals::adapters::spl_governance_program_adapter,
     perpetuals::{
         instructions::InitParams,
         state::{cortex::Cortex, multisig::Multisig, perpetuals::Perpetuals},
@@ -13,6 +15,7 @@ pub async fn test_init(
     program_test_ctx: &mut ProgramTestContext,
     upgrade_authority: &Keypair,
     params: InitParams,
+    governance_realm_pda: &Pubkey,
     multisig_signers: &[&Keypair],
 ) -> std::result::Result<(), BanksClientError> {
     // ==== WHEN ==============================================================
@@ -33,6 +36,8 @@ pub async fn test_init(
             perpetuals: perpetuals_pda,
             perpetuals_program: perpetuals::ID,
             perpetuals_program_data: perpetuals_program_data_pda,
+            governance_realm: *governance_realm_pda,
+            governance_program: spl_governance_program_adapter::ID,
             system_program: anchor_lang::system_program::ID,
             token_program: anchor_spl::token::ID,
         };

@@ -1,6 +1,8 @@
 use {
     crate::utils::{self, pda},
+    anchor_lang::prelude::Pubkey,
     anchor_lang::{prelude::AccountMeta, ToAccountMetas},
+    perpetuals::adapters::spl_governance_program_adapter,
     perpetuals::{
         instructions::AddVestParams,
         state::{cortex::Cortex, multisig::Multisig, vest::Vest},
@@ -16,6 +18,7 @@ pub async fn test_add_vest(
     admin: &Keypair,
     payer: &Keypair,
     owner: &Keypair,
+    governance_realm_pda: &Pubkey,
     params: &AddVestParams,
     multisig_signers: &[&Keypair],
 ) -> std::result::Result<(), BanksClientError> {
@@ -26,6 +29,19 @@ pub async fn test_add_vest(
     let cortex_pda = pda::get_cortex_pda().0;
     let (vest_pda, vest_bump) = pda::get_vest_pda(owner.pubkey());
     let (lm_token_mint_pda, _) = pda::get_lm_token_mint_pda();
+
+    let governance_governing_token_holding_pda =
+        pda::get_governance_governing_token_holding_pda(governance_realm_pda, &lm_token_mint_pda).0;
+
+    let governance_realm_config_pda = pda::get_governance_realm_config_pda(governance_realm_pda).0;
+
+    let governance_governing_token_owner_record_pda =
+        pda::get_governance_governing_token_owner_record_pda(
+            governance_realm_pda,
+            &lm_token_mint_pda,
+            &owner.pubkey(),
+        )
+        .0;
 
     let multisig_account = utils::get_account::<Multisig>(program_test_ctx, multisig_pda).await;
 
@@ -43,6 +59,12 @@ pub async fn test_add_vest(
                 perpetuals: perpetuals_pda,
                 vest: vest_pda,
                 lm_token_mint: lm_token_mint_pda,
+                governance_realm: *governance_realm_pda,
+                governance_realm_config: governance_realm_config_pda,
+                governance_governing_token_holding: governance_governing_token_holding_pda,
+                governance_governing_token_owner_record:
+                    governance_governing_token_owner_record_pda,
+                governance_program: spl_governance_program_adapter::ID,
                 system_program: anchor_lang::system_program::ID,
                 token_program: anchor_spl::token::ID,
                 rent: solana_program::sysvar::rent::ID,

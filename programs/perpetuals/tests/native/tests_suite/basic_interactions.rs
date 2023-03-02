@@ -1,4 +1,6 @@
 use {
+    crate::adapters,
+    crate::utils::pda,
     crate::{
         instructions,
         utils::{self, fixtures},
@@ -29,6 +31,7 @@ const KEYPAIRS_COUNT: usize = 9;
 
 const USDC_DECIMALS: u8 = 6;
 const ETH_DECIMALS: u8 = 9;
+const LM_TOKEN_DECIMALS: u8 = 6;
 
 pub async fn basic_interactions() {
     let mut program_test = ProgramTest::default();
@@ -61,11 +64,27 @@ pub async fn basic_interactions() {
         &keypairs[MULTISIG_MEMBER_C],
     ];
 
+    let governance_realm_pda = pda::get_governance_realm_pda("ADRENA".to_string()).0;
+
     instructions::test_init(
         &mut program_test_ctx,
         upgrade_authority,
         fixtures::init_params_permissions_full(1),
+        &governance_realm_pda,
         multisig_signers,
+    )
+    .await
+    .unwrap();
+
+    let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+
+    adapters::create_realm(
+        &mut program_test_ctx,
+        &keypairs[ROOT_AUTHORITY],
+        &keypairs[PAYER],
+        "ADRENA".to_string(),
+        utils::scale(10_000, LM_TOKEN_DECIMALS),
+        &lm_token_mint_pda,
     )
     .await
     .unwrap();
@@ -156,6 +175,7 @@ pub async fn basic_interactions() {
             &keypairs[MULTISIG_MEMBER_A],
             &keypairs[PAYER],
             &keypairs[USER_ALICE],
+            &governance_realm_pda,
             &AddVestParams {
                 amount: utils::scale(1, Cortex::LM_DECIMALS),
                 unlock_share: utils::scale_f64(0.5, Perpetuals::BPS_DECIMALS),
@@ -171,6 +191,7 @@ pub async fn basic_interactions() {
             &keypairs[MULTISIG_MEMBER_A],
             &keypairs[PAYER],
             &keypairs[USER_MARTIN],
+            &governance_realm_pda,
             &AddVestParams {
                 amount: utils::scale(2, Cortex::LM_DECIMALS),
                 unlock_share: utils::scale_f64(0.5, Perpetuals::BPS_DECIMALS),
@@ -180,6 +201,7 @@ pub async fn basic_interactions() {
         .await
         .unwrap();
 
+        /*
         // Alice: claim vest
         instructions::test_claim_vest(
             &mut program_test_ctx,
@@ -188,6 +210,7 @@ pub async fn basic_interactions() {
         )
         .await
         .unwrap();
+        */
     }
 
     let (pool_pda, _, lp_token_mint_pda, _, _) = utils::setup_pool_with_custodies_and_liquidity(

@@ -3,7 +3,7 @@ use {anchor_lang::prelude::*, spl_governance::state::vote_record::Vote};
 #[derive(Clone, Copy)]
 pub struct SplGovernanceV3Adapter;
 
-mod spl_governance_program_adapter {
+pub mod spl_governance_program_adapter {
     solana_program::declare_id!("GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPCVZw");
 }
 

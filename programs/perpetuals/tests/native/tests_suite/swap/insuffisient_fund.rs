@@ -1,4 +1,5 @@
 use {
+    crate::utils::pda,
     crate::{
         instructions,
         utils::{self, fixtures},
@@ -38,8 +39,10 @@ pub async fn insuffisient_fund() {
         .add_mint(None, ETH_DECIMALS, &keypairs[ROOT_AUTHORITY].pubkey())
         .0;
 
-    // Deploy the perpetuals program onchain as upgradeable program
+    // Deploy programs
     utils::add_perpetuals_program(&mut program_test, &keypairs[PERPETUALS_UPGRADE_AUTHORITY]).await;
+    utils::add_spl_governance_program(&mut program_test, &keypairs[PERPETUALS_UPGRADE_AUTHORITY])
+        .await;
 
     // Start the client and connect to localnet validator
     let mut program_test_ctx = program_test.start_with_context().await;
@@ -52,10 +55,13 @@ pub async fn insuffisient_fund() {
         &keypairs[MULTISIG_MEMBER_C],
     ];
 
+    let governance_realm_pda = pda::get_governance_realm_pda("ADRENA".to_string()).0;
+
     instructions::test_init(
         &mut program_test_ctx,
         upgrade_authority,
         fixtures::init_params_permissions_full(1),
+        &governance_realm_pda,
         multisig_signers,
     )
     .await

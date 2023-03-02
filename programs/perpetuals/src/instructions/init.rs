@@ -1,6 +1,6 @@
 //! Init instruction handler
-
 use {
+    crate::adapters::SplGovernanceV3Adapter,
     crate::{
         error::PerpetualsError,
         state::{cortex::Cortex, multisig::Multisig, perpetuals::Perpetuals},
@@ -73,6 +73,12 @@ pub struct Init<'info> {
     )]
     pub perpetuals_program_data: Account<'info, ProgramData>,
 
+    /// CHECK: checked by spl governance v3 program
+    /// A realm represent one project (ADRENA, MANGO etc.) within the governance program
+    pub governance_realm: UncheckedAccount<'info>,
+
+    pub governance_program: Program<'info, SplGovernanceV3Adapter>,
+
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
     // remaining accounts: 1 to Multisig::MAX_SIGNERS admin signers (read-only, unsigned)
@@ -135,6 +141,8 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
         .ok_or(ProgramError::InvalidSeeds)?;
     cortex.bump = *ctx.bumps.get("cortex").ok_or(ProgramError::InvalidSeeds)?;
     cortex.inception_epoch = cortex.get_epoch()?;
+    cortex.governance_program = ctx.accounts.governance_program.key();
+    cortex.governance_realm = ctx.accounts.governance_realm.key();
 
     Ok(())
 }

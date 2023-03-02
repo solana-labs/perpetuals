@@ -13,6 +13,8 @@ pub struct Cortex {
     pub bump: u8,
     pub lm_token_bump: u8,
     pub inception_epoch: u64,
+    pub governance_program: Pubkey,
+    pub governance_realm: Pubkey,
 }
 
 /// Cortex
