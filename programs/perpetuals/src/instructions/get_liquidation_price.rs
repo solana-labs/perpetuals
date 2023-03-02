@@ -67,6 +67,7 @@ pub fn get_liquidation_price(
         custody.oracle.max_price_error,
         custody.oracle.max_price_age_sec,
         curtime,
+        false,
     )?;
 
     ctx.accounts.pool.get_liquidation_price(

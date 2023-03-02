@@ -1,4 +1,7 @@
-use anchor_lang::prelude::*;
+use {
+    crate::{math, state::perpetuals::Perpetuals},
+    anchor_lang::prelude::*,
+};
 
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Debug)]
 pub enum Side {
@@ -50,4 +53,11 @@ pub struct Position {
 
 impl Position {
     pub const LEN: usize = 8 + std::mem::size_of::<Position>();
+
+    pub fn get_initial_leverage(&self) -> Result<u64> {
+        math::checked_as_u64(math::checked_div(
+            math::checked_mul(self.size_usd as u128, Perpetuals::BPS_POWER)?,
+            self.collateral_usd as u128,
+        )?)
+    }
 }

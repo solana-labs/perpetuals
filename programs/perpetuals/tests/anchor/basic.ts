@@ -136,6 +136,7 @@ describe("perpetuals", () => {
     };
     pricing = {
       useEma: true,
+      useUnrealizedPnlInAum: true,
       tradeSpreadLong: new BN(100),
       tradeSpreadShort: new BN(100),
       swapSpread: new BN(200),
@@ -203,6 +204,7 @@ describe("perpetuals", () => {
       },
       pricing: {
         useEma: true,
+        useUnrealizedPnlInAum: true,
         tradeSpreadLong: "100",
         tradeSpreadShort: "100",
         swapSpread: "200",
@@ -265,6 +267,26 @@ describe("perpetuals", () => {
         lossUsd: "0",
         oiLongUsd: "0",
         oiShortUsd: "0",
+      },
+      longPositions: {
+        openPositions: "0",
+        collateralUsd: "0",
+        sizeUsd: "0",
+        lockedAmount: "0",
+        weightedLeverage: "0",
+        totalLeverage: "0",
+        cumulativeInterestUsd: "0",
+        cumulativeInterestSnapshot: "0",
+      },
+      shortPositions: {
+        openPositions: "0",
+        collateralUsd: "0",
+        sizeUsd: "0",
+        lockedAmount: "0",
+        weightedLeverage: "0",
+        totalLeverage: "0",
+        cumulativeInterestUsd: "0",
+        cumulativeInterestSnapshot: "0",
       },
       borrowRateState: {
         currentRate: "0",

@@ -4,6 +4,7 @@ use {
         state::{
             oracle::OracleType,
             perpetuals::{Permissions, Perpetuals},
+            position::{Position, Side},
         },
     },
     anchor_lang::prelude::*,
@@ -82,6 +83,8 @@ pub struct OracleParams {
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
 pub struct PricingParams {
     pub use_ema: bool,
+    // whether to account for unrealized pnl in assets under management calculations
+    pub use_unrealized_pnl_in_aum: bool,
     // pricing params have implied BPS_DECIMALS decimals
     pub trade_spread_long: u64,
     pub trade_spread_short: u64,
@@ -109,6 +112,18 @@ pub struct BorrowRateState {
     pub last_update: i64,
 }
 
+#[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
+pub struct PositionStats {
+    pub open_positions: u64,
+    pub collateral_usd: u64,
+    pub size_usd: u64,
+    pub locked_amount: u64,
+    pub weighted_leverage: u128,
+    pub total_leverage: u128,
+    pub cumulative_interest_usd: u64,
+    pub cumulative_interest_snapshot: u128,
+}
+
 #[account]
 #[derive(Default, Debug)]
 pub struct Custody {
@@ -129,11 +144,26 @@ pub struct Custody {
     pub collected_fees: FeesStats,
     pub volume_stats: VolumeStats,
     pub trade_stats: TradeStats,
+    pub long_positions: PositionStats,
+    pub short_positions: PositionStats,
     pub borrow_rate_state: BorrowRateState,
 
     // bumps for address validation
     pub bump: u8,
     pub token_account_bump: u8,
+}
+
+#[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
+pub struct DeprecatedPricingParams {
+    pub use_ema: bool,
+    // pricing params have implied BPS_DECIMALS decimals
+    pub trade_spread_long: u64,
+    pub trade_spread_short: u64,
+    pub swap_spread: u64,
+    pub min_initial_leverage: u64,
+    pub max_leverage: u64,
+    // max_user_profit = position_size * max_payoff_mult
+    pub max_payoff_mult: u64,
 }
 
 #[account]
@@ -145,7 +175,7 @@ pub struct DeprecatedCustody {
     pub decimals: u8,
     pub is_stable: bool,
     pub oracle: OracleParams,
-    pub pricing: PricingParams,
+    pub pricing: DeprecatedPricingParams,
     pub permissions: Permissions,
     pub fees: Fees,
     pub borrow_rate: u64,
@@ -212,6 +242,45 @@ impl Custody {
             && self.pricing.validate()
             && self.fees.validate()
             && self.borrow_rate.validate()
+    }
+
+    pub fn lock_funds(&mut self, amount: u64) -> Result<()> {
+        self.assets.locked = math::checked_add(self.assets.locked, amount)?;
+
+        if self.assets.owned < self.assets.locked {
+            Err(ProgramError::InsufficientFunds.into())
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn unlock_funds(&mut self, amount: u64) -> Result<()> {
+        if amount > self.assets.locked {
+            self.assets.locked = 0;
+        } else {
+            self.assets.locked = math::checked_sub(self.assets.locked, amount)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn get_interest_amount_usd(&self, position: &Position, curtime: i64) -> Result<u64> {
+        if position.size_usd == 0 {
+            return Ok(0);
+        }
+
+        let cumulative_interest = self.get_cumulative_interest(curtime)?;
+
+        let position_interest = if cumulative_interest > position.cumulative_interest_snapshot {
+            math::checked_sub(cumulative_interest, position.cumulative_interest_snapshot)?
+        } else {
+            return Ok(0);
+        };
+
+        math::checked_as_u64(math::checked_div(
+            math::checked_mul(position_interest, position.size_usd as u128)?,
+            Perpetuals::RATE_POWER,
+        )?)
     }
 
     pub fn get_cumulative_interest(&self, curtime: i64) -> Result<u128> {
@@ -286,6 +355,127 @@ impl Custody {
         )?;
 
         self.borrow_rate_state.current_rate = hourly_rate;
+
+        Ok(())
+    }
+
+    pub fn get_collective_position(&self, side: Side) -> Result<Position> {
+        let stats = if side == Side::Long {
+            &self.long_positions
+        } else {
+            &self.short_positions
+        };
+        if stats.open_positions > 0 {
+            Ok(Position {
+                side,
+                price: math::checked_as_u64(math::checked_div(
+                    stats.weighted_leverage,
+                    stats.total_leverage,
+                )?)?,
+                size_usd: stats.size_usd,
+                collateral_usd: stats.collateral_usd,
+                unrealized_loss_usd: stats.cumulative_interest_usd,
+                cumulative_interest_snapshot: stats.cumulative_interest_snapshot,
+                locked_amount: stats.locked_amount,
+                ..Position::default()
+            })
+        } else {
+            Ok(Position::default())
+        }
+    }
+
+    pub fn add_position(&mut self, position: &Position, curtime: i64) -> Result<()> {
+        // compute accumulated interest
+        let collective_position = self.get_collective_position(position.side)?;
+        let interest_usd = self.get_interest_amount_usd(&collective_position, curtime)?;
+
+        // update positions
+        let stats = if position.side == Side::Long {
+            &mut self.long_positions
+        } else {
+            &mut self.short_positions
+        };
+
+        stats.cumulative_interest_usd =
+            math::checked_add(stats.cumulative_interest_usd, interest_usd)?;
+        stats.cumulative_interest_snapshot = position.cumulative_interest_snapshot;
+
+        stats.open_positions = math::checked_add(stats.open_positions, 1)?;
+        stats.collateral_usd = math::checked_add(stats.collateral_usd, position.collateral_usd)?;
+        stats.size_usd = math::checked_add(stats.size_usd, position.size_usd)?;
+        stats.locked_amount = math::checked_add(stats.locked_amount, position.locked_amount)?;
+
+        let leverage = position.get_initial_leverage()? as u128;
+        stats.weighted_leverage = math::checked_add(
+            stats.weighted_leverage,
+            math::checked_mul(position.price as u128, leverage)?,
+        )?;
+        stats.total_leverage = math::checked_add(stats.total_leverage, leverage)?;
+
+        Ok(())
+    }
+
+    pub fn remove_position(&mut self, position: &Position, curtime: i64) -> Result<()> {
+        // compute accumulated interest
+        let collective_position = self.get_collective_position(position.side)?;
+        let interest_usd = self.get_interest_amount_usd(&collective_position, curtime)?;
+        let cumulative_interest_snapshot = self.get_cumulative_interest(curtime)?;
+        let position_interest_usd = self.get_interest_amount_usd(position, curtime)?;
+
+        // update stats
+        let stats = if position.side == Side::Long {
+            &mut self.long_positions
+        } else {
+            &mut self.short_positions
+        };
+
+        if stats.open_positions == 1 {
+            *stats = PositionStats::default();
+            return Ok(());
+        }
+
+        stats.cumulative_interest_usd =
+            math::checked_add(stats.cumulative_interest_usd, interest_usd)?;
+        stats.cumulative_interest_usd = stats
+            .cumulative_interest_usd
+            .saturating_sub(position_interest_usd);
+        stats.cumulative_interest_snapshot = cumulative_interest_snapshot;
+
+        stats.open_positions = math::checked_sub(stats.open_positions, 1)?;
+        stats.collateral_usd = math::checked_sub(stats.collateral_usd, position.collateral_usd)?;
+        stats.size_usd = math::checked_sub(stats.size_usd, position.size_usd)?;
+        stats.locked_amount = math::checked_sub(stats.locked_amount, position.locked_amount)?;
+
+        let leverage = position.get_initial_leverage()? as u128;
+        stats.weighted_leverage = math::checked_sub(
+            stats.weighted_leverage,
+            math::checked_mul(position.price as u128, leverage)?,
+        )?;
+        stats.total_leverage = math::checked_sub(stats.total_leverage, leverage)?;
+
+        Ok(())
+    }
+
+    pub fn add_collateral(&mut self, side: Side, collateral_usd: u64) -> Result<()> {
+        let stats = if side == Side::Long {
+            &mut self.long_positions
+        } else {
+            &mut self.short_positions
+        };
+
+        stats.collateral_usd = math::checked_add(stats.collateral_usd, collateral_usd)?;
+
+        Ok(())
+    }
+
+    pub fn remove_collateral(&mut self, side: Side, collateral_usd: u64) -> Result<()> {
+        let stats = if side == Side::Long {
+            &mut self.long_positions
+        } else {
+            &mut self.short_positions
+        };
+
+        stats.collateral_usd = math::checked_sub(stats.collateral_usd, collateral_usd)?;
 
         Ok(())
     }

@@ -201,4 +201,11 @@ pub mod perpetuals {
     ) -> Result<SwapAmountAndFees> {
         instructions::get_swap_amount_and_fees(ctx, &params)
     }
+
+    pub fn get_assets_under_management(
+        ctx: Context<GetAssetsUnderManagement>,
+        params: GetAssetsUnderManagementParams,
+    ) -> Result<u128> {
+        instructions::get_assets_under_management(ctx, &params)
+    }
 }

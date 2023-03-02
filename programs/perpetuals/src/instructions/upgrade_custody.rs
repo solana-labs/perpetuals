@@ -4,7 +4,10 @@ use {
     crate::{
         error::PerpetualsError,
         state::{
-            custody::{BorrowRateParams, BorrowRateState, Custody, DeprecatedCustody},
+            custody::{
+                BorrowRateParams, BorrowRateState, Custody, DeprecatedCustody, PositionStats,
+                PricingParams,
+            },
             multisig::{AdminInstruction, Multisig},
             perpetuals::Perpetuals,
             pool::Pool,
@@ -130,6 +133,17 @@ pub fn upgrade_custody<'info>(
         last_update: 0,
     };
 
+    let pricing = PricingParams {
+        use_ema: deprecated_custody.pricing.use_ema,
+        use_unrealized_pnl_in_aum: true,
+        trade_spread_long: deprecated_custody.pricing.trade_spread_long,
+        trade_spread_short: deprecated_custody.pricing.trade_spread_short,
+        swap_spread: deprecated_custody.pricing.swap_spread,
+        min_initial_leverage: deprecated_custody.pricing.min_initial_leverage,
+        max_leverage: deprecated_custody.pricing.max_leverage,
+        max_payoff_mult: deprecated_custody.pricing.max_payoff_mult,
+    };
+
     // update custody data
     let custody_data = Custody {
         pool: deprecated_custody.pool,
@@ -138,7 +152,7 @@ pub fn upgrade_custody<'info>(
         decimals: deprecated_custody.decimals,
         is_stable: deprecated_custody.is_stable,
         oracle: deprecated_custody.oracle,
-        pricing: deprecated_custody.pricing,
+        pricing,
         permissions: deprecated_custody.permissions,
         fees: deprecated_custody.fees,
         borrow_rate: params.borrow_rate,
@@ -146,6 +160,8 @@ pub fn upgrade_custody<'info>(
         collected_fees: deprecated_custody.collected_fees,
         volume_stats: deprecated_custody.volume_stats,
         trade_stats: deprecated_custody.trade_stats,
+        long_positions: PositionStats::default(),
+        short_positions: PositionStats::default(),
         borrow_rate_state,
         bump: deprecated_custody.bump,
         token_account_bump: deprecated_custody.token_account_bump,

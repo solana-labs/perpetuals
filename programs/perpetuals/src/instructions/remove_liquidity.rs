@@ -126,6 +126,7 @@ pub fn remove_liquidity(
         custody.oracle.max_price_error,
         custody.oracle.max_price_age_sec,
         curtime,
+        false,
     )?;
 
     let pool_amount_usd = pool.get_assets_under_management_usd(ctx.remaining_accounts, curtime)?;

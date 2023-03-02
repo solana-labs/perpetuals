@@ -122,6 +122,7 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
         custody.oracle.max_price_error,
         custody.oracle.max_price_age_sec,
         curtime,
+        false,
     )?;
 
     let fee_amount = pool.get_add_liquidity_fee(token_id, params.amount, custody, &token_price)?;

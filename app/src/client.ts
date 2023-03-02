@@ -657,4 +657,19 @@ export class PerpetualsClient {
         throw err;
       });
   };
+
+  getAum = async (poolName: string) => {
+    return await this.program.methods
+      .get_assets_under_management({})
+      .accounts({
+        signer: this.provider.wallet.publicKey,
+        perpetuals: this.perpetuals.publicKey,
+        pool: this.getPoolKey(poolName),
+      })
+      .view()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
+  };
 }

@@ -122,14 +122,16 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
         custody.oracle.max_price_error,
         custody.oracle.max_price_age_sec,
         curtime,
+        false,
     )?;
 
-    let token_ema_price = OraclePrice::new_from_oracle_ema(
+    let token_ema_price = OraclePrice::new_from_oracle(
         custody.oracle.oracle_type,
         &ctx.accounts.custody_oracle_account.to_account_info(),
         custody.oracle.max_price_error,
         custody.oracle.max_price_age_sec,
         curtime,
+        custody.pricing.use_ema,
     )?;
 
     require!(
@@ -152,7 +154,6 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
         &token_price,
         &token_ema_price,
         custody,
-        position.size_usd,
         curtime,
         true,
     )?;
@@ -169,7 +170,7 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
     msg!("Reward: {}", reward);
 
     // unlock pool funds
-    pool.unlock_funds(position.locked_amount, custody)?;
+    custody.unlock_funds(position.locked_amount)?;
 
     // check pool constraints
     msg!("Check pool constraints");
@@ -227,6 +228,7 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
     custody.trade_stats.profit_usd = custody.trade_stats.profit_usd.wrapping_add(profit_usd);
     custody.trade_stats.loss_usd = custody.trade_stats.loss_usd.wrapping_add(loss_usd);
 
+    custody.remove_position(position, curtime)?;
     custody.update_borrow_rate(curtime)?;
 
     Ok(())

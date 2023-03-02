@@ -113,14 +113,16 @@ pub fn add_collateral(ctx: Context<AddCollateral>, params: &AddCollateralParams)
         custody.oracle.max_price_error,
         custody.oracle.max_price_age_sec,
         curtime,
+        false,
     )?;
 
-    let token_ema_price = OraclePrice::new_from_oracle_ema(
+    let token_ema_price = OraclePrice::new_from_oracle(
         custody.oracle.oracle_type,
         &ctx.accounts.custody_oracle_account.to_account_info(),
         custody.oracle.max_price_error,
         custody.oracle.max_price_age_sec,
         curtime,
+        custody.pricing.use_ema,
     )?;
 
     // compute fee
@@ -183,6 +185,8 @@ pub fn add_collateral(ctx: Context<AddCollateral>, params: &AddCollateralParams)
 
     custody.assets.collateral = math::checked_add(custody.assets.collateral, params.collateral)?;
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
+
+    custody.add_collateral(position.side, collateral_usd)?;
 
     Ok(())
 }

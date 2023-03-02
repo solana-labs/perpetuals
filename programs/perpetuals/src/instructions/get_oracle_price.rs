@@ -50,23 +50,14 @@ pub fn get_oracle_price(
     let custody = ctx.accounts.custody.as_mut();
     let curtime = ctx.accounts.perpetuals.get_time()?;
 
-    let price = if params.ema {
-        OraclePrice::new_from_oracle_ema(
-            custody.oracle.oracle_type,
-            &ctx.accounts.custody_oracle_account.to_account_info(),
-            custody.oracle.max_price_error,
-            custody.oracle.max_price_age_sec,
-            curtime,
-        )?
-    } else {
-        OraclePrice::new_from_oracle(
-            custody.oracle.oracle_type,
-            &ctx.accounts.custody_oracle_account.to_account_info(),
-            custody.oracle.max_price_error,
-            custody.oracle.max_price_age_sec,
-            curtime,
-        )?
-    };
+    let price = OraclePrice::new_from_oracle(
+        custody.oracle.oracle_type,
+        &ctx.accounts.custody_oracle_account.to_account_info(),
+        custody.oracle.max_price_error,
+        custody.oracle.max_price_age_sec,
+        curtime,
+        params.ema,
+    )?;
 
     Ok(price
         .scale_to_exponent(-(Perpetuals::PRICE_DECIMALS as i32))?

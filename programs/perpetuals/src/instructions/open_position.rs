@@ -129,14 +129,16 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         custody.oracle.max_price_error,
         custody.oracle.max_price_age_sec,
         curtime,
+        false,
     )?;
 
-    let token_ema_price = OraclePrice::new_from_oracle_ema(
+    let token_ema_price = OraclePrice::new_from_oracle(
         custody.oracle.oracle_type,
         &ctx.accounts.custody_oracle_account.to_account_info(),
         custody.oracle.max_price_error,
         custody.oracle.max_price_age_sec,
         curtime,
+        custody.pricing.use_ema,
     )?;
 
     let position_price =
@@ -227,7 +229,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     );
 
     // lock funds for potential profit payoff
-    pool.lock_funds(position.locked_amount, custody)?;
+    custody.lock_funds(position.locked_amount)?;
 
     // transfer tokens
     msg!("Transfer tokens");
@@ -262,6 +264,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
             math::checked_add(custody.trade_stats.oi_short_usd, size_usd)?;
     }
 
+    custody.add_position(position, curtime)?;
     custody.update_borrow_rate(curtime)?;
 
     Ok(())

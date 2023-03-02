@@ -53,6 +53,7 @@ pub fn fees_linear_regular() -> Fees {
 pub fn pricing_params_regular(use_ema: bool) -> PricingParams {
     PricingParams {
         use_ema,
+        use_unrealized_pnl_in_aum: true,
         trade_spread_long: 100,
         trade_spread_short: 100,
         swap_spread: 300,

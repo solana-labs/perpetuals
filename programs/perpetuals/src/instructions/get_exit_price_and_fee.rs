@@ -73,14 +73,16 @@ pub fn get_exit_price_and_fee(
         custody.oracle.max_price_error,
         custody.oracle.max_price_age_sec,
         curtime,
+        false,
     )?;
 
-    let token_ema_price = OraclePrice::new_from_oracle_ema(
+    let token_ema_price = OraclePrice::new_from_oracle(
         custody.oracle.oracle_type,
         &ctx.accounts.custody_oracle_account.to_account_info(),
         custody.oracle.max_price_error,
         custody.oracle.max_price_age_sec,
         curtime,
+        custody.pricing.use_ema,
     )?;
 
     let collateral = token_price.get_token_amount(position.collateral_usd, custody.decimals)?;

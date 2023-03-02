@@ -80,6 +80,7 @@ impl OraclePrice {
         max_price_error: u64,
         max_price_age_sec: u32,
         current_time: i64,
+        use_ema: bool,
     ) -> Result<Self> {
         match oracle_type {
             OracleType::Test => Self::get_test_price(
@@ -93,32 +94,7 @@ impl OraclePrice {
                 max_price_error,
                 max_price_age_sec,
                 current_time,
-                false,
-            ),
-            _ => err!(PerpetualsError::UnsupportedOracle),
-        }
-    }
-
-    pub fn new_from_oracle_ema(
-        oracle_type: OracleType,
-        oracle_account: &AccountInfo,
-        max_price_error: u64,
-        max_price_age_sec: u32,
-        current_time: i64,
-    ) -> Result<Self> {
-        match oracle_type {
-            OracleType::Test => Self::get_test_price(
-                oracle_account,
-                max_price_error,
-                max_price_age_sec,
-                current_time,
-            ),
-            OracleType::Pyth => Self::get_pyth_price(
-                oracle_account,
-                max_price_error,
-                max_price_age_sec,
-                current_time,
-                true,
+                use_ema,
             ),
             _ => err!(PerpetualsError::UnsupportedOracle),
         }

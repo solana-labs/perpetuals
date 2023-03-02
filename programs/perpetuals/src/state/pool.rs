@@ -132,7 +132,6 @@ impl Pool {
         token_price: &OraclePrice,
         token_ema_price: &OraclePrice,
         custody: &Custody,
-        size_usd: u64,
         curtime: i64,
         liquidation: bool,
     ) -> Result<(u64, u64, u64, u64)> {
@@ -154,16 +153,7 @@ impl Pool {
             0
         };
 
-        let close_amount_usd = if size_usd < position.size_usd {
-            math::checked_as_u64(math::checked_div(
-                math::checked_mul(available_amount_usd as u128, size_usd as u128)?,
-                position.size_usd as u128,
-            )?)?
-        } else {
-            available_amount_usd
-        };
-
-        let close_amount = token_price.get_token_amount(close_amount_usd, custody.decimals)?;
+        let close_amount = token_price.get_token_amount(available_amount_usd, custody.decimals)?;
         let max_amount = math::checked_add(position.locked_amount, position.collateral_amount)?;
 
         Ok((
@@ -331,26 +321,6 @@ impl Pool {
         Ok(available_amount >= amount)
     }
 
-    pub fn get_interest_amount_usd(
-        &self,
-        position: &Position,
-        custody: &Custody,
-        curtime: i64,
-    ) -> Result<u64> {
-        let cumulative_interest = custody.get_cumulative_interest(curtime)?;
-
-        let position_interest = if cumulative_interest > position.cumulative_interest_snapshot {
-            math::checked_sub(cumulative_interest, position.cumulative_interest_snapshot)?
-        } else {
-            return Ok(0);
-        };
-
-        math::checked_as_u64(math::checked_div(
-            math::checked_mul(position_interest, position.size_usd as u128)?,
-            Perpetuals::RATE_POWER,
-        )?)
-    }
-
     pub fn get_leverage(
         &self,
         token_id: usize,
@@ -386,13 +356,6 @@ impl Pool {
         } else {
             Ok(u64::MAX)
         }
-    }
-
-    pub fn get_initial_leverage(&self, position: &Position) -> Result<u64> {
-        math::checked_as_u64(math::checked_div(
-            math::checked_mul(position.size_usd as u128, Perpetuals::BPS_POWER)?,
-            position.collateral_usd as u128,
-        )?)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -442,7 +405,7 @@ impl Pool {
             exit_fee_usd as u128,
         )?)?;
 
-        let initial_leverage = self.get_initial_leverage(position)?;
+        let initial_leverage = position.get_initial_leverage()?;
 
         let max_price_diff = if max_loss_usd >= position.collateral_usd {
             math::checked_sub(max_loss_usd, position.collateral_usd)?
@@ -509,6 +472,10 @@ impl Pool {
         curtime: i64,
         liquidation: bool,
     ) -> Result<(u64, u64, u64)> {
+        if position.size_usd == 0 {
+            return Ok((0, 0, 0));
+        }
+
         let collateral = token_price.get_token_amount(position.collateral_usd, custody.decimals)?;
 
         let exit_price =
@@ -521,7 +488,7 @@ impl Pool {
         };
 
         let exit_fee_usd = token_price.get_asset_amount_usd(exit_fee, custody.decimals)?;
-        let interest_usd = self.get_interest_amount_usd(position, custody, curtime)?;
+        let interest_usd = custody.get_interest_amount_usd(position, curtime)?;
         let unrealized_loss_usd = math::checked_add(
             math::checked_add(exit_fee_usd, interest_usd)?,
             position.unrealized_loss_usd,
@@ -539,7 +506,7 @@ impl Pool {
             (0u64, math::checked_sub(exit_price, position.price)?)
         };
 
-        let position_leverage = self.get_initial_leverage(position)?;
+        let position_leverage = position.get_initial_leverage()?;
 
         if price_diff_profit > 0 {
             let potential_profit_usd = math::checked_decimal_mul(
@@ -600,26 +567,6 @@ impl Pool {
         }
     }
 
-    pub fn lock_funds(&self, amount: u64, custody: &mut Custody) -> Result<()> {
-        custody.assets.locked = math::checked_add(custody.assets.locked, amount)?;
-
-        if custody.assets.owned < custody.assets.locked {
-            Err(ProgramError::InsufficientFunds.into())
-        } else {
-            Ok(())
-        }
-    }
-
-    pub fn unlock_funds(&self, amount: u64, custody: &mut Custody) -> Result<()> {
-        if amount > custody.assets.locked {
-            custody.assets.locked = 0;
-        } else {
-            custody.assets.locked = math::checked_sub(custody.assets.locked, amount)?;
-        }
-
-        Ok(())
-    }
-
     pub fn get_assets_under_management_usd(
         &self,
         accounts: &[AccountInfo],
@@ -642,12 +589,50 @@ impl Pool {
                 custody.oracle.max_price_error,
                 custody.oracle.max_price_age_sec,
                 curtime,
+                false,
             )?;
 
             let token_amount_usd =
                 token_price.get_asset_amount_usd(custody.assets.owned, custody.decimals)?;
 
             pool_amount_usd = math::checked_add(pool_amount_usd, token_amount_usd as u128)?;
+
+            if custody.pricing.use_unrealized_pnl_in_aum {
+                // compute aggregate unrealized pnl
+                let token_ema_price = OraclePrice::new_from_oracle(
+                    custody.oracle.oracle_type,
+                    &accounts[oracle_idx],
+                    custody.oracle.max_price_error,
+                    custody.oracle.max_price_age_sec,
+                    curtime,
+                    custody.pricing.use_ema,
+                )?;
+
+                let (long_profit, long_loss, _) = self.get_pnl_usd(
+                    idx,
+                    &custody.get_collective_position(Side::Long)?,
+                    &token_price,
+                    &token_ema_price,
+                    &custody,
+                    curtime,
+                    false,
+                )?;
+                let (short_profit, short_loss, _) = self.get_pnl_usd(
+                    idx,
+                    &custody.get_collective_position(Side::Short)?,
+                    &token_price,
+                    &token_ema_price,
+                    &custody,
+                    curtime,
+                    false,
+                )?;
+
+                // adjust pool amount by collective profit/loss
+                pool_amount_usd = math::checked_add(pool_amount_usd, long_profit as u128)?;
+                pool_amount_usd = math::checked_add(pool_amount_usd, short_profit as u128)?;
+                pool_amount_usd = pool_amount_usd.saturating_sub(long_loss as u128);
+                pool_amount_usd = pool_amount_usd.saturating_sub(short_loss as u128);
+            }
         }
         Ok(pool_amount_usd)
     }
@@ -868,6 +853,7 @@ mod test {
 
         let pricing = PricingParams {
             use_ema: true,
+            use_unrealized_pnl_in_aum: true,
             trade_spread_long: 100,
             trade_spread_short: 100,
             swap_spread: 300,
@@ -1266,7 +1252,7 @@ mod test {
 
         assert_eq!(
             (
-                scale_f64(0.82886, custody.decimals),
+                scale_f64(1.65772, custody.decimals),
                 0,
                 scale_f64(3.9, Perpetuals::USD_DECIMALS),
                 0
@@ -1277,7 +1263,6 @@ mod test {
                 &token_price,
                 &token_ema_price,
                 &custody,
-                position.size_usd / 2,
                 0,
                 false
             )
@@ -1287,7 +1272,7 @@ mod test {
 
     #[test]
     fn test_get_interest_amount_usd() {
-        let (pool, mut custody, mut position, _token_price, _token_ema_price) = get_fixture();
+        let (_pool, mut custody, mut position, _token_price, _token_ema_price) = get_fixture();
 
         custody.borrow_rate = BorrowRateParams {
             base_rate: 0,
@@ -1299,26 +1284,18 @@ mod test {
         custody.assets.owned = scale(10, 5);
 
         custody.update_borrow_rate(3600).unwrap();
-        let interest = pool
-            .get_interest_amount_usd(&position, &custody, 3600)
-            .unwrap();
+        let interest = custody.get_interest_amount_usd(&position, 3600).unwrap();
         assert_eq!(interest, 0);
 
-        let interest = pool
-            .get_interest_amount_usd(&position, &custody, 7200)
-            .unwrap();
+        let interest = custody.get_interest_amount_usd(&position, 7200).unwrap();
         assert_eq!(interest, scale_f64(0.14, Perpetuals::USD_DECIMALS));
 
         custody.update_borrow_rate(7200).unwrap();
-        let interest = pool
-            .get_interest_amount_usd(&position, &custody, 7199)
-            .unwrap();
+        let interest = custody.get_interest_amount_usd(&position, 7199).unwrap();
         assert_eq!(interest, scale_f64(0.14, Perpetuals::USD_DECIMALS));
 
         position.cumulative_interest_snapshot = 70000;
-        let interest = pool
-            .get_interest_amount_usd(&position, &custody, 7200)
-            .unwrap();
+        let interest = custody.get_interest_amount_usd(&position, 7200).unwrap();
         assert_eq!(interest, scale_f64(0.07, Perpetuals::USD_DECIMALS));
     }
 }

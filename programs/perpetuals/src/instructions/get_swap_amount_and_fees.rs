@@ -93,9 +93,10 @@ pub fn get_swap_amount_and_fees(
         receiving_custody.oracle.max_price_error,
         receiving_custody.oracle.max_price_age_sec,
         curtime,
+        false,
     )?;
 
-    let received_token_ema_price = OraclePrice::new_from_oracle_ema(
+    let received_token_ema_price = OraclePrice::new_from_oracle(
         receiving_custody.oracle.oracle_type,
         &ctx.accounts
             .receiving_custody_oracle_account
@@ -103,6 +104,7 @@ pub fn get_swap_amount_and_fees(
         receiving_custody.oracle.max_price_error,
         receiving_custody.oracle.max_price_age_sec,
         curtime,
+        receiving_custody.pricing.use_ema,
     )?;
 
     let dispensed_token_price = OraclePrice::new_from_oracle(
@@ -113,9 +115,10 @@ pub fn get_swap_amount_and_fees(
         dispensing_custody.oracle.max_price_error,
         dispensing_custody.oracle.max_price_age_sec,
         curtime,
+        false,
     )?;
 
-    let dispensed_token_ema_price = OraclePrice::new_from_oracle_ema(
+    let dispensed_token_ema_price = OraclePrice::new_from_oracle(
         dispensing_custody.oracle.oracle_type,
         &ctx.accounts
             .dispensing_custody_oracle_account
@@ -123,6 +126,7 @@ pub fn get_swap_amount_and_fees(
         dispensing_custody.oracle.max_price_error,
         dispensing_custody.oracle.max_price_age_sec,
         curtime,
+        dispensing_custody.pricing.use_ema,
     )?;
 
     let amount_out = pool.get_swap_amount(

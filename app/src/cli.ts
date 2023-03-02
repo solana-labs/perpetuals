@@ -72,11 +72,13 @@ async function addCustody(
   };
   let pricingConfig = {
     useEma: true,
+    useUnrealizedPnlInAum: true,
     tradeSpreadLong: new BN(100),
     tradeSpreadShort: new BN(100),
     swapSpread: new BN(200),
     minInitialLeverage: new BN(10000),
     maxLeverage: new BN(1000000),
+    maxPayoffMult: new BN(10000),
   };
   let permissions = {
     allowSwap: true,
@@ -244,6 +246,10 @@ async function getSwapAmountAndFees(
   );
 }
 
+async function getAum(poolName: string) {
+  client.prettyPrint(await client.getAum(poolName));
+}
+
 (async function main() {
   const program = new Command();
   program
@@ -257,6 +263,9 @@ async function getSwapAmountAndFees(
     )
     .requiredOption("-k, --keypair <path>", "Filepath to the admin keypair")
     .hook("preSubcommand", (thisCommand, subCommand) => {
+      if (!program.opts().keypair) {
+        throw Error("required option '-k, --keypair <path>' not specified");
+      }
       initClient(program.opts().url, program.opts().keypair);
       client.log(`Processing command '${thisCommand.args[0]}'`);
     })
@@ -521,6 +530,14 @@ async function getSwapAmountAndFees(
         new PublicKey(tokenMintOut),
         new BN(options.amountIn)
       );
+    });
+
+  program
+    .command("get-aum")
+    .description("Get assets under management")
+    .argument("<string>", "Pool name")
+    .action(async (poolName) => {
+      await getAum(poolName);
     });
 
   await program.parseAsync(process.argv);
