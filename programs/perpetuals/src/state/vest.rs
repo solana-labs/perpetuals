@@ -1,6 +1,7 @@
 //! Vest state and routines
 
 use anchor_lang::prelude::*;
+use num::Zero;
 
 use {super::perpetuals::Perpetuals, crate::math};
 
@@ -23,6 +24,9 @@ impl Vest {
     pub const LEN: usize = 8 + std::mem::size_of::<Vest>();
 
     pub fn is_claimable(&self, circulating_supply: u64) -> Result<bool> {
+        if circulating_supply.is_zero() {
+            return Ok(false);
+        }
         let amount_share = math::checked_as_u64(math::checked_div(
             math::checked_mul(self.amount as u128, Perpetuals::BPS_POWER)?,
             circulating_supply as u128,
@@ -54,6 +58,16 @@ mod test {
 
     #[test]
     fn test_is_claimable() {
+        // 0% owned, 1% unlock, no circulating supply KO
+        let owner_vest_amount = 0;
+        let unlock_percentage = 0.01;
+        let circulating_supply = 0;
+        let vest = get_vest_fixture(
+            owner_vest_amount,
+            scale_f64(unlock_percentage, Perpetuals::BPS_DECIMALS),
+        );
+        assert_eq!(vest.is_claimable(circulating_supply).unwrap(), false);
+
         // 1% owned, 1% unlock, OK
         let owner_vest_amount = 1;
         let unlock_percentage = 0.01;

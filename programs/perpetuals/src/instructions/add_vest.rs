@@ -126,8 +126,20 @@ pub fn add_vest<'info>(
     vest.bump = *ctx.bumps.get("vest").ok_or(ProgramError::InvalidSeeds)?;
     vest.inception_time = ctx.accounts.perpetuals.get_time()?;
 
+    // mint token (TODO: change the dest account -- TEST still failing without this)
+    // let lm_amount = vest.amount;
+    // msg!("LM tokens to mint: {}", lm_amount);
+
+    // // mint lp tokens
+    // ctx.accounts.perpetuals.mint_tokens(
+    //     ctx.accounts.lm_token_mint.to_account_info(),
+    //     ctx.accounts.<Put the governance acc>.to_account_info(),
+    //     ctx.accounts.transfer_authority.to_account_info(),
+    //     ctx.accounts.token_program.to_account_info(),
+    //     lm_amount,
+    // )?;
+
     // TODO
-    // 1) Mint tokens
     // 2) transfer tokens to delegate Governance accounts for the beneficiary
 
     cortex.vests.push(ctx.accounts.vest.key());

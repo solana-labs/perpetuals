@@ -18,13 +18,14 @@ pub async fn test_claim_vest(
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
-    let (vest_pda, vest_bump) = pda::get_vest_pda(owner.pubkey());
+    let (vest_pda, _) = pda::get_vest_pda(owner.pubkey());
     let (lm_token_mint_pda, _) = pda::get_lm_token_mint_pda();
 
     let lm_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), &lm_token_mint_pda).0;
 
     // Save account state before tx execution
+    let vest_account_before = utils::get_account::<Vest>(program_test_ctx, vest_pda).await;
     let owner_lm_token_account_before = program_test_ctx
         .get_token_account(lm_token_account_address)
         .await
@@ -45,23 +46,35 @@ pub async fn test_claim_vest(
             rent: solana_program::sysvar::rent::ID,
         }
         .to_account_metas(None),
-        {}, // wat do
+        perpetuals::instruction::ClaimVest {},
         Some(&payer.pubkey()),
         &[payer, owner],
     )
     .await?;
 
     // ==== THEN ==============================================================
-    let vest_account = utils::get_account::<Vest>(program_test_ctx, vest_pda).await;
 
-    assert_eq!(vest_account.owner, owner.pubkey());
-    assert_eq!(vest_account.bump, vest_bump);
+    // Check vest is in user account
+    {
+        let owner_lm_token_account_after = program_test_ctx
+            .get_token_account(lm_token_account_address)
+            .await
+            .unwrap();
 
-    // TODO: check tokens are in user account
+        assert_eq!(
+            owner_lm_token_account_after.amount,
+            owner_lm_token_account_before.amount + vest_account_before.amount
+        )
+    }
 
-    let cortex_account = utils::get_account::<Cortex>(program_test_ctx, cortex_pda).await;
+    // Verify that the vest pda has been plucked out of the Cortex vests vector
+    {
+        let cortex_account = utils::get_account::<Cortex>(program_test_ctx, cortex_pda).await;
 
-    assert_eq!(*cortex_account.vests.last().unwrap(), vest_pda);
-
+        assert_eq!(
+            cortex_account.vests.iter().find(|v| { **v == vest_pda }),
+            None
+        );
+    }
     Ok(())
 }
