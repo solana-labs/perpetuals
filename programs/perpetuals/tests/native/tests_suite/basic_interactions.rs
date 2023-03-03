@@ -169,7 +169,7 @@ pub async fn basic_interactions() {
 
     // Simple vest and claim
     {
-        // Alice: vest 1 token, unlockable at 50% unlock share (circulating supply 2 tokens)
+        // Alice: vest 2 token, unlockable at 50% unlock share (circulating supply 2 tokens)
         instructions::test_add_vest(
             &mut program_test_ctx,
             &keypairs[MULTISIG_MEMBER_A],
@@ -177,7 +177,7 @@ pub async fn basic_interactions() {
             &keypairs[USER_ALICE],
             &governance_realm_pda,
             &AddVestParams {
-                amount: utils::scale(1, Cortex::LM_DECIMALS),
+                amount: utils::scale(2, Cortex::LM_DECIMALS),
                 unlock_share: utils::scale_f64(0.5, Perpetuals::BPS_DECIMALS),
             },
             multisig_signers,
@@ -185,7 +185,7 @@ pub async fn basic_interactions() {
         .await
         .unwrap();
 
-        // Martin: vest 2 token, unlockable at 50% unlock share (circulating supply 4tokens)
+        // Martin: vest 2 token, unlockable at 50% unlock share (circulating supply 4 tokens)
         instructions::test_add_vest(
             &mut program_test_ctx,
             &keypairs[MULTISIG_MEMBER_A],
@@ -201,16 +201,15 @@ pub async fn basic_interactions() {
         .await
         .unwrap();
 
-        /*
         // Alice: claim vest
         instructions::test_claim_vest(
             &mut program_test_ctx,
             &keypairs[PAYER],
             &keypairs[USER_ALICE],
+            &governance_realm_pda,
         )
         .await
         .unwrap();
-        */
     }
 
     let (pool_pda, _, lp_token_mint_pda, _, _) = utils::setup_pool_with_custodies_and_liquidity(

@@ -18,7 +18,6 @@ pub struct Vest {
     pub lm_token_safe_bump: u8,
 }
 
-/// Cortex
 impl Vest {
     pub const LEN: usize = 8 + std::mem::size_of::<Vest>();
 
@@ -26,10 +25,12 @@ impl Vest {
         if circulating_supply.is_zero() {
             return Ok(false);
         }
+
         let amount_share = math::checked_as_u64(math::checked_div(
             math::checked_mul(self.amount as u128, Perpetuals::BPS_POWER)?,
             circulating_supply as u128,
         )?)?;
+
         Ok(amount_share >= self.unlock_share as u64)
     }
 }
@@ -112,7 +113,7 @@ mod test {
         // 4.99% owned, 5% unlock, KO
         let owner_vest_amount = 499;
         let unlock_percentage = 0.05;
-        let circulating_supply = 10000;
+        let circulating_supply = 10_000;
         let vest = get_vest_fixture(
             owner_vest_amount,
             scale_f64(unlock_percentage, Perpetuals::BPS_DECIMALS),

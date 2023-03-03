@@ -139,7 +139,7 @@ pub fn add_vest<'info>(
             &Multisig::get_account_infos(&ctx)[1..],
             &Multisig::get_instruction_data(AdminInstruction::AddPool, params)?,
         )?;
-        
+
         if signatures_left > 0 {
             msg!(
                 "Instruction has been signed but more signatures are required: {}",

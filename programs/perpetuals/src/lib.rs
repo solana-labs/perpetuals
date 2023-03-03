@@ -2,11 +2,11 @@
 
 #![allow(clippy::result_large_err)]
 
+pub mod adapters;
 pub mod error;
 pub mod instructions;
 pub mod math;
 pub mod state;
-pub mod adapters;
 
 use {
     anchor_lang::prelude::*,

@@ -54,9 +54,6 @@ pub struct Init<'info> {
     )]
     pub lm_token_mint: Box<Account<'info, Mint>>,
 
-
-    
-
     #[account(
         init,
         payer = upgrade_authority,
