@@ -29,7 +29,7 @@ pub async fn test_add_vest(
     let cortex_pda = pda::get_cortex_pda().0;
     let (vest_pda, vest_bump) = pda::get_vest_pda(owner.pubkey());
     let (lm_token_mint_pda, _) = pda::get_lm_token_mint_pda();
-    let lm_token_safe_pda = pda::get_lm_token_safe_pda(vest_pda).0;
+    let (lm_token_safe_pda, lm_token_safe_bump) = pda::get_lm_token_safe_pda(vest_pda);
 
     let governance_governing_token_holding_pda =
         pda::get_governance_governing_token_holding_pda(governance_realm_pda, &lm_token_mint_pda);
@@ -44,6 +44,11 @@ pub async fn test_add_vest(
         );
 
     let multisig_account = utils::get_account::<Multisig>(program_test_ctx, multisig_pda).await;
+
+    // Before state
+    let governance_governing_token_holding_balance_before =
+        utils::get_token_account_balance(program_test_ctx, governance_governing_token_holding_pda)
+            .await;
 
     // One Tx per multisig signer
     for i in 0..multisig_account.min_signatures {
@@ -99,16 +104,43 @@ pub async fn test_add_vest(
     }
 
     // ==== THEN ==============================================================
-    let vest_account = utils::get_account::<Vest>(program_test_ctx, vest_pda).await;
 
-    assert_eq!(vest_account.amount, params.amount);
-    assert_eq!(vest_account.unlock_share, params.unlock_share);
-    assert_eq!(vest_account.owner, owner.pubkey());
-    assert_eq!(vest_account.bump, vest_bump);
+    {
+        let vest_account = utils::get_account::<Vest>(program_test_ctx, vest_pda).await;
 
-    let cortex_account = utils::get_account::<Cortex>(program_test_ctx, cortex_pda).await;
+        assert_eq!(vest_account.amount, params.amount);
+        assert_eq!(vest_account.unlock_share, params.unlock_share);
+        assert_eq!(vest_account.owner, owner.pubkey());
+        assert_eq!(vest_account.bump, vest_bump);
+        assert_eq!(vest_account.lm_token_safe, lm_token_safe_pda);
+        assert_eq!(vest_account.lm_token_safe_bump, lm_token_safe_bump);
+    }
 
-    assert_eq!(*cortex_account.vests.last().unwrap(), vest_pda);
+    {
+        let cortex_account = utils::get_account::<Cortex>(program_test_ctx, cortex_pda).await;
+
+        assert_eq!(*cortex_account.vests.last().unwrap(), vest_pda);
+    }
+
+    {
+        let lm_token_safe_balance =
+            utils::get_token_account_balance(program_test_ctx, lm_token_safe_pda).await;
+
+        assert_eq!(lm_token_safe_balance, 0);
+    }
+
+    {
+        let governance_governing_token_holding_balance_after = utils::get_token_account_balance(
+            program_test_ctx,
+            governance_governing_token_holding_pda,
+        )
+        .await;
+
+        assert_eq!(
+            governance_governing_token_holding_balance_before + params.amount,
+            governance_governing_token_holding_balance_after
+        );
+    }
 
     Ok(())
 }

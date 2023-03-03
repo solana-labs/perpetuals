@@ -45,6 +45,11 @@ pub async fn test_claim_vest(
         .await
         .unwrap();
 
+    // Before state
+    let governance_governing_token_holding_balance_before =
+        utils::get_token_account_balance(program_test_ctx, governance_governing_token_holding_pda)
+            .await;
+
     utils::create_and_execute_perpetuals_ix(
         program_test_ctx,
         perpetuals::accounts::ClaimVest {
@@ -95,5 +100,19 @@ pub async fn test_claim_vest(
             None
         );
     }
+
+    {
+        let governance_governing_token_holding_balance_after = utils::get_token_account_balance(
+            program_test_ctx,
+            governance_governing_token_holding_pda,
+        )
+        .await;
+
+        assert_eq!(
+            governance_governing_token_holding_balance_before - vest_account_before.amount,
+            governance_governing_token_holding_balance_after
+        );
+    }
+
     Ok(())
 }
