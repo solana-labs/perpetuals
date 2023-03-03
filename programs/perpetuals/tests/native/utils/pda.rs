@@ -23,6 +23,13 @@ pub fn get_lm_token_mint_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(&["lm_token_mint".as_ref()], &perpetuals::id())
 }
 
+pub fn get_lm_token_safe_pda(vest_pda: Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &["lm_token_safe".as_ref(), vest_pda.as_ref()],
+        &perpetuals::id(),
+    )
+}
+
 pub fn get_program_data_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[perpetuals::id().as_ref()],
@@ -99,46 +106,37 @@ pub fn get_test_oracle_account(pool_pda: &Pubkey, custody_mint: &Pubkey) -> (Pub
     )
 }
 
-pub fn get_governance_realm_pda(name: String) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &["governance".as_ref(), name.as_ref()],
-        &spl_governance_program_adapter::ID,
-    )
+pub fn get_governance_realm_pda(name: String) -> Pubkey {
+    spl_governance::state::realm::get_realm_address(&spl_governance_program_adapter::ID, &name)
 }
 
 pub fn get_governance_governing_token_holding_pda(
     governance_realm_pda: &Pubkey,
-    staked_mint: &Pubkey,
-) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[
-            "governance".as_ref(),
-            governance_realm_pda.as_ref(),
-            staked_mint.as_ref(),
-        ],
+    governing_token_mint: &Pubkey,
+) -> Pubkey {
+    spl_governance::state::realm::get_governing_token_holding_address(
         &spl_governance_program_adapter::ID,
+        governance_realm_pda,
+        governing_token_mint,
     )
 }
 
-pub fn get_governance_realm_config_pda(governance_realm_pda: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &["realm-config".as_ref(), governance_realm_pda.as_ref()],
+pub fn get_governance_realm_config_pda(governance_realm_pda: &Pubkey) -> Pubkey {
+    spl_governance::state::realm_config::get_realm_config_address(
         &spl_governance_program_adapter::ID,
+        governance_realm_pda,
     )
 }
 
 pub fn get_governance_governing_token_owner_record_pda(
     governance_realm_pda: &Pubkey,
-    staked_mint: &Pubkey,
-    owner: &Pubkey,
-) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[
-            "governance".as_ref(),
-            governance_realm_pda.as_ref(),
-            staked_mint.as_ref(),
-            owner.as_ref(),
-        ],
+    governing_token_mint: &Pubkey,
+    governing_token_owner: &Pubkey,
+) -> Pubkey {
+    spl_governance::state::token_owner_record::get_token_owner_record_address(
         &spl_governance_program_adapter::ID,
+        governance_realm_pda,
+        governing_token_mint,
+        governing_token_owner,
     )
 }

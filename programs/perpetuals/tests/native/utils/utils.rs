@@ -1,3 +1,5 @@
+use solana_sdk::compute_budget::ComputeBudgetInstruction;
+
 use {
     super::{fixtures, get_program_data_pda, get_test_oracle_account},
     crate::instructions,
@@ -262,7 +264,10 @@ pub async fn create_and_execute_perpetuals_ix<T: InstructionData, U: Signers>(
     };
 
     let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[ix],
+        &[
+            ComputeBudgetInstruction::set_compute_unit_limit(400_000u32),
+            ix,
+        ],
         payer,
         signing_keypairs,
         program_test_ctx.last_blockhash,
@@ -289,7 +294,7 @@ pub async fn create_and_execute_spl_governance_ix<U: Signers>(
         accounts: accounts_meta,
         data,
     };
-    
+
     let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
         &[ix],
         payer,

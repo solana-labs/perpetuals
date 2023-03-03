@@ -17,8 +17,8 @@ pub async fn create_realm(
     name: String,
     min_community_weight_to_create_governance: u64,
     community_token_mint: &Pubkey,
-) -> std::result::Result<(Pubkey, u8), BanksClientError> {
-    let (realm_pda, realm_bump) = pda::get_governance_realm_pda(name.clone());
+) -> std::result::Result<Pubkey, BanksClientError> {
+    let realm_pda = pda::get_governance_realm_pda(name.clone());
 
     let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
         &[spl_governance::instruction::create_realm(
@@ -47,5 +47,5 @@ pub async fn create_realm(
         .process_transaction(tx)
         .await?;
 
-    Ok((realm_pda, realm_bump))
+    Ok(realm_pda)
 }

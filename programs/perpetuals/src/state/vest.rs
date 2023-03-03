@@ -1,9 +1,5 @@
 //! Vest state and routines
-
-use anchor_lang::prelude::*;
-use num::Zero;
-
-use {super::perpetuals::Perpetuals, crate::math};
+use {super::perpetuals::Perpetuals, crate::math, anchor_lang::prelude::*, num::Zero};
 
 #[account]
 #[derive(Default, Debug)]
@@ -17,6 +13,9 @@ pub struct Vest {
 
     pub bump: u8,
     pub inception_time: i64,
+
+    pub lm_token_safe: Pubkey,
+    pub lm_token_safe_bump: u8,
 }
 
 /// Cortex
@@ -46,6 +45,8 @@ mod test {
             owner: Pubkey::default(),
             bump: 255,
             inception_time: 1,
+            lm_token_safe: Pubkey::default(),
+            lm_token_safe_bump: 255,
         }
     }
 

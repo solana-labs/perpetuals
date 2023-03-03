@@ -55,7 +55,7 @@ pub async fn insuffisient_fund() {
         &keypairs[MULTISIG_MEMBER_C],
     ];
 
-    let governance_realm_pda = pda::get_governance_realm_pda("ADRENA".to_string()).0;
+    let governance_realm_pda = pda::get_governance_realm_pda("ADRENA".to_string());
 
     instructions::test_init(
         &mut program_test_ctx,

@@ -1,7 +1,7 @@
 //! AddVest instruction handler
-
 use {
-    crate::adapters::SplGovernanceV3Adapter,
+    crate::adapters,
+    crate::adapters::*,
     crate::state::{
         cortex::Cortex,
         multisig::{AdminInstruction, Multisig},
@@ -9,6 +9,7 @@ use {
         vest::Vest,
     },
     anchor_lang::prelude::*,
+    anchor_spl::token::TokenAccount,
     anchor_spl::token::{Mint, Token},
 };
 
@@ -21,6 +22,9 @@ pub struct AddVest<'info> {
     /// CHECK: can be any wallet
     #[account()]
     pub owner: AccountInfo<'info>,
+
+    #[account(mut)]
+    pub payer: Signer<'info>,
 
     #[account(
         mut,
@@ -74,6 +78,19 @@ pub struct AddVest<'info> {
     )]
     pub lm_token_mint: Box<Account<'info, Mint>>,
 
+    #[account(
+        init_if_needed,
+        seeds = [
+            b"lm_token_safe",
+            vest.key().as_ref(),
+        ],
+        token::authority = vest,
+        token::mint = lm_token_mint,
+        bump,
+        payer = payer,
+    )]
+    pub lm_token_safe: Box<Account<'info, TokenAccount>>,
+
     /// CHECK: checked by spl governance v3 program
     /// A realm represent one project (ADRENA, MANGO etc.) within the governance program
     pub governance_realm: UncheckedAccount<'info>,
@@ -114,56 +131,96 @@ pub fn add_vest<'info>(
     }
 
     // validate signatures
-    let mut multisig = ctx.accounts.multisig.load_mut()?;
+    {
+        let mut multisig = ctx.accounts.multisig.load_mut()?;
 
-    let signatures_left = multisig.sign_multisig(
-        &ctx.accounts.admin,
-        &Multisig::get_account_infos(&ctx)[1..],
-        &Multisig::get_instruction_data(AdminInstruction::AddPool, params)?,
-    )?;
-    if signatures_left > 0 {
+        let signatures_left = multisig.sign_multisig(
+            &ctx.accounts.admin,
+            &Multisig::get_account_infos(&ctx)[1..],
+            &Multisig::get_instruction_data(AdminInstruction::AddPool, params)?,
+        )?;
+        
+        if signatures_left > 0 {
+            msg!(
+                "Instruction has been signed but more signatures are required: {}",
+                signatures_left
+            );
+            return Ok(signatures_left);
+        }
+    }
+
+    // setup vest account
+    {
+        let vest = ctx.accounts.vest.as_mut();
+
+        if vest.inception_time != 0 {
+            // return error if pool is already initialized
+            return Err(ProgramError::AccountAlreadyInitialized.into());
+        }
+
         msg!(
-            "Instruction has been signed but more signatures are required: {}",
-            signatures_left
+            "Record vest: share {} BPS, owner {}",
+            params.unlock_share,
+            ctx.accounts.owner.key
         );
-        return Ok(signatures_left);
+
+        vest.amount = params.amount;
+        vest.unlock_share = params.unlock_share;
+        vest.owner = ctx.accounts.owner.key();
+        vest.bump = *ctx.bumps.get("vest").ok_or(ProgramError::InvalidSeeds)?;
+        vest.inception_time = ctx.accounts.perpetuals.get_time()?;
+        vest.lm_token_safe = ctx.accounts.lm_token_safe.key();
+        vest.lm_token_safe_bump = *ctx
+            .bumps
+            .get("lm_token_safe")
+            .ok_or(ProgramError::InvalidSeeds)?;
+
+        ctx.accounts.perpetuals.mint_tokens(
+            ctx.accounts.lm_token_mint.to_account_info(),
+            ctx.accounts.lm_token_safe.to_account_info(),
+            ctx.accounts.transfer_authority.to_account_info(),
+            ctx.accounts.token_program.to_account_info(),
+            vest.amount,
+        )?;
     }
 
-    // record vest data
-    let cortex = ctx.accounts.cortex.as_mut();
-    let vest = ctx.accounts.vest.as_mut();
-    if vest.inception_time != 0 {
-        // return error if pool is already initialized
-        return Err(ProgramError::AccountAlreadyInitialized.into());
+    // Add vest to cortex
+    {
+        let cortex = ctx.accounts.cortex.as_mut();
+
+        cortex.vests.push(ctx.accounts.vest.key());
     }
-    msg!(
-        "Record vest: share {} BPS, owner {}",
-        params.unlock_share,
-        ctx.accounts.owner.key
-    );
-    vest.amount = params.amount;
-    vest.unlock_share = params.unlock_share;
-    vest.owner = ctx.accounts.owner.key();
-    vest.bump = *ctx.bumps.get("vest").ok_or(ProgramError::InvalidSeeds)?;
-    vest.inception_time = ctx.accounts.perpetuals.get_time()?;
 
-    // mint token (TODO: change the dest account -- TEST still failing without this)
-    // let lm_amount = vest.amount;
-    // msg!("LM tokens to mint: {}", lm_amount);
+    // Deposit tokens in governance
+    {
+        let owner_key = ctx.accounts.owner.key();
+        let vest_signer_seeds: &[&[u8]] = &[b"vest", owner_key.as_ref(), &[ctx.accounts.vest.bump]];
 
-    // // mint lp tokens
-    // ctx.accounts.perpetuals.mint_tokens(
-    //     ctx.accounts.lm_token_mint.to_account_info(),
-    //     ctx.accounts.<Put the governance acc>.to_account_info(),
-    //     ctx.accounts.transfer_authority.to_account_info(),
-    //     ctx.accounts.token_program.to_account_info(),
-    //     lm_amount,
-    // )?;
+        let cpi_accounts = adapters::DepositGoverningTokens {
+            realm: ctx.accounts.governance_realm.to_account_info(),
+            realm_config: ctx.accounts.governance_realm_config.to_account_info(),
+            governing_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+            governing_token_source: ctx.accounts.lm_token_safe.to_account_info(),
+            governing_token_owner: ctx.accounts.vest.to_account_info(),
+            governing_token_transfer_authority: ctx.accounts.vest.to_account_info(),
+            payer: ctx.accounts.payer.to_account_info(),
+            governing_token_holding: ctx
+                .accounts
+                .governance_governing_token_holding
+                .to_account_info(),
+            governing_token_owner_record: ctx
+                .accounts
+                .governance_governing_token_owner_record
+                .to_account_info(),
+        };
 
-    // TODO
-    // 2) transfer tokens to delegate Governance accounts for the beneficiary
+        let cpi_program = ctx.accounts.governance_program.to_account_info();
 
-    cortex.vests.push(ctx.accounts.vest.key());
+        adapters::deposit_governing_tokens(
+            CpiContext::new(cpi_program, cpi_accounts).with_signer(&[vest_signer_seeds]),
+            ctx.accounts.vest.amount,
+        )?;
+    }
 
     Ok(0)
 }
