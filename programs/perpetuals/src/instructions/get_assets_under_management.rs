@@ -7,9 +7,6 @@ use {
 
 #[derive(Accounts)]
 pub struct GetAssetsUnderManagement<'info> {
-    #[account()]
-    pub signer: Signer<'info>,
-
     #[account(
         seeds = [b"perpetuals"],
         bump = perpetuals.perpetuals_bump

@@ -10,9 +10,6 @@ use {
 
 #[derive(Accounts)]
 pub struct GetLiquidationState<'info> {
-    #[account()]
-    pub signer: Signer<'info>,
-
     #[account(
         seeds = [b"perpetuals"],
         bump = perpetuals.perpetuals_bump
