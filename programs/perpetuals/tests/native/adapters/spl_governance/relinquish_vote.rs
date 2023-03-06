@@ -6,6 +6,7 @@ use {
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 
+#[allow(clippy::too_many_arguments)]
 pub async fn relinquish_vote(
     program_test_ctx: &mut ProgramTestContext,
     payer: &Keypair,
@@ -26,9 +27,9 @@ pub async fn relinquish_vote(
 
     let ix = spl_governance::instruction::relinquish_vote(
         &spl_governance_program_adapter::id(),
-        &realm_pda,
-        &governance_pda,
-        &proposal_pda,
+        realm_pda,
+        governance_pda,
+        proposal_pda,
         &token_owner_record_address,
         governing_token_mint,
         Some(governance_authority.pubkey()),

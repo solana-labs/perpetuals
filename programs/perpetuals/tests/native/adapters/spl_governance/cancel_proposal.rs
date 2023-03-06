@@ -6,6 +6,7 @@ use {
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 
+#[allow(clippy::too_many_arguments)]
 pub async fn cancel_proposal(
     program_test_ctx: &mut ProgramTestContext,
     payer: &Keypair,
@@ -26,9 +27,9 @@ pub async fn cancel_proposal(
 
     let ix = spl_governance::instruction::cancel_proposal(
         &spl_governance_program_adapter::id(),
-        &realm_pda,
-        &governance_pda,
-        &proposal_pda,
+        realm_pda,
+        governance_pda,
+        proposal_pda,
         &proposal_owner_record,
         &governance_authority.pubkey(),
     );

@@ -8,6 +8,7 @@ use {
     spl_governance::state::vote_record::VoteChoice,
 };
 
+#[allow(clippy::too_many_arguments)]
 pub async fn cast_vote(
     program_test_ctx: &mut ProgramTestContext,
     payer: &Keypair,
@@ -38,9 +39,9 @@ pub async fn cast_vote(
 
     let ix = spl_governance::instruction::cast_vote(
         &spl_governance_program_adapter::id(),
-        &realm_pda,
-        &governance_pda,
-        &proposal_pda,
+        realm_pda,
+        governance_pda,
+        proposal_pda,
         &proposal_owner_record,
         &voter_token_owner_record_address,
         &governance_authority.pubkey(),

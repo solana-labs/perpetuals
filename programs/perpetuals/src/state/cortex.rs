@@ -49,8 +49,8 @@ impl Cortex {
         let elapsed_epochs = std::cmp::max(math::checked_sub(current_epoch, inception_epoch)?, 1);
 
         math::checked_div(
-            Self::INCEPTION_EMISSION_RATE as u64,
-            std::cmp::max(elapsed_epochs / ADRENA_EPOCH as u64, 1) as u64,
+            Self::INCEPTION_EMISSION_RATE,
+            std::cmp::max(elapsed_epochs / ADRENA_EPOCH as u64, 1),
         )
     }
 

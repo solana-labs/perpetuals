@@ -10,6 +10,7 @@ use {
     },
 };
 
+#[allow(clippy::too_many_arguments)]
 pub async fn create_governance(
     program_test_ctx: &mut ProgramTestContext,
     governing_token_owner: &Pubkey,

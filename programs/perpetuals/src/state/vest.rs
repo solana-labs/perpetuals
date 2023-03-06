@@ -31,7 +31,7 @@ impl Vest {
             circulating_supply as u128,
         )?)?;
 
-        Ok(amount_share >= self.unlock_share as u64)
+        Ok(amount_share >= self.unlock_share)
     }
 }
 
@@ -68,7 +68,7 @@ mod test {
             owner_vest_amount,
             scale_f64(unlock_percentage, Perpetuals::BPS_DECIMALS),
         );
-        assert_eq!(vest.is_claimable(circulating_supply).unwrap(), false);
+        assert!(!vest.is_claimable(circulating_supply).unwrap());
 
         // 1% owned, 1% unlock, OK
         let owner_vest_amount = 1;
@@ -78,7 +78,7 @@ mod test {
             owner_vest_amount,
             scale_f64(unlock_percentage, Perpetuals::BPS_DECIMALS),
         );
-        assert_eq!(vest.is_claimable(circulating_supply).unwrap(), true);
+        assert!(vest.is_claimable(circulating_supply).unwrap());
 
         // 10% owned, 1% unlock, OK
         let owner_vest_amount = 10;
@@ -88,7 +88,7 @@ mod test {
             owner_vest_amount,
             scale_f64(unlock_percentage, Perpetuals::BPS_DECIMALS),
         );
-        assert_eq!(vest.is_claimable(circulating_supply).unwrap(), true);
+        assert!(vest.is_claimable(circulating_supply).unwrap());
 
         // 1% owned, 10% unlock, KO
         let owner_vest_amount = 1;
@@ -98,7 +98,7 @@ mod test {
             owner_vest_amount,
             scale_f64(unlock_percentage, Perpetuals::BPS_DECIMALS),
         );
-        assert_eq!(vest.is_claimable(circulating_supply).unwrap(), false);
+        assert!(!vest.is_claimable(circulating_supply).unwrap());
 
         // 0% owned, 1% unlock, KO
         let owner_vest_amount = 0;
@@ -108,7 +108,7 @@ mod test {
             owner_vest_amount,
             scale_f64(unlock_percentage, Perpetuals::BPS_DECIMALS),
         );
-        assert_eq!(vest.is_claimable(circulating_supply).unwrap(), false);
+        assert!(!vest.is_claimable(circulating_supply).unwrap());
 
         // 4.99% owned, 5% unlock, KO
         let owner_vest_amount = 499;
@@ -118,6 +118,6 @@ mod test {
             owner_vest_amount,
             scale_f64(unlock_percentage, Perpetuals::BPS_DECIMALS),
         );
-        assert_eq!(vest.is_claimable(circulating_supply).unwrap(), false);
+        assert!(!vest.is_claimable(circulating_supply).unwrap());
     }
 }

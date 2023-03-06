@@ -24,11 +24,7 @@ fn assert_governance_program_account(spl_governance_program: &Pubkey) -> Result<
 }
 
 fn get_opt_pubkey_from_account_info(opt_acc: Option<&AccountInfo>) -> Option<Pubkey> {
-    if opt_acc.is_none() {
-        return None;
-    }
-
-    let acc = opt_acc.unwrap();
+    let acc = opt_acc?;
 
     Some(*acc.key)
 }

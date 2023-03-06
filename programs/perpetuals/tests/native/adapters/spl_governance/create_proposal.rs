@@ -7,6 +7,7 @@ use {
     spl_governance::state::proposal::VoteType,
 };
 
+#[allow(clippy::too_many_arguments)]
 pub async fn create_proposal(
     program_test_ctx: &mut ProgramTestContext,
     payer: &Keypair,
@@ -32,7 +33,7 @@ pub async fn create_proposal(
 
         let ix = spl_governance::instruction::create_proposal(
             &spl_governance_program_adapter::id(),
-            &governance_pda,
+            governance_pda,
             &proposal_owner_record,
             &governance_authority.pubkey(),
             &payer.pubkey(),
@@ -65,8 +66,8 @@ pub async fn create_proposal(
     // Sign-off proposal
     let sign_off_proposal_ix = spl_governance::instruction::sign_off_proposal(
         &spl_governance_program_adapter::id(),
-        &realm_pda,
-        &governance_pda,
+        realm_pda,
+        governance_pda,
         &proposal_pda,
         &governance_authority.pubkey(),
         None,
