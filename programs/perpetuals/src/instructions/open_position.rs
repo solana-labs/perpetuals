@@ -106,7 +106,9 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     let perpetuals = ctx.accounts.perpetuals.as_mut();
     let custody = ctx.accounts.custody.as_mut();
     require!(
-        perpetuals.permissions.allow_open_position && custody.permissions.allow_open_position,
+        perpetuals.permissions.allow_open_position
+            && custody.permissions.allow_open_position
+            && !custody.is_stable,
         PerpetualsError::InstructionNotAllowed
     );
 
