@@ -62,7 +62,7 @@ pub async fn vote() {
 
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
 
-    let realm_pda = adapters::create_realm(
+    let realm_pda = adapters::spl_governance::create_realm(
         &mut program_test_ctx,
         &keypairs[ROOT_AUTHORITY],
         &keypairs[PAYER],
@@ -103,7 +103,7 @@ pub async fn vote() {
     .unwrap()
     .0;
 
-    let governance_pda = adapters::create_governance(
+    let governance_pda = adapters::spl_governance::create_governance(
         &mut program_test_ctx,
         &alice_vest_pda,
         &keypairs[USER_ALICE],
@@ -120,7 +120,7 @@ pub async fn vote() {
     .unwrap()
     .0;
 
-    let proposal_pda = adapters::create_proposal(
+    let proposal_pda = adapters::spl_governance::create_proposal(
         &mut program_test_ctx,
         &keypairs[PAYER],
         "Test Proposal".to_string(),
@@ -134,7 +134,7 @@ pub async fn vote() {
     .await
     .unwrap();
 
-    adapters::cast_vote(
+    adapters::spl_governance::cast_vote(
         &mut program_test_ctx,
         &keypairs[PAYER],
         &realm_pda,
@@ -149,7 +149,7 @@ pub async fn vote() {
     .await
     .unwrap();
 
-    adapters::cancel_proposal(
+    adapters::spl_governance::cancel_proposal(
         &mut program_test_ctx,
         &keypairs[PAYER],
         &realm_pda,
@@ -162,7 +162,7 @@ pub async fn vote() {
     .await
     .unwrap();
 
-    adapters::relinquish_vote(
+    adapters::spl_governance::relinquish_vote(
         &mut program_test_ctx,
         &keypairs[PAYER],
         &realm_pda,

@@ -78,7 +78,7 @@ pub async fn basic_interactions() {
 
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
 
-    adapters::create_realm(
+    adapters::spl_governance::create_realm(
         &mut program_test_ctx,
         &keypairs[ROOT_AUTHORITY],
         &keypairs[PAYER],
