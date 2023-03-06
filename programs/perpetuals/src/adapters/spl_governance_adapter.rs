@@ -162,96 +162,96 @@ pub fn relinquish_vote<'a, 'b, 'c, 'info>(
 
 #[derive(Accounts)]
 pub struct SetGovernanceDelegate<'info> {
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governance_authority: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub realm: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governing_token_mint: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governing_token_owner: AccountInfo<'info>,
 
     // Following accounts required to be in context
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governing_token_owner_record: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
 pub struct DepositGoverningTokens<'info> {
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub realm: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governing_token_mint: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governing_token_source: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governing_token_owner: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governing_token_transfer_authority: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub payer: AccountInfo<'info>,
 
     // Following accounts required to be in context
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub realm_config: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governing_token_holding: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governing_token_owner_record: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
 pub struct WithdrawGoverningTokens<'info> {
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub realm: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governing_token_destination: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governing_token_owner: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governing_token_mint: AccountInfo<'info>,
 
     // Following accounts required to be in context
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub realm_config: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governing_token_holding: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governing_token_owner_record: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
 pub struct CastVote<'info> {
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governance: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub realm: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governance_authority: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub proposal: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub proposal_owner_record: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub voter_token_owner_record: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governing_authority: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governing_token_mint: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub payer: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
 pub struct RelinquishVote<'info> {
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governance: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub realm: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub proposal: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub voter_token_owner_record: AccountInfo<'info>,
-    /// CHECK: Handled by Spl Governance V3 Program
+    /// CHECK: Handled by spl governance program
     pub governing_token_mint: AccountInfo<'info>,
 }
