@@ -9,6 +9,7 @@ pub mod set_custody_config;
 pub mod set_permissions;
 pub mod upgrade_custody;
 pub mod withdraw_fees;
+pub mod withdraw_sol_fees;
 
 // test instructions
 pub mod set_test_oracle_price;
@@ -44,6 +45,7 @@ pub use set_custody_config::*;
 pub use set_permissions::*;
 pub use upgrade_custody::*;
 pub use withdraw_fees::*;
+pub use withdraw_sol_fees::*;
 
 pub use set_test_oracle_price::*;
 pub use set_test_time::*;

@@ -605,13 +605,7 @@ export class TestClient {
     }
   };
 
-  withdrawFees = async (
-    tokenAmount: typeof BN,
-    solAmount: typeof BN,
-    custody,
-    receivingTokenAccount,
-    receivingSolAccount
-  ) => {
+  withdrawFees = async (amount: typeof BN, custody, receivingTokenAccount) => {
     let multisig = await this.program.account.multisig.fetch(
       this.multisig.publicKey
     );
@@ -619,8 +613,7 @@ export class TestClient {
       try {
         await this.program.methods
           .withdrawFees({
-            tokenAmount,
-            solAmount,
+            amount,
           })
           .accounts({
             admin: this.admins[i].publicKey,
@@ -631,8 +624,35 @@ export class TestClient {
             custody: custody.custody,
             custodyTokenAccount: custody.tokenAccount,
             receivingTokenAccount: receivingTokenAccount,
-            receivingSolAccount: receivingSolAccount,
             tokenProgram: spl.TOKEN_PROGRAM_ID,
+          })
+          .signers([this.admins[i]])
+          .rpc();
+      } catch (err) {
+        if (this.printErrors) {
+          console.log(err);
+        }
+        throw err;
+      }
+    }
+  };
+
+  withdrawSolFees = async (amount: typeof BN, custody, receivingAccount) => {
+    let multisig = await this.program.account.multisig.fetch(
+      this.multisig.publicKey
+    );
+    for (let i = 0; i < multisig.minSignatures; ++i) {
+      try {
+        await this.program.methods
+          .withdrawSolFees({
+            amount,
+          })
+          .accounts({
+            admin: this.admins[i].publicKey,
+            multisig: this.multisig.publicKey,
+            transferAuthority: this.authority.publicKey,
+            perpetuals: this.perpetuals.publicKey,
+            receivingAccount: receivingAccount,
           })
           .signers([this.admins[i]])
           .rpc();

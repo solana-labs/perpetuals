@@ -12,7 +12,6 @@ use {
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Token, TokenAccount},
-    solana_program::sysvar,
 };
 
 #[derive(Accounts)]
@@ -72,20 +71,12 @@ pub struct WithdrawFees<'info> {
     )]
     pub receiving_token_account: Box<Account<'info, TokenAccount>>,
 
-    /// CHECK: SOL fees receiving account
-    #[account(
-        mut,
-        constraint = receiving_sol_account.data_is_empty()
-    )]
-    pub receiving_sol_account: AccountInfo<'info>,
-
     token_program: Program<'info, Token>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct WithdrawFeesParams {
-    pub token_amount: u64,
-    pub sol_amount: u64,
+    pub amount: u64,
 }
 
 pub fn withdraw_fees<'info>(
@@ -93,7 +84,7 @@ pub fn withdraw_fees<'info>(
     params: &WithdrawFeesParams,
 ) -> Result<u8> {
     // validate inputs
-    if params.token_amount == 0 && params.sol_amount == 0 {
+    if params.amount == 0 {
         return Err(ProgramError::InvalidArgument.into());
     }
 
@@ -114,56 +105,26 @@ pub fn withdraw_fees<'info>(
     }
 
     // transfer token fees from the custody to the receiver
-    if params.token_amount > 0 {
-        let custody = ctx.accounts.custody.as_mut();
+    let custody = ctx.accounts.custody.as_mut();
 
-        msg!(
-            "Withdraw token fees: {} / {}",
-            params.token_amount,
-            custody.assets.protocol_fees
-        );
+    msg!(
+        "Withdraw token fees: {} / {}",
+        params.amount,
+        custody.assets.protocol_fees
+    );
 
-        if custody.assets.protocol_fees < params.token_amount {
-            return Err(ProgramError::InsufficientFunds.into());
-        }
-        custody.assets.protocol_fees =
-            math::checked_sub(custody.assets.protocol_fees, params.token_amount)?;
-
-        ctx.accounts.perpetuals.transfer_tokens(
-            ctx.accounts.custody_token_account.to_account_info(),
-            ctx.accounts.receiving_token_account.to_account_info(),
-            ctx.accounts.transfer_authority.to_account_info(),
-            ctx.accounts.token_program.to_account_info(),
-            params.token_amount,
-        )?;
+    if custody.assets.protocol_fees < params.amount {
+        return Err(ProgramError::InsufficientFunds.into());
     }
+    custody.assets.protocol_fees = math::checked_sub(custody.assets.protocol_fees, params.amount)?;
 
-    // transfer sol fees from the custody to the receiver
-    if params.sol_amount > 0 {
-        let balance = ctx.accounts.transfer_authority.try_lamports()?;
-        let min_balance = sysvar::rent::Rent::get().unwrap().minimum_balance(0);
-        let available_balance = if balance > min_balance {
-            math::checked_sub(balance, min_balance)?
-        } else {
-            0
-        };
-
-        msg!(
-            "Withdraw SOL fees: {} / {}",
-            params.sol_amount,
-            available_balance
-        );
-
-        if available_balance < params.sol_amount {
-            return Err(ProgramError::InsufficientFunds.into());
-        }
-
-        Perpetuals::transfer_sol_from_owned(
-            ctx.accounts.transfer_authority.to_account_info(),
-            ctx.accounts.receiving_sol_account.to_account_info(),
-            params.sol_amount,
-        )?;
-    }
+    ctx.accounts.perpetuals.transfer_tokens(
+        ctx.accounts.custody_token_account.to_account_info(),
+        ctx.accounts.receiving_token_account.to_account_info(),
+        ctx.accounts.transfer_authority.to_account_info(),
+        ctx.accounts.token_program.to_account_info(),
+        params.amount,
+    )?;
 
     Ok(0)
 }

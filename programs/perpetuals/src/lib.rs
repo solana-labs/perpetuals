@@ -89,6 +89,13 @@ pub mod perpetuals {
         instructions::withdraw_fees(ctx, &params)
     }
 
+    pub fn withdraw_sol_fees<'info>(
+        ctx: Context<'_, '_, '_, 'info, WithdrawSolFees<'info>>,
+        params: WithdrawSolFeesParams,
+    ) -> Result<u8> {
+        instructions::withdraw_sol_fees(ctx, &params)
+    }
+
     pub fn upgrade_custody<'info>(
         ctx: Context<'_, '_, '_, 'info, UpgradeCustody<'info>>,
         params: UpgradeCustodyParams,

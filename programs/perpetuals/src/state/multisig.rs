@@ -32,6 +32,7 @@ pub enum AdminInstruction {
     SetPermissions,
     SetBorrowRate,
     WithdrawFees,
+    WithdrawSolFees,
     SetTestOraclePrice,
     SetTestTime,
     UpgradeCustody,
