@@ -100,7 +100,30 @@ pub fn claim_vest<'info>(ctx: Context<'_, '_, '_, 'info, ClaimVest<'info>>) -> R
         );
     }
 
-    // Withdraw tokens from governance
+    // Revoke vote delegation
+    {
+        let owner_key = ctx.accounts.owner.key();
+        let vest_signer_seeds: &[&[u8]] = &[b"vest", owner_key.as_ref(), &[ctx.accounts.vest.bump]];
+
+        let cpi_accounts = adapters::SetGovernanceDelegate {
+            realm: ctx.accounts.governance_realm.to_account_info(),
+            governance_authority: ctx.accounts.vest.to_account_info(),
+            governing_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+            governing_token_owner: ctx.accounts.vest.to_account_info(),
+            governing_token_owner_record: ctx
+                .accounts
+                .governance_governing_token_owner_record
+                .to_account_info(),
+        };
+
+        let cpi_program = ctx.accounts.governance_program.to_account_info();
+
+        adapters::set_governance_delegate(
+            CpiContext::new(cpi_program, cpi_accounts).with_signer(&[vest_signer_seeds]),
+        )?;
+    }
+
+    // Withdraw tokens from governance directly to the vest owner token account
     {
         let owner_key = ctx.accounts.owner.key();
         let vest_signer_seeds: &[&[u8]] = &[b"vest", owner_key.as_ref(), &[ctx.accounts.vest.bump]];
@@ -127,9 +150,6 @@ pub fn claim_vest<'info>(ctx: Context<'_, '_, '_, 'info, ClaimVest<'info>>) -> R
             CpiContext::new(cpi_program, cpi_accounts).with_signer(&[vest_signer_seeds]),
         )?;
     }
-
-    // TODO
-    // 1) Transfer tokens from gov to user
 
     // remove vest from the list
     {

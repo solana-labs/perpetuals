@@ -1,11 +1,10 @@
-use solana_sdk::compute_budget::ComputeBudgetInstruction;
-
 use {
     super::{fixtures, get_program_data_pda, get_test_oracle_account},
     crate::instructions,
     anchor_lang::{prelude::*, InstructionData},
     anchor_spl::token::spl_token,
     bonfida_test_utils::ProgramTestContextExt,
+    borsh::BorshDeserialize,
     perpetuals::{
         adapters::SplGovernanceV3Adapter,
         instructions::{
@@ -18,9 +17,15 @@ use {
             pool::TokenRatios,
         },
     },
-    solana_program::{bpf_loader_upgradeable, program_pack::Pack, stake_history::Epoch},
+    solana_program::{
+        borsh::try_from_slice_unchecked, bpf_loader_upgradeable, program_pack::Pack,
+        stake_history::Epoch,
+    },
     solana_program_test::{read_file, BanksClientError, ProgramTest, ProgramTestContext},
-    solana_sdk::{account, signature::Keypair, signer::Signer, signers::Signers},
+    solana_sdk::{
+        account, compute_budget::ComputeBudgetInstruction, signature::Keypair, signer::Signer,
+        signers::Signers,
+    },
     std::{
         ops::{Div, Mul},
         path::Path,
@@ -73,6 +78,19 @@ pub async fn get_token_account_balance(
     key: Pubkey,
 ) -> u64 {
     get_token_account(program_test_ctx, key).await.amount
+}
+
+pub async fn get_borsh_account<T: BorshDeserialize>(
+    program_test_ctx: &mut ProgramTestContext,
+    address: &Pubkey,
+) -> T {
+    program_test_ctx
+        .banks_client
+        .get_account(*address)
+        .await
+        .unwrap()
+        .map(|a| try_from_slice_unchecked(&a.data).unwrap())
+        .unwrap_or_else(|| panic!("GET-TEST-ACCOUNT-ERROR: Account {} not found", address))
 }
 
 pub async fn get_account<T: anchor_lang::AccountDeserialize>(

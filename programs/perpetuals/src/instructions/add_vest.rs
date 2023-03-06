@@ -222,5 +222,34 @@ pub fn add_vest<'info>(
         )?;
     }
 
+    // Set vote delegate to vest owner
+    {
+        let owner_key = ctx.accounts.owner.key();
+        let vest_signer_seeds: &[&[u8]] = &[b"vest", owner_key.as_ref(), &[ctx.accounts.vest.bump]];
+
+        let cpi_accounts = adapters::SetGovernanceDelegate {
+            realm: ctx.accounts.governance_realm.to_account_info(),
+            governance_authority: ctx.accounts.vest.to_account_info(),
+            governing_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+            governing_token_owner: ctx.accounts.vest.to_account_info(),
+            governing_token_owner_record: ctx
+                .accounts
+                .governance_governing_token_owner_record
+                .to_account_info(),
+        };
+
+        let cpi_program = ctx.accounts.governance_program.to_account_info();
+
+        let mut cpi_context = CpiContext::new(cpi_program, cpi_accounts);
+
+        let new_governance_delegate = ctx.accounts.owner.to_account_info();
+
+        cpi_context
+            .remaining_accounts
+            .append(&mut Vec::from([new_governance_delegate]));
+
+        adapters::set_governance_delegate(cpi_context.with_signer(&[vest_signer_seeds]))?;
+    }
+
     Ok(0)
 }

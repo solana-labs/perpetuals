@@ -21,7 +21,7 @@ pub async fn test_add_vest(
     governance_realm_pda: &Pubkey,
     params: &AddVestParams,
     multisig_signers: &[&Keypair],
-) -> std::result::Result<(), BanksClientError> {
+) -> std::result::Result<(Pubkey, u8), BanksClientError> {
     // ==== WHEN ==============================================================
     let multisig_pda = pda::get_multisig_pda().0;
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
@@ -105,6 +105,7 @@ pub async fn test_add_vest(
 
     // ==== THEN ==============================================================
 
+    // Check vest account
     {
         let vest_account = utils::get_account::<Vest>(program_test_ctx, vest_pda).await;
 
@@ -116,12 +117,14 @@ pub async fn test_add_vest(
         assert_eq!(vest_account.lm_token_safe_bump, lm_token_safe_bump);
     }
 
+    // Check cortex account
     {
         let cortex_account = utils::get_account::<Cortex>(program_test_ctx, cortex_pda).await;
 
         assert_eq!(*cortex_account.vests.last().unwrap(), vest_pda);
     }
 
+    // Check lm_token_safe to stay untouhed
     {
         let lm_token_safe_balance =
             utils::get_token_account_balance(program_test_ctx, lm_token_safe_pda).await;
@@ -129,6 +132,7 @@ pub async fn test_add_vest(
         assert_eq!(lm_token_safe_balance, 0);
     }
 
+    // Check governance accounts
     {
         let governance_governing_token_holding_balance_after = utils::get_token_account_balance(
             program_test_ctx,
@@ -142,5 +146,5 @@ pub async fn test_add_vest(
         );
     }
 
-    Ok(())
+    Ok((vest_pda, vest_bump))
 }

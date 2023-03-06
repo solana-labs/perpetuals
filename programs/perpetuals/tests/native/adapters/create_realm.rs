@@ -1,5 +1,6 @@
 use {
     crate::utils::pda,
+    crate::utils::utils,
     anchor_lang::prelude::Pubkey,
     perpetuals::adapters::spl_governance_program_adapter,
     solana_program_test::BanksClientError,
@@ -7,6 +8,7 @@ use {
     solana_sdk::signer::{keypair::Keypair, Signer},
     spl_governance::state::enums::MintMaxVoterWeightSource,
     spl_governance::state::realm::GoverningTokenConfigAccountArgs,
+    spl_governance::state::realm::RealmV2,
     spl_governance::state::realm_config::GoverningTokenType,
 };
 
@@ -46,6 +48,13 @@ pub async fn create_realm(
         .banks_client
         .process_transaction(tx)
         .await?;
+
+    {
+        let realm = utils::get_borsh_account::<RealmV2>(program_test_ctx, &realm_pda).await;
+
+        assert_eq!(realm.community_mint, *community_token_mint);
+        assert_eq!(realm.authority.unwrap(), admin.pubkey());
+    }
 
     Ok(realm_pda)
 }
