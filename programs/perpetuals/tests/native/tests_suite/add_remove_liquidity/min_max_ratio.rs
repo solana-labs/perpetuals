@@ -23,7 +23,6 @@ const KEYPAIRS_COUNT: usize = 7;
 const USDC_DECIMALS: u8 = 6;
 const ETH_DECIMALS: u8 = 9;
 
-#[tokio::test]
 pub async fn min_max_ratio() {
     let mut program_test = ProgramTest::default();
 

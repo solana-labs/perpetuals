@@ -29,7 +29,6 @@ const KEYPAIRS_COUNT: usize = 9;
 const USDC_DECIMALS: u8 = 6;
 const ETH_DECIMALS: u8 = 9;
 
-#[tokio::test]
 pub async fn basic_interactions() {
     let mut program_test = ProgramTest::default();
 
