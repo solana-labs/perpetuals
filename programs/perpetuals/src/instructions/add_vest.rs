@@ -1,9 +1,9 @@
 //! AddVest instruction handler
 
 use {
-    crate::error::PerpetualsError,
     crate::adapters,
     crate::adapters::*,
+    crate::error::PerpetualsError,
     crate::state::{
         cortex::Cortex,
         multisig::{AdminInstruction, Multisig},

@@ -29,7 +29,8 @@ pub async fn test_add_vest(
     let cortex_pda = pda::get_cortex_pda().0;
     let (vest_pda, vest_bump) = pda::get_vest_pda(owner.pubkey());
     let (lm_token_mint_pda, _) = pda::get_lm_token_mint_pda();
-    let (vest_token_account_pda, vest_token_account_bump) = pda::get_vest_token_account_pda(vest_pda);
+    let (vest_token_account_pda, vest_token_account_bump) =
+        pda::get_vest_token_account_pda(vest_pda);
 
     let governance_governing_token_holding_pda =
         pda::get_governance_governing_token_holding_pda(governance_realm_pda, &lm_token_mint_pda);
@@ -114,7 +115,10 @@ pub async fn test_add_vest(
         assert_eq!(vest_account.owner, owner.pubkey());
         assert_eq!(vest_account.bump, vest_bump);
         assert_eq!(vest_account.vest_token_account, vest_token_account_pda);
-        assert_eq!(vest_account.vest_token_account_bump, vest_token_account_bump);
+        assert_eq!(
+            vest_account.vest_token_account_bump,
+            vest_token_account_bump
+        );
     }
 
     // Check cortex account
