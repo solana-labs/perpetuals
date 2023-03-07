@@ -56,4 +56,8 @@ pub enum PerpetualsError {
     InstructionNotAllowed,
     #[msg("Token utilization limit exceeded")]
     MaxUtilization,
+    #[msg("Governance program do not match Cortex's")]
+    InvalidGovernanceProgram,
+    #[msg("Governance realm do not match Cortex's")]
+    InvalidGovernanceRealm,
 }

@@ -1,5 +1,7 @@
 //! AddVest instruction handler
+
 use {
+    crate::error::PerpetualsError,
     crate::adapters,
     crate::adapters::*,
     crate::state::{
@@ -46,7 +48,9 @@ pub struct AddVest<'info> {
         realloc::payer = admin,
         realloc::zero = false,
         seeds = [b"cortex"],
-        bump = cortex.bump
+        bump = cortex.bump,
+        has_one = governance_program @PerpetualsError::InvalidGovernanceProgram,
+        has_one = governance_realm @PerpetualsError::InvalidGovernanceRealm,
     )]
     pub cortex: Box<Account<'info, Cortex>>,
 
