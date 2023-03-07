@@ -14,8 +14,8 @@ pub struct Vest {
     pub bump: u8,
     pub inception_time: i64,
 
-    pub lm_token_safe: Pubkey,
-    pub lm_token_safe_bump: u8,
+    pub vest_token_account: Pubkey,
+    pub vest_token_account_bump: u8,
 }
 
 impl Vest {
@@ -46,8 +46,8 @@ mod test {
             owner: Pubkey::default(),
             bump: 255,
             inception_time: 1,
-            lm_token_safe: Pubkey::default(),
-            lm_token_safe_bump: 255,
+            vest_token_account: Pubkey::default(),
+            vest_token_account_bump: 255,
         }
     }
 

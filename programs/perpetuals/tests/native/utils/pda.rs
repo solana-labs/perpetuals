@@ -23,9 +23,9 @@ pub fn get_lm_token_mint_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(&["lm_token_mint".as_ref()], &perpetuals::id())
 }
 
-pub fn get_lm_token_safe_pda(vest_pda: Pubkey) -> (Pubkey, u8) {
+pub fn get_vest_token_account_pda(vest_pda: Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
-        &["lm_token_safe".as_ref(), vest_pda.as_ref()],
+        &["vest_token_account".as_ref(), vest_pda.as_ref()],
         &perpetuals::id(),
     )
 }

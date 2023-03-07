@@ -81,7 +81,7 @@ pub struct AddVest<'info> {
     #[account(
         init_if_needed,
         seeds = [
-            b"lm_token_safe",
+            b"vest_token_account",
             vest.key().as_ref(),
         ],
         token::authority = vest,
@@ -89,7 +89,7 @@ pub struct AddVest<'info> {
         bump,
         payer = payer,
     )]
-    pub lm_token_safe: Box<Account<'info, TokenAccount>>,
+    pub vest_token_account: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: checked by spl governance v3 program
     /// A realm represent one project (ADRENA, MANGO etc.) within the governance program
@@ -169,15 +169,15 @@ pub fn add_vest<'info>(
         vest.owner = ctx.accounts.owner.key();
         vest.bump = *ctx.bumps.get("vest").ok_or(ProgramError::InvalidSeeds)?;
         vest.inception_time = ctx.accounts.perpetuals.get_time()?;
-        vest.lm_token_safe = ctx.accounts.lm_token_safe.key();
-        vest.lm_token_safe_bump = *ctx
+        vest.vest_token_account = ctx.accounts.vest_token_account.key();
+        vest.vest_token_account_bump = *ctx
             .bumps
-            .get("lm_token_safe")
+            .get("vest_token_account")
             .ok_or(ProgramError::InvalidSeeds)?;
 
         ctx.accounts.perpetuals.mint_tokens(
             ctx.accounts.lm_token_mint.to_account_info(),
-            ctx.accounts.lm_token_safe.to_account_info(),
+            ctx.accounts.vest_token_account.to_account_info(),
             ctx.accounts.transfer_authority.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
             vest.amount,
@@ -200,7 +200,7 @@ pub fn add_vest<'info>(
             realm: ctx.accounts.governance_realm.to_account_info(),
             realm_config: ctx.accounts.governance_realm_config.to_account_info(),
             governing_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
-            governing_token_source: ctx.accounts.lm_token_safe.to_account_info(),
+            governing_token_source: ctx.accounts.vest_token_account.to_account_info(),
             governing_token_owner: ctx.accounts.vest.to_account_info(),
             governing_token_transfer_authority: ctx.accounts.vest.to_account_info(),
             payer: ctx.accounts.payer.to_account_info(),
