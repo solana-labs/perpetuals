@@ -235,6 +235,13 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
         )?,
         PerpetualsError::TokenRatioOutOfRange
     );
+    require!(
+        math::checked_sub(
+            dispensing_custody.assets.owned,
+            dispensing_custody.assets.locked
+        )? >= withdrawal_amount,
+        PerpetualsError::PoolAmountLimit
+    );
 
     // transfer tokens
     msg!("Transfer tokens");

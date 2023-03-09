@@ -4,9 +4,9 @@ use {
     crate::state::{
         custody::Custody,
         oracle::OraclePrice,
-        perpetuals::{Perpetuals, PriceAndFee},
+        perpetuals::{NewPositionPricesAndFee, Perpetuals},
         pool::Pool,
-        position::Side,
+        position::{Position, Side},
     },
     anchor_lang::prelude::*,
     solana_program::program_error::ProgramError,
@@ -52,7 +52,7 @@ pub struct GetEntryPriceAndFeeParams {
 pub fn get_entry_price_and_fee(
     ctx: Context<GetEntryPriceAndFee>,
     params: &GetEntryPriceAndFeeParams,
-) -> Result<PriceAndFee> {
+) -> Result<NewPositionPricesAndFee> {
     // validate inputs
     if params.collateral == 0 || params.size == 0 || params.side == Side::None {
         return Err(ProgramError::InvalidArgument.into());
@@ -82,9 +82,23 @@ pub fn get_entry_price_and_fee(
         custody.pricing.use_ema,
     )?;
 
-    let price = pool.get_entry_price(&token_price, &token_ema_price, params.side, custody)?;
+    let entry_price = pool.get_entry_price(&token_price, &token_ema_price, params.side, custody)?;
 
-    // compute fee
+    let size_usd = token_price.get_asset_amount_usd(params.size, custody.decimals)?;
+    let collateral_usd = token_price.get_asset_amount_usd(params.collateral, custody.decimals)?;
+
+    let position = Position {
+        side: params.side,
+        price: entry_price,
+        size_usd,
+        collateral_usd,
+        cumulative_interest_snapshot: custody.get_cumulative_interest(curtime)?,
+        ..Position::default()
+    };
+
+    let liquidation_price =
+        pool.get_liquidation_price(token_id, &position, &token_price, custody, curtime)?;
+
     let fee = pool.get_entry_fee(
         token_id,
         params.collateral,
@@ -93,5 +107,9 @@ pub fn get_entry_price_and_fee(
         &token_price,
     )?;
 
-    Ok(PriceAndFee { price, fee })
+    Ok(NewPositionPricesAndFee {
+        entry_price,
+        liquidation_price,
+        fee,
+    })
 }

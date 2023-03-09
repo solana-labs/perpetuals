@@ -10,7 +10,7 @@ pub mod state;
 use {
     anchor_lang::prelude::*,
     instructions::*,
-    state::perpetuals::{PriceAndFee, ProfitAndLoss, SwapAmountAndFees},
+    state::perpetuals::{NewPositionPricesAndFee, PriceAndFee, ProfitAndLoss, SwapAmountAndFees},
 };
 
 solana_security_txt::security_txt! {
@@ -166,7 +166,7 @@ pub mod perpetuals {
     pub fn get_entry_price_and_fee(
         ctx: Context<GetEntryPriceAndFee>,
         params: GetEntryPriceAndFeeParams,
-    ) -> Result<PriceAndFee> {
+    ) -> Result<NewPositionPricesAndFee> {
         instructions::get_entry_price_and_fee(ctx, &params)
     }
 
