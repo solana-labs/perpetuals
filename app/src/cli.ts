@@ -277,7 +277,7 @@ async function getAum(poolName: string) {
     .command("init")
     .description("Initialize the on-chain program")
     .requiredOption("-m, --min-signatures <int>", "Minimum signatures")
-    .argument("<paths...>", "Filepaths to admin keypairs")
+    .argument("<pubkey...>", "Admin public keys")
     .action(async (args, options) => {
       await init(
         args.map((x) => new PublicKey(x)),
@@ -289,7 +289,7 @@ async function getAum(poolName: string) {
     .command("set-authority")
     .description("Set protocol admins")
     .requiredOption("-m, --min-signatures <int>", "Minimum signatures")
-    .argument("<paths...>", "Filepaths to admin keypairs")
+    .argument("<pubkey...>", "Admin public keys")
     .action(async (args, options) => {
       await setAuthority(
         args.map((x) => new PublicKey(x)),

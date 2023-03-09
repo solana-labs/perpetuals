@@ -146,6 +146,29 @@ export class PerpetualsClient {
     );
   };
 
+  getCustodyMetas = async (poolName: string) => {
+    let pool = await this.getPool(poolName);
+    let custodies = await this.program.account.custody.fetchMultiple(
+      pool.tokens.map((t) => t.custody)
+    );
+    let custodyMetas = [];
+    for (const token of pool.tokens) {
+      custodyMetas.push({
+        isSigner: false,
+        isWritable: false,
+        pubkey: token.custody,
+      });
+    }
+    for (const custody of custodies) {
+      custodyMetas.push({
+        isSigner: false,
+        isWritable: false,
+        pubkey: custody.oracle.oracleAccount,
+      });
+    }
+    return custodyMetas;
+  };
+
   getMultisig = async () => {
     return this.program.account.multisig.fetch(this.multisig.publicKey);
   };
@@ -653,11 +676,12 @@ export class PerpetualsClient {
 
   getAum = async (poolName: string) => {
     return await this.program.methods
-      .get_assets_under_management({})
+      .getAssetsUnderManagement({})
       .accounts({
         perpetuals: this.perpetuals.publicKey,
         pool: this.getPoolKey(poolName),
       })
+      .remainingAccounts(await this.getCustodyMetas(poolName))
       .view()
       .catch((err) => {
         console.error(err);
