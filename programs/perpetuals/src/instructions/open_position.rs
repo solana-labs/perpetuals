@@ -205,6 +205,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         math::checked_mul(params.size as u128, custody.pricing.max_payoff_mult as u128)?,
         Perpetuals::BPS_POWER,
     )?)?;
+
     position.collateral_amount = params.collateral;
     position.bump = *ctx
         .bumps

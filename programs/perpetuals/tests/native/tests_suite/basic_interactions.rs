@@ -156,7 +156,7 @@ pub async fn basic_interactions() {
                     target_ratio: utils::ratio_from_percentage(50.0),
                     min_ratio: utils::ratio_from_percentage(0.0),
                     max_ratio: utils::ratio_from_percentage(100.0),
-                    initial_price: utils::scale_f64(1_676.04, ETH_DECIMALS),
+                    initial_price: utils::scale(1_500, ETH_DECIMALS),
                     initial_conf: utils::scale(10, ETH_DECIMALS),
                     pricing_params: None,
                     permissions: None,
@@ -173,18 +173,18 @@ pub async fn basic_interactions() {
 
     // Simple open/close position
     {
-        // Martin: Open 50 USDC position
+        // Martin: Open 0.1 ETH position
         let position_pda = instructions::test_open_position(
             &mut program_test_ctx,
             &keypairs[USER_MARTIN],
             &keypairs[PAYER],
             &pool_pda,
-            &usdc_mint,
+            &eth_mint,
             OpenPositionParams {
                 // max price paid (slippage implied)
-                price: utils::scale_f64(1.05, USDC_DECIMALS),
-                collateral: utils::scale(50, USDC_DECIMALS),
-                size: utils::scale(50, USDC_DECIMALS),
+                price: utils::scale(1_550, ETH_DECIMALS),
+                collateral: utils::scale_f64(0.1, ETH_DECIMALS),
+                size: utils::scale_f64(0.1, ETH_DECIMALS),
                 side: Side::Long,
             },
         )
@@ -192,17 +192,17 @@ pub async fn basic_interactions() {
         .unwrap()
         .0;
 
-        // Martin: Close the 50 USDC position
+        // Martin: Close the ETH position
         instructions::test_close_position(
             &mut program_test_ctx,
             &keypairs[USER_MARTIN],
             &keypairs[PAYER],
             &pool_pda,
-            &usdc_mint,
+            &eth_mint,
             &position_pda,
             ClosePositionParams {
                 // lowest exit price paid (slippage implied)
-                price: utils::scale_f64(0.99, USDC_DECIMALS),
+                price: utils::scale(1_450, USDC_DECIMALS),
             },
         )
         .await
@@ -225,7 +225,7 @@ pub async fn basic_interactions() {
 
                 // 1% slippage
                 min_amount_out: utils::scale(150, USDC_DECIMALS)
-                    / utils::scale_f64(1_676.04, ETH_DECIMALS)
+                    / utils::scale(1_500, ETH_DECIMALS)
                     * 99
                     / 100,
             },

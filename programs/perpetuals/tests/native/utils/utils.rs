@@ -1,11 +1,10 @@
-use perpetuals::state::custody::BorrowRateParams;
-
 use {
     super::{fixtures, get_program_data_pda, get_test_oracle_account},
     crate::instructions,
     anchor_lang::{prelude::*, InstructionData},
     anchor_spl::token::spl_token,
     bonfida_test_utils::ProgramTestContextExt,
+    perpetuals::state::custody::BorrowRateParams,
     perpetuals::{
         instructions::{
             AddCustodyParams, AddLiquidityParams, SetCustodyConfigParams, SetTestOraclePriceParams,
