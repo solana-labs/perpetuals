@@ -309,8 +309,13 @@ impl Pool {
     ) -> Result<bool> {
         let new_ratio = self.get_new_ratio(amount_add, amount_remove, custody, token_price)?;
 
-        Ok(new_ratio <= self.tokens[token_id].max_ratio
-            && new_ratio >= self.tokens[token_id].min_ratio)
+        if new_ratio < self.tokens[token_id].min_ratio {
+            Ok(new_ratio >= self.get_current_ratio(custody, token_price)?)
+        } else if new_ratio > self.tokens[token_id].max_ratio {
+            Ok(new_ratio <= self.get_current_ratio(custody, token_price)?)
+        } else {
+            Ok(true)
+        }
     }
 
     pub fn check_available_amount(&self, amount: u64, custody: &Custody) -> Result<bool> {
@@ -654,6 +659,19 @@ impl Pool {
     }
 
     // private helpers
+    fn get_current_ratio(&self, custody: &Custody, token_price: &OraclePrice) -> Result<u64> {
+        if self.aum_usd == 0 {
+            return Ok(0);
+        }
+        math::checked_as_u64(math::checked_div(
+            math::checked_mul(
+                token_price.get_asset_amount_usd(custody.assets.owned, custody.decimals)? as u128,
+                Perpetuals::BPS_POWER,
+            )?,
+            self.aum_usd,
+        )?)
+    }
+
     fn get_new_ratio(
         &self,
         amount_add: u64,
