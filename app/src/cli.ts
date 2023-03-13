@@ -162,6 +162,10 @@ async function getUserPositions(wallet: PublicKey) {
   client.prettyPrint(await client.getUserPositions(wallet));
 }
 
+async function getPoolTokenPositions(poolName: string, tokenMint: PublicKey) {
+  client.prettyPrint(await client.getPoolTokenPositions(poolName, tokenMint));
+}
+
 async function getAllPositions() {
   client.prettyPrint(await client.getAllPositions());
 }
@@ -419,6 +423,15 @@ async function getAum(poolName: string) {
     .argument("<pubkey>", "User wallet")
     .action(async (wallet) => {
       await getUserPositions(new PublicKey(wallet));
+    });
+
+  program
+    .command("get-pool-token-positions")
+    .description("Print positions in the token")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .action(async (poolName, tokenMint) => {
+      await getPoolTokenPositions(poolName, new PublicKey(tokenMint));
     });
 
   program

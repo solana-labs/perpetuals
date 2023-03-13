@@ -210,7 +210,7 @@ export class PerpetualsClient {
     let positions = await this.provider.connection.getProgramAccounts(
       this.program.programId,
       {
-        filters: [{ dataSize: 152 }, { memcmp: { bytes: data, offset: 0 } }],
+        filters: [{ dataSize: 200 }, { memcmp: { bytes: data, offset: 0 } }],
       }
     );
     return Promise.all(
@@ -222,11 +222,14 @@ export class PerpetualsClient {
 
   getPoolTokenPositions = async (poolName: string, tokenMint: PublicKey) => {
     let poolKey = this.getPoolKey(poolName);
-    let data = encode(Buffer.concat([poolKey.toBuffer(), Buffer.from([0])]));
+    let custodyKey = this.getCustodyKey(poolName, tokenMint);
+    let data = encode(
+      Buffer.concat([poolKey.toBuffer(), custodyKey.toBuffer()])
+    );
     let positions = await this.provider.connection.getProgramAccounts(
       this.program.programId,
       {
-        filters: [{ dataSize: 152 }, { memcmp: { bytes: data, offset: 40 } }],
+        filters: [{ dataSize: 200 }, { memcmp: { bytes: data, offset: 40 } }],
       }
     );
     return Promise.all(
