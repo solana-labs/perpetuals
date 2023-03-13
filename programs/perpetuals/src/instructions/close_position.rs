@@ -167,7 +167,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     msg!("Check pool constraints");
     require!(
         pool.check_available_amount(transfer_amount, custody)?,
-        PerpetualsError::PoolAmountLimit
+        PerpetualsError::CustodyAmountLimit
     );
 
     // transfer tokens

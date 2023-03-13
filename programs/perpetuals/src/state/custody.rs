@@ -1,8 +1,9 @@
 use {
     crate::{
+        error::PerpetualsError,
         math,
         state::{
-            oracle::OracleType,
+            oracle::{OraclePrice, OracleType},
             perpetuals::{Permissions, Perpetuals},
             position::{Position, Side},
         },
@@ -85,14 +86,19 @@ pub struct PricingParams {
     pub use_ema: bool,
     // whether to account for unrealized pnl in assets under management calculations
     pub use_unrealized_pnl_in_aum: bool,
-    // pricing params have implied BPS_DECIMALS decimals
+    // pricing params have implied BPS_DECIMALS decimals (except ended with _usd)
     pub trade_spread_long: u64,
     pub trade_spread_short: u64,
     pub swap_spread: u64,
     pub min_initial_leverage: u64,
+    pub max_initial_leverage: u64,
     pub max_leverage: u64,
     // max_user_profit = position_size * max_payoff_mult
     pub max_payoff_mult: u64,
+    pub max_utilization: u64,
+    // USD denominated values always have implied USD_DECIMALS decimals
+    pub max_position_locked_usd: u64,
+    pub max_total_locked_usd: u64,
 }
 
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
@@ -156,6 +162,8 @@ pub struct Custody {
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
 pub struct DeprecatedPricingParams {
     pub use_ema: bool,
+    // whether to account for unrealized pnl in assets under management calculations
+    pub use_unrealized_pnl_in_aum: bool,
     // pricing params have implied BPS_DECIMALS decimals
     pub trade_spread_long: u64,
     pub trade_spread_short: u64,
@@ -169,6 +177,7 @@ pub struct DeprecatedPricingParams {
 #[account]
 #[derive(Default, Debug)]
 pub struct DeprecatedCustody {
+    // static parameters
     pub pool: Pubkey,
     pub mint: Pubkey,
     pub token_account: Pubkey,
@@ -178,14 +187,18 @@ pub struct DeprecatedCustody {
     pub pricing: DeprecatedPricingParams,
     pub permissions: Permissions,
     pub fees: Fees,
-    pub borrow_rate: u64,
-    pub borrow_rate_sum: u64,
+    pub borrow_rate: BorrowRateParams,
 
+    // dynamic variables
     pub assets: Assets,
     pub collected_fees: FeesStats,
     pub volume_stats: VolumeStats,
     pub trade_stats: TradeStats,
+    pub long_positions: PositionStats,
+    pub short_positions: PositionStats,
+    pub borrow_rate_state: BorrowRateState,
 
+    // bumps for address validation
     pub bump: u8,
     pub token_account_bump: u8,
 }
@@ -218,11 +231,14 @@ impl OracleParams {
 impl PricingParams {
     pub fn validate(&self) -> bool {
         (self.min_initial_leverage as u128) >= Perpetuals::BPS_POWER
-            && self.min_initial_leverage <= self.max_leverage
+            && self.min_initial_leverage <= self.max_initial_leverage
+            && self.max_initial_leverage <= self.max_leverage
             && (self.trade_spread_long as u128) < Perpetuals::BPS_POWER
             && (self.trade_spread_short as u128) < Perpetuals::BPS_POWER
             && (self.swap_spread as u128) < Perpetuals::BPS_POWER
             && self.max_payoff_mult > 0
+            && (self.max_utilization as u128) <= Perpetuals::BPS_POWER
+            && self.max_position_locked_usd <= self.max_total_locked_usd
     }
 }
 
@@ -246,6 +262,21 @@ impl Custody {
 
     pub fn lock_funds(&mut self, amount: u64) -> Result<()> {
         self.assets.locked = math::checked_add(self.assets.locked, amount)?;
+
+        // check for max utilization
+        if self.pricing.max_utilization > 0
+            && (self.pricing.max_utilization as u128) < Perpetuals::BPS_POWER
+            && self.assets.owned > 0
+        {
+            let current_utilization = math::checked_as_u64(math::checked_div(
+                math::checked_mul(self.assets.locked as u128, Perpetuals::BPS_POWER)?,
+                self.assets.owned as u128,
+            )?)?;
+            require!(
+                current_utilization <= self.pricing.max_utilization,
+                PerpetualsError::MaxUtilization
+            );
+        }
 
         if self.assets.owned < self.assets.locked {
             Err(ProgramError::InsufficientFunds.into())
@@ -384,7 +415,12 @@ impl Custody {
         }
     }
 
-    pub fn add_position(&mut self, position: &Position, curtime: i64) -> Result<()> {
+    pub fn add_position(
+        &mut self,
+        position: &Position,
+        token_price: &OraclePrice,
+        curtime: i64,
+    ) -> Result<()> {
         // compute accumulated interest
         let collective_position = self.get_collective_position(position.side)?;
         let interest_usd = self.get_interest_amount_usd(&collective_position, curtime)?;
@@ -411,6 +447,24 @@ impl Custody {
             math::checked_mul(position.price as u128, leverage)?,
         )?;
         stats.total_leverage = math::checked_add(stats.total_leverage, leverage)?;
+
+        // check limits
+        if self.pricing.max_position_locked_usd > 0 {
+            let locked_amount_usd =
+                token_price.get_asset_amount_usd(position.locked_amount, self.decimals)?;
+            require!(
+                locked_amount_usd <= self.pricing.max_position_locked_usd,
+                PerpetualsError::PositionAmountLimit
+            );
+        }
+        if self.pricing.max_total_locked_usd > 0 {
+            let locked_amount_usd =
+                token_price.get_asset_amount_usd(stats.locked_amount, self.decimals)?;
+            require!(
+                locked_amount_usd <= self.pricing.max_total_locked_usd,
+                PerpetualsError::CustodyAmountLimit
+            );
+        }
 
         Ok(())
     }

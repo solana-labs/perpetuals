@@ -106,6 +106,7 @@ pub async fn min_max_leverage() {
                     // 10_000 = x1, 50_000 = x5
                     max_leverage: 100_000,
                     min_initial_leverage: 10_000,
+                    max_initial_leverage: 100_000,
                     ..fixtures::pricing_params_regular(false)
                 }),
                 permissions: None,

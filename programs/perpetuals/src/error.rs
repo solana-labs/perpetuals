@@ -40,12 +40,16 @@ pub enum PerpetualsError {
     MaxPriceSlippage,
     #[msg("Position leverage limit exceeded")]
     MaxLeverage,
-    #[msg("Pool amount limit exceeded")]
-    PoolAmountLimit,
+    #[msg("Custody amount limit exceeded")]
+    CustodyAmountLimit,
+    #[msg("Position amount limit exceeded")]
+    PositionAmountLimit,
     #[msg("Token ratio out of range")]
     TokenRatioOutOfRange,
     #[msg("Token is not supported")]
     UnsupportedToken,
     #[msg("Instruction is not allowed at this time")]
     InstructionNotAllowed,
+    #[msg("Token utilization limit exceeded")]
+    MaxUtilization,
 }

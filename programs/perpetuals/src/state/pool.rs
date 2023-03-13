@@ -384,7 +384,9 @@ impl Pool {
         )?;
 
         Ok(current_leverage <= custody.pricing.max_leverage
-            && (!initial || current_leverage >= custody.pricing.min_initial_leverage))
+            && (!initial
+                || (current_leverage >= custody.pricing.min_initial_leverage
+                    && current_leverage <= custody.pricing.max_initial_leverage)))
     }
 
     pub fn get_liquidation_price(
@@ -882,8 +884,12 @@ mod test {
             trade_spread_short: 100,
             swap_spread: 300,
             min_initial_leverage: 10000,
+            max_initial_leverage: 100000,
             max_leverage: 100000,
             max_payoff_mult: 10000,
+            max_utilization: 0,
+            max_position_locked_usd: 0,
+            max_total_locked_usd: 0,
         };
 
         let permissions = Permissions {

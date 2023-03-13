@@ -267,7 +267,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
             math::checked_add(custody.trade_stats.oi_short_usd, size_usd)?;
     }
 
-    custody.add_position(position, curtime)?;
+    custody.add_position(position, &token_price, curtime)?;
     custody.update_borrow_rate(curtime)?;
 
     Ok(())

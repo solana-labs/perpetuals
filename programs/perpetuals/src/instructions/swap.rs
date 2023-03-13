@@ -240,7 +240,7 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
             dispensing_custody.assets.owned,
             dispensing_custody.assets.locked
         )? >= withdrawal_amount,
-        PerpetualsError::PoolAmountLimit
+        PerpetualsError::CustodyAmountLimit
     );
 
     // transfer tokens

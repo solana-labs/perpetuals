@@ -77,8 +77,12 @@ async function addCustody(
     tradeSpreadShort: new BN(100),
     swapSpread: new BN(200),
     minInitialLeverage: new BN(10000),
+    maxInitialLeverage: new BN(1000000),
     maxLeverage: new BN(1000000),
     maxPayoffMult: new BN(10000),
+    maxUtilization: new BN(10000),
+    maxPositionLockedUsd: new BN(1000000000),
+    maxTotalLockedUsd: new BN(0),
   };
   let permissions = {
     allowSwap: true,

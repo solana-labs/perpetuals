@@ -4,10 +4,7 @@ use {
     crate::{
         error::PerpetualsError,
         state::{
-            custody::{
-                BorrowRateParams, BorrowRateState, Custody, DeprecatedCustody, PositionStats,
-                PricingParams,
-            },
+            custody::{Custody, DeprecatedCustody, PositionStats, PricingParams},
             multisig::{AdminInstruction, Multisig},
             perpetuals::Perpetuals,
             pool::Pool,
@@ -92,9 +89,7 @@ pub struct UpgradeCustody<'info> {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
-pub struct UpgradeCustodyParams {
-    borrow_rate: BorrowRateParams,
-}
+pub struct UpgradeCustodyParams {}
 
 pub fn upgrade_custody<'info>(
     ctx: Context<'_, '_, '_, 'info, UpgradeCustody<'info>>,
@@ -127,21 +122,19 @@ pub fn upgrade_custody<'info>(
     }
     let deprecated_custody = Account::<DeprecatedCustody>::try_from_unchecked(custody_account)?;
 
-    let borrow_rate_state = BorrowRateState {
-        current_rate: deprecated_custody.borrow_rate,
-        cumulative_interest: deprecated_custody.borrow_rate_sum as u128,
-        last_update: 0,
-    };
-
     let pricing = PricingParams {
         use_ema: deprecated_custody.pricing.use_ema,
-        use_unrealized_pnl_in_aum: true,
+        use_unrealized_pnl_in_aum: deprecated_custody.pricing.use_unrealized_pnl_in_aum,
         trade_spread_long: deprecated_custody.pricing.trade_spread_long,
         trade_spread_short: deprecated_custody.pricing.trade_spread_short,
         swap_spread: deprecated_custody.pricing.swap_spread,
         min_initial_leverage: deprecated_custody.pricing.min_initial_leverage,
+        max_initial_leverage: deprecated_custody.pricing.max_leverage,
         max_leverage: deprecated_custody.pricing.max_leverage,
         max_payoff_mult: deprecated_custody.pricing.max_payoff_mult,
+        max_utilization: 0,
+        max_position_locked_usd: 0,
+        max_total_locked_usd: 0,
     };
 
     // update custody data
@@ -155,14 +148,14 @@ pub fn upgrade_custody<'info>(
         pricing,
         permissions: deprecated_custody.permissions,
         fees: deprecated_custody.fees,
-        borrow_rate: params.borrow_rate,
+        borrow_rate: deprecated_custody.borrow_rate,
         assets: deprecated_custody.assets,
         collected_fees: deprecated_custody.collected_fees,
         volume_stats: deprecated_custody.volume_stats,
         trade_stats: deprecated_custody.trade_stats,
         long_positions: PositionStats::default(),
         short_positions: PositionStats::default(),
-        borrow_rate_state,
+        borrow_rate_state: deprecated_custody.borrow_rate_state,
         bump: deprecated_custody.bump,
         token_account_bump: deprecated_custody.token_account_bump,
     };

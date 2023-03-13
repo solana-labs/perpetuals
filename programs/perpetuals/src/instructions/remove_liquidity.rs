@@ -158,7 +158,7 @@ pub fn remove_liquidity(
 
     require!(
         math::checked_sub(custody.assets.owned, custody.assets.locked)? >= withdrawal_amount,
-        PerpetualsError::PoolAmountLimit
+        PerpetualsError::CustodyAmountLimit
     );
 
     // transfer tokens

@@ -58,8 +58,12 @@ pub fn pricing_params_regular(use_ema: bool) -> PricingParams {
         trade_spread_short: 100,
         swap_spread: 300,
         min_initial_leverage: 10_000,
+        max_initial_leverage: 100_000,
         max_leverage: 100_000,
         max_payoff_mult: 10_000,
+        max_utilization: 0,
+        max_position_locked_usd: 0,
+        max_total_locked_usd: 0,
     }
 }
 

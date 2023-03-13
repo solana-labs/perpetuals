@@ -141,8 +141,12 @@ describe("perpetuals", () => {
       tradeSpreadShort: new BN(100),
       swapSpread: new BN(200),
       minInitialLeverage: new BN(10000),
+      maxInitialLeverage: new BN(1000000),
       maxLeverage: new BN(1000000),
       maxPayoffMult: new BN(10000),
+      maxUtilization: new BN(10000),
+      maxPositionLockedUsd: new BN(1000000000),
+      maxTotalLockedUsd: new BN(1000000000),
     };
     permissions = {
       allowSwap: true,
@@ -209,8 +213,12 @@ describe("perpetuals", () => {
         tradeSpreadShort: "100",
         swapSpread: "200",
         minInitialLeverage: "10000",
+        maxInitialLeverage: "1000000",
         maxLeverage: "1000000",
         maxPayoffMult: "10000",
+        maxUtilization: "10000",
+        maxPositionLockedUsd: "1000000000",
+        maxTotalLockedUsd: "1000000000",
       },
       permissions: {
         allowSwap: true,
