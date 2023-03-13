@@ -58,15 +58,6 @@ pub fn get_liquidation_state(
     let custody = ctx.accounts.custody.as_mut();
     let curtime = ctx.accounts.perpetuals.get_time()?;
 
-    let token_price = OraclePrice::new_from_oracle(
-        custody.oracle.oracle_type,
-        &ctx.accounts.custody_oracle_account.to_account_info(),
-        custody.oracle.max_price_error,
-        custody.oracle.max_price_age_sec,
-        curtime,
-        false,
-    )?;
-
     let token_ema_price = OraclePrice::new_from_oracle(
         custody.oracle.oracle_type,
         &ctx.accounts.custody_oracle_account.to_account_info(),
@@ -79,7 +70,6 @@ pub fn get_liquidation_state(
     if ctx.accounts.pool.check_leverage(
         ctx.accounts.pool.get_token_id(&custody.key())?,
         &ctx.accounts.position,
-        &token_price,
         &token_ema_price,
         custody,
         curtime,

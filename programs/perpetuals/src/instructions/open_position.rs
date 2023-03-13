@@ -219,15 +219,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         PerpetualsError::InsufficientAmountReturned
     );
     require!(
-        pool.check_leverage(
-            token_id,
-            position,
-            &token_price,
-            &token_ema_price,
-            custody,
-            curtime,
-            true
-        )?,
+        pool.check_leverage(token_id, position, &token_ema_price, custody, curtime, true)?,
         PerpetualsError::MaxLeverage
     );
 

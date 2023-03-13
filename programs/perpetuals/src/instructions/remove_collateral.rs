@@ -169,7 +169,6 @@ pub fn remove_collateral(
         pool.check_leverage(
             token_id,
             position,
-            &token_price,
             &token_ema_price,
             custody,
             curtime,

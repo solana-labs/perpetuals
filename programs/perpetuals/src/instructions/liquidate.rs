@@ -138,7 +138,6 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
         !pool.check_leverage(
             token_id,
             position,
-            &token_price,
             &token_ema_price,
             custody,
             curtime,

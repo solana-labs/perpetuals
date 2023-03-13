@@ -331,7 +331,6 @@ impl Pool {
         token_id: usize,
         position: &Position,
         token_price: &OraclePrice,
-        token_ema_price: &OraclePrice,
         custody: &Custody,
         curtime: i64,
     ) -> Result<u64> {
@@ -339,7 +338,7 @@ impl Pool {
             token_id,
             position,
             token_price,
-            token_ema_price,
+            token_price,
             custody,
             curtime,
             false,
@@ -369,19 +368,12 @@ impl Pool {
         token_id: usize,
         position: &Position,
         token_price: &OraclePrice,
-        token_ema_price: &OraclePrice,
         custody: &Custody,
         curtime: i64,
         initial: bool,
     ) -> Result<bool> {
-        let current_leverage = self.get_leverage(
-            token_id,
-            position,
-            token_price,
-            token_ema_price,
-            custody,
-            curtime,
-        )?;
+        let current_leverage =
+            self.get_leverage(token_id, position, token_price, custody, curtime)?;
 
         Ok(current_leverage <= custody.pricing.max_leverage
             && (!initial
@@ -1183,49 +1175,49 @@ mod test {
 
         assert_eq!(
             scale_f64(4.9043, Perpetuals::BPS_DECIMALS),
-            pool.get_leverage(0, &position, &token_price, &token_ema_price, &custody, 0)
+            pool.get_leverage(0, &position, &token_ema_price, &custody, 0)
                 .unwrap()
         );
 
         position.price = scale(110, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale_f64(3.9385, Perpetuals::BPS_DECIMALS),
-            pool.get_leverage(0, &position, &token_price, &token_ema_price, &custody, 0)
+            pool.get_leverage(0, &position, &token_ema_price, &custody, 0)
                 .unwrap()
         );
 
         position.price = scale(130, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale_f64(6.4977, Perpetuals::BPS_DECIMALS),
-            pool.get_leverage(0, &position, &token_price, &token_ema_price, &custody, 0)
+            pool.get_leverage(0, &position, &token_ema_price, &custody, 0)
                 .unwrap()
         );
 
         position.price = scale(80, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale_f64(2.4758, Perpetuals::BPS_DECIMALS),
-            pool.get_leverage(0, &position, &token_price, &token_ema_price, &custody, 0)
+            pool.get_leverage(0, &position, &token_ema_price, &custody, 0)
                 .unwrap()
         );
 
         position.price = scale(0, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale_f64(1.2439, Perpetuals::BPS_DECIMALS),
-            pool.get_leverage(0, &position, &token_price, &token_ema_price, &custody, 0)
+            pool.get_leverage(0, &position, &token_ema_price, &custody, 0)
                 .unwrap()
         );
 
         position.price = scale(160, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             2564102,
-            pool.get_leverage(0, &position, &token_price, &token_ema_price, &custody, 0)
+            pool.get_leverage(0, &position, &token_ema_price, &custody, 0)
                 .unwrap()
         );
 
         position.price = scale(180, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             u64::MAX,
-            pool.get_leverage(0, &position, &token_price, &token_ema_price, &custody, 0)
+            pool.get_leverage(0, &position, &token_ema_price, &custody, 0)
                 .unwrap()
         );
     }
