@@ -5,6 +5,7 @@ use {super::perpetuals::Perpetuals, crate::math, anchor_lang::prelude::*};
 
 // lenght of our epoch relative to Solana epochs (1 Solana epoch is ~2-3 days)
 const ADRENA_EPOCH: u8 = 10;
+pub const STAKING_ROUND_MIN_DURATION: i64 = 3600 * 6;
 
 #[account]
 #[derive(Default, Debug)]
@@ -12,9 +13,31 @@ pub struct Cortex {
     pub vests: Vec<Pubkey>,
     pub bump: u8,
     pub lm_token_bump: u8,
+    pub stake_redeemable_token_bump: u8,
+    pub stake_token_account_bump: u8,
     pub inception_epoch: u64,
     pub governance_program: Pubkey,
     pub governance_realm: Pubkey,
+    pub staking_rounds: Vec<StakingRound>,
+}
+
+#[derive(Default, Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct StakingRound {
+    pub timestamp_start: i64,
+    pub rate: u64, // the amount of reward you get per staked stake-token for that round - set at Round's resolution
+    pub total_stake: u64, // - set at Round's resolution
+    pub total_claim: u64, // - set at Round's resolution
+}
+
+impl StakingRound {
+    pub fn new(current_time: i64) -> Self {
+        Self {
+            timestamp_start: current_time,
+            rate: u64::MIN,
+            total_stake: u64::MIN,
+            total_claim: u64::MIN,
+        }
+    }
 }
 
 /// Cortex
@@ -23,6 +46,7 @@ impl Cortex {
     const INCEPTION_EMISSION_RATE: u64 = Perpetuals::RATE_POWER as u64; // 100%
     pub const FEE_TO_REWARD_RATIO_BPS: u8 = 10; //  0.10% of fees paid become rewards
     pub const LM_DECIMALS: u8 = Perpetuals::USD_DECIMALS;
+    pub const STAKE_REDEEMABLE_DECIMALS: u8 = Perpetuals::USD_DECIMALS; // LM token staking redeemable
 
     pub fn get_swap_lm_rewards_amounts(&self, (fee_in, fee_out): (u64, u64)) -> Result<(u64, u64)> {
         Ok((
@@ -57,6 +81,13 @@ impl Cortex {
     pub fn get_epoch(&self) -> Result<u64> {
         let epoch = solana_program::sysvar::clock::Clock::get()?.epoch;
         Ok(epoch)
+    }
+
+    pub fn get_current_staking_round_mut(&mut self) -> Result<&mut StakingRound> {
+        match self.staking_rounds.last_mut() {
+            Some(current_staking_round) => Ok(current_staking_round),
+            None => Err(ProgramError::InvalidAccountData.into()),
+        }
     }
 }
 

@@ -1,12 +1,17 @@
 //! Init instruction handler
+
 use {
     crate::{
         adapters::SplGovernanceV3Adapter,
         error::PerpetualsError,
-        state::{cortex::Cortex, multisig::Multisig, perpetuals::Perpetuals},
+        state::{
+            cortex::{Cortex, StakingRound},
+            multisig::Multisig,
+            perpetuals::Perpetuals,
+        },
     },
     anchor_lang::prelude::*,
-    anchor_spl::token::{Mint, Token},
+    anchor_spl::token::{Mint, Token, TokenAccount},
     solana_program::program_error::ProgramError,
 };
 
@@ -37,7 +42,7 @@ pub struct Init<'info> {
     #[account(
         init,
         payer = upgrade_authority,
-        space = Cortex::LEN,
+        space = Cortex::LEN + std::mem::size_of::<StakingRound>(),
         seeds = [b"cortex"],
         bump
     )]
@@ -53,6 +58,29 @@ pub struct Init<'info> {
         bump
     )]
     pub lm_token_mint: Box<Account<'info, Mint>>,
+
+    // lm_token_staking vault
+    #[account(
+        init,
+        payer = upgrade_authority,
+        token::mint = lm_token_mint,
+        token::authority = transfer_authority,
+        seeds = [b"stake_token_account"],
+        bump
+    )]
+    pub stake_token_account: Box<Account<'info, TokenAccount>>,
+
+    // lm_token_staking r-token
+    #[account(
+        init,
+        payer = upgrade_authority,
+        mint::authority = transfer_authority,
+        mint::freeze_authority = transfer_authority,
+        mint::decimals = Cortex::STAKE_REDEEMABLE_DECIMALS,
+        seeds = [b"stake_redeemable_token_mint"],
+        bump
+    )]
+    pub stake_redeemable_token_mint: Box<Account<'info, Mint>>,
 
     #[account(
         init,
@@ -140,9 +168,21 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
         .get("lm_token_mint")
         .ok_or(ProgramError::InvalidSeeds)?;
     cortex.bump = *ctx.bumps.get("cortex").ok_or(ProgramError::InvalidSeeds)?;
+    cortex.stake_redeemable_token_bump = *ctx
+        .bumps
+        .get("stake_redeemable_token_mint")
+        .ok_or(ProgramError::InvalidSeeds)?;
+    cortex.stake_token_account_bump = *ctx
+        .bumps
+        .get("stake_token_account")
+        .ok_or(ProgramError::InvalidSeeds)?;
     cortex.inception_epoch = cortex.get_epoch()?;
     cortex.governance_program = ctx.accounts.governance_program.key();
     cortex.governance_realm = ctx.accounts.governance_realm.key();
+    // initialize the first staking round
+    cortex
+        .staking_rounds
+        .push(StakingRound::new(perpetuals.get_time()?));
 
     Ok(())
 }

@@ -27,6 +27,9 @@ pub async fn test_init(
     let (perpetuals_pda, perpetuals_bump) = pda::get_perpetuals_pda();
     let (cortex_pda, cortex_bump) = pda::get_cortex_pda();
     let (lm_token_mint_pda, lm_token_mint_bump) = pda::get_lm_token_mint_pda();
+    let (stake_token_account_pda, stake_token_account_bump) = pda::get_stake_token_account_pda();
+    let (stake_redeemable_token_mint_pda, stake_redeemable_token_mint_bump) =
+        pda::get_stake_redeemable_token_mint_pda();
 
     let accounts_meta = {
         let accounts = perpetuals::accounts::Init {
@@ -35,6 +38,8 @@ pub async fn test_init(
             transfer_authority: transfer_authority_pda,
             cortex: cortex_pda,
             lm_token_mint: lm_token_mint_pda,
+            stake_token_account: stake_token_account_pda,
+            stake_redeemable_token_mint: stake_redeemable_token_mint_pda,
             perpetuals: perpetuals_pda,
             perpetuals_program: perpetuals::ID,
             perpetuals_program_data: perpetuals_program_data_pda,
@@ -99,6 +104,15 @@ pub async fn test_init(
         assert_eq!(cortex_account.bump, cortex_bump);
         assert_eq!(cortex_account.lm_token_bump, lm_token_mint_bump);
         assert_eq!(cortex_account.inception_epoch, 0);
+        assert_eq!(
+            cortex_account.stake_redeemable_token_bump,
+            stake_redeemable_token_mint_bump
+        );
+        assert_eq!(
+            cortex_account.stake_token_account_bump,
+            stake_token_account_bump
+        );
+        assert_eq!(cortex_account.staking_rounds.len(), 1);
     }
 
     let multisig_account = utils::get_account::<Multisig>(program_test_ctx, multisig_pda).await;
