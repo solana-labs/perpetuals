@@ -20,7 +20,7 @@ pub async fn test_claim_vest(
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
-    let vest_pda = pda::get_vest_pda(owner.pubkey()).0;
+    let vest_pda = pda::get_vest_pda(&owner.pubkey()).0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
 
     let lm_token_account_address =

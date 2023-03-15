@@ -28,7 +28,7 @@ pub async fn test_add_vest(
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
-    let (vest_pda, vest_bump) = pda::get_vest_pda(owner.pubkey());
+    let (vest_pda, vest_bump) = pda::get_vest_pda(&owner.pubkey());
     let (lm_token_mint_pda, _) = pda::get_lm_token_mint_pda();
     let (vest_token_account_pda, vest_token_account_bump) =
         pda::get_vest_token_account_pda(vest_pda);

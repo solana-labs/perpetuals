@@ -1,9 +1,10 @@
 //! AddStakeCortex instruction handler
+//!
 
 use {
     crate::{
         math,
-        state::{cortex::Cortex, perpetuals::Perpetuals},
+        state::{cortex::Cortex, perpetuals::Perpetuals, stake::Stake},
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
@@ -44,6 +45,16 @@ pub struct AddStake<'info> {
         bump = perpetuals.transfer_authority_bump
     )]
     pub transfer_authority: AccountInfo<'info>,
+
+    #[account(
+        init_if_needed,
+        payer = owner,
+        space = Stake::LEN,
+        seeds = [b"stake",
+                 owner.key().as_ref()],
+        bump
+    )]
+    pub stake: Box<Account<'info, Stake>>,
 
     #[account(
         mut,
@@ -88,6 +99,14 @@ pub fn stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> {
         return Err(ProgramError::InvalidArgument.into());
     }
 
+    // initialize Stake PDA if needed, or claim existing rewards
+    let stake = ctx.accounts.stake.as_mut();
+    if stake.inception_time == 0 {
+        stake.bump = *ctx.bumps.get("stake").ok_or(ProgramError::InvalidSeeds)?;
+    } else {
+        // TODO - call claim IX (let that ix verify the timestamp)
+    }
+
     // stake owner's tokens
     msg!("Transfer tokens");
     let perpetuals = ctx.accounts.perpetuals.as_mut();
@@ -122,6 +141,11 @@ pub fn stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> {
         ctx.accounts.token_program.to_account_info(),
         redeemable_amount,
     )?;
+
+    // record stake in the user `Stake` PDA and update stake time
+    let stake = ctx.accounts.stake.as_mut();
+    stake.amount += params.amount;
+    stake.inception_time = ctx.accounts.perpetuals.get_time()?;
 
     // record stake in current staking round
     let cortex = ctx.accounts.cortex.as_mut();

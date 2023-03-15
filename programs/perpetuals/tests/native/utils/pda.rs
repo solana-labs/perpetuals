@@ -30,6 +30,10 @@ pub fn get_vest_token_account_pda(vest_pda: Pubkey) -> (Pubkey, u8) {
     )
 }
 
+pub fn get_stake_pda(owner: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&["stake".as_ref(), owner.as_ref()], &perpetuals::id())
+}
+
 pub fn get_stake_token_account_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(&["stake_token_account".as_ref()], &perpetuals::id())
 }
@@ -45,11 +49,11 @@ pub fn get_program_data_pda() -> (Pubkey, u8) {
     )
 }
 
-pub fn get_pool_pda(name: String) -> (Pubkey, u8) {
+pub fn get_pool_pda(name: &String) -> (Pubkey, u8) {
     Pubkey::find_program_address(&["pool".as_ref(), name.as_bytes()], &perpetuals::id())
 }
 
-pub fn get_vest_pda(owner: Pubkey) -> (Pubkey, u8) {
+pub fn get_vest_pda(owner: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(&["vest".as_ref(), owner.as_ref()], &perpetuals::id())
 }
 

@@ -93,6 +93,25 @@ pub async fn get_borsh_account<T: BorshDeserialize>(
         .unwrap_or_else(|| panic!("GET-TEST-ACCOUNT-ERROR: Account {} not found", address))
 }
 
+pub async fn try_get_account<T: anchor_lang::AccountDeserialize>(
+    program_test_ctx: &mut ProgramTestContext,
+    key: Pubkey,
+) -> Option<T> {
+    let account = program_test_ctx
+        .banks_client
+        .get_account(key)
+        .await
+        .unwrap();
+
+    // an account with 0 lamport can be considered inexistant in the context of our tests
+    // on mainnet, someone might just send lamports to the right place but doesn't matter here
+    return if let Some(a) = account {
+        Some(T::try_deserialize(&mut a.data.as_slice()).unwrap())
+    } else {
+        None
+    };
+}
+
 pub async fn get_account<T: anchor_lang::AccountDeserialize>(
     program_test_ctx: &mut ProgramTestContext,
     key: Pubkey,
