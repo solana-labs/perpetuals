@@ -1,4 +1,5 @@
 //! Vest state and routines
+
 use {super::perpetuals::Perpetuals, crate::math, anchor_lang::prelude::*, num::Zero};
 
 #[account]

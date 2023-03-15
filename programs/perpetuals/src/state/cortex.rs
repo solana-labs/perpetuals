@@ -1,5 +1,4 @@
 //! Cortex state and routines
-//!
 
 use {super::perpetuals::Perpetuals, crate::math, anchor_lang::prelude::*};
 
@@ -13,7 +12,6 @@ pub struct Cortex {
     pub vests: Vec<Pubkey>,
     pub bump: u8,
     pub lm_token_bump: u8,
-    pub stake_redeemable_token_bump: u8,
     pub stake_token_account_bump: u8,
     pub inception_epoch: u64,
     pub governance_program: Pubkey,

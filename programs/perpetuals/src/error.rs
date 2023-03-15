@@ -28,6 +28,8 @@ pub enum PerpetualsError {
     InvalidPoolState,
     #[msg("Invalid vest state")]
     InvalidVestState,
+    #[msg("Invalid vest state")]
+    InvalidStakeState,
     #[msg("Invalid custody state")]
     InvalidCustodyState,
     #[msg("Invalid position state")]

@@ -7,7 +7,7 @@ use {
     perpetuals::{
         instructions::{
             AddStakeParams, AddVestParams, ClosePositionParams, OpenPositionParams,
-            RemoveLiquidityParams, SwapParams,
+            RemoveLiquidityParams, RemoveStakeParams, SwapParams,
         },
         state::{cortex::Cortex, perpetuals::Perpetuals, position::Side},
     },
@@ -90,7 +90,6 @@ pub async fn basic_interactions() {
     // Initialize and fund associated token accounts
     {
         let lm_token_mint = utils::pda::get_lm_token_mint_pda().0;
-        let stake_redeemable_token_mint = pda::get_stake_redeemable_token_mint_pda().0;
 
         // Alice: mint 1k USDC, create LM token account, create stake r-token token account
         {
@@ -106,13 +105,6 @@ pub async fn basic_interactions() {
             utils::initialize_token_account(
                 &mut program_test_ctx,
                 &lm_token_mint,
-                &keypairs[USER_ALICE].pubkey(),
-            )
-            .await;
-
-            utils::initialize_token_account(
-                &mut program_test_ctx,
-                &stake_redeemable_token_mint,
                 &keypairs[USER_ALICE].pubkey(),
             )
             .await;
@@ -359,12 +351,24 @@ pub async fn basic_interactions() {
 
     // Stake
     {
-        // Alice: stake LM token
+        // Alice: add stake LM token
         instructions::test_add_stake(
             &mut program_test_ctx,
             &keypairs[USER_ALICE],
             &keypairs[PAYER],
             AddStakeParams {
+                amount: scale(1, Cortex::LM_DECIMALS),
+            },
+        )
+        .await
+        .unwrap();
+
+        // Alice: remove stake LM token
+        instructions::test_remove_stake(
+            &mut program_test_ctx,
+            &keypairs[USER_ALICE],
+            &keypairs[PAYER],
+            RemoveStakeParams {
                 amount: scale(1, Cortex::LM_DECIMALS),
             },
         )

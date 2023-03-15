@@ -245,7 +245,11 @@ pub mod perpetuals {
         instructions::get_assets_under_management(ctx, &params)
     }
 
-    pub fn stake(ctx: Context<AddStake>, params: AddStakeParams) -> Result<()> {
-        instructions::stake(ctx, &params)
+    pub fn add_stake(ctx: Context<AddStake>, params: AddStakeParams) -> Result<()> {
+        instructions::add_stake(ctx, &params)
+    }
+
+    pub fn remove_stake(ctx: Context<RemoveStake>, params: RemoveStakeParams) -> Result<()> {
+        instructions::remove_stake(ctx, &params)
     }
 }

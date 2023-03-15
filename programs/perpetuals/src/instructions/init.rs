@@ -70,18 +70,6 @@ pub struct Init<'info> {
     )]
     pub stake_token_account: Box<Account<'info, TokenAccount>>,
 
-    // lm_token_staking r-token
-    #[account(
-        init,
-        payer = upgrade_authority,
-        mint::authority = transfer_authority,
-        mint::freeze_authority = transfer_authority,
-        mint::decimals = Cortex::STAKE_REDEEMABLE_DECIMALS,
-        seeds = [b"stake_redeemable_token_mint"],
-        bump
-    )]
-    pub stake_redeemable_token_mint: Box<Account<'info, Mint>>,
-
     #[account(
         init,
         payer = upgrade_authority,
@@ -168,10 +156,6 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
         .get("lm_token_mint")
         .ok_or(ProgramError::InvalidSeeds)?;
     cortex.bump = *ctx.bumps.get("cortex").ok_or(ProgramError::InvalidSeeds)?;
-    cortex.stake_redeemable_token_bump = *ctx
-        .bumps
-        .get("stake_redeemable_token_mint")
-        .ok_or(ProgramError::InvalidSeeds)?;
     cortex.stake_token_account_bump = *ctx
         .bumps
         .get("stake_token_account")

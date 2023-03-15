@@ -38,10 +38,6 @@ pub fn get_stake_token_account_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(&["stake_token_account".as_ref()], &perpetuals::id())
 }
 
-pub fn get_stake_redeemable_token_mint_pda() -> (Pubkey, u8) {
-    Pubkey::find_program_address(&["stake_redeemable_token_mint".as_ref()], &perpetuals::id())
-}
-
 pub fn get_program_data_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[perpetuals::id().as_ref()],

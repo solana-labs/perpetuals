@@ -1,14 +1,18 @@
-//! AddStake instruction handler
+//! RemoveStake instruction handler
 
 use {
-    crate::state::{cortex::Cortex, perpetuals::Perpetuals, stake::Stake},
+    crate::{
+        error::PerpetualsError,
+        state::{cortex::Cortex, perpetuals::Perpetuals, stake::Stake},
+    },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
+    num::Zero,
     solana_program::program_error::ProgramError,
 };
 
 #[derive(Accounts)]
-pub struct AddStake<'info> {
+pub struct RemoveStake<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
 
@@ -17,9 +21,9 @@ pub struct AddStake<'info> {
         token::mint = lm_token_mint,
         has_one = owner
     )]
-    pub funding_account: Box<Account<'info, TokenAccount>>,
+    pub lm_token_account: Box<Account<'info, TokenAccount>>,
 
-    // lm_token_staking vault
+    // staking vault
     #[account(
         mut,
         token::mint = lm_token_mint,
@@ -36,9 +40,7 @@ pub struct AddStake<'info> {
     pub transfer_authority: AccountInfo<'info>,
 
     #[account(
-        init_if_needed,
-        payer = owner,
-        space = Stake::LEN,
+        mut,
         seeds = [b"stake",
                  owner.key().as_ref()],
         bump
@@ -70,44 +72,55 @@ pub struct AddStake<'info> {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
-pub struct AddStakeParams {
+pub struct RemoveStakeParams {
     pub amount: u64,
 }
 
-pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> {
+pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Result<()> {
     // validate inputs
     msg!("Validate inputs");
     if params.amount == 0 {
         return Err(ProgramError::InvalidArgument.into());
     }
 
-    // initialize Stake PDA if needed, or claim existing rewards
+    // verify user staked balance
     let stake = ctx.accounts.stake.as_mut();
-    if stake.inception_time == 0 {
-        stake.bump = *ctx.bumps.get("stake").ok_or(ProgramError::InvalidSeeds)?;
-    } else {
-        // TODO - call claim IX (let that ix verify the timestamp)
-    }
+    require!(
+        stake.amount >= params.amount,
+        PerpetualsError::InvalidStakeState
+    );
 
-    // stake owner's tokens
+    // claim existing rewards
+    // TODO - call claim IX (let that ix verify the timestamp)
+
+    // unstake owner's tokens
     msg!("Transfer tokens");
     let perpetuals = ctx.accounts.perpetuals.as_mut();
-    perpetuals.transfer_tokens_from_user(
-        ctx.accounts.funding_account.to_account_info(),
+    perpetuals.transfer_tokens(
         ctx.accounts.stake_token_account.to_account_info(),
-        ctx.accounts.owner.to_account_info(),
+        ctx.accounts.lm_token_account.to_account_info(),
+        ctx.accounts.transfer_authority.to_account_info(),
         ctx.accounts.token_program.to_account_info(),
         params.amount,
     )?;
 
     // record stake in the user `Stake` PDA and update stake time
     let stake = ctx.accounts.stake.as_mut();
-    stake.amount += params.amount;
+    stake.amount -= params.amount;
     stake.inception_time = ctx.accounts.perpetuals.get_time()?;
 
     // record stake in current staking round
+    // (no double count as the previous amount is counted as claimed after the claim IX call, even if called during the same round)
     let cortex = ctx.accounts.cortex.as_mut();
-    cortex.get_latest_staking_round_mut()?.total_stake += params.amount;
+    cortex.get_latest_staking_round_mut()?.total_stake += stake.amount;
+
+    // cleanup the stake PDA if all stake has been removed
+    if stake.amount.is_zero() {
+        stake.amount = 0;
+        stake.bump = 0;
+        stake.inception_time = 0;
+        stake.close(ctx.accounts.owner.to_account_info())?;
+    }
 
     Ok(())
 }
