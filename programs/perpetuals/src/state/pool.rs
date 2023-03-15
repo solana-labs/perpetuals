@@ -13,6 +13,14 @@ use {
     std::cmp::Ordering,
 };
 
+#[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Debug)]
+pub enum AumCalcMode {
+    Min,
+    Max,
+    Last,
+    EMA,
+}
+
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
 pub struct PoolToken {
     pub custody: Pubkey,
@@ -574,6 +582,7 @@ impl Pool {
 
     pub fn get_assets_under_management_usd(
         &self,
+        aum_calc_mode: AumCalcMode,
         accounts: &[AccountInfo],
         curtime: i64,
     ) -> Result<u128> {
@@ -597,22 +606,41 @@ impl Pool {
                 false,
             )?;
 
+            let token_ema_price = OraclePrice::new_from_oracle(
+                custody.oracle.oracle_type,
+                &accounts[oracle_idx],
+                custody.oracle.max_price_error,
+                custody.oracle.max_price_age_sec,
+                curtime,
+                custody.pricing.use_ema,
+            )?;
+
+            let aum_token_price = match aum_calc_mode {
+                AumCalcMode::Last => token_price,
+                AumCalcMode::EMA => token_ema_price,
+                AumCalcMode::Min => {
+                    if token_price < token_ema_price {
+                        token_price
+                    } else {
+                        token_ema_price
+                    }
+                }
+                AumCalcMode::Max => {
+                    if token_price > token_ema_price {
+                        token_price
+                    } else {
+                        token_ema_price
+                    }
+                }
+            };
+
             let token_amount_usd =
-                token_price.get_asset_amount_usd(custody.assets.owned, custody.decimals)?;
+                aum_token_price.get_asset_amount_usd(custody.assets.owned, custody.decimals)?;
 
             pool_amount_usd = math::checked_add(pool_amount_usd, token_amount_usd as u128)?;
 
             if custody.pricing.use_unrealized_pnl_in_aum {
                 // compute aggregate unrealized pnl
-                let token_ema_price = OraclePrice::new_from_oracle(
-                    custody.oracle.oracle_type,
-                    &accounts[oracle_idx],
-                    custody.oracle.max_price_error,
-                    custody.oracle.max_price_age_sec,
-                    curtime,
-                    custody.pricing.use_ema,
-                )?;
-
                 let (long_profit, long_loss, _) = self.get_pnl_usd(
                     idx,
                     &custody.get_collective_position(Side::Long)?,
@@ -657,13 +685,14 @@ impl Pool {
         if self.aum_usd == 0 {
             return Ok(0);
         }
-        math::checked_as_u64(math::checked_div(
+        let ratio = math::checked_as_u64(math::checked_div(
             math::checked_mul(
                 token_price.get_asset_amount_usd(custody.assets.owned, custody.decimals)? as u128,
                 Perpetuals::BPS_POWER,
             )?,
             self.aum_usd,
-        )?)
+        )?)?;
+        Ok(std::cmp::min(ratio, Perpetuals::BPS_POWER as u64))
     }
 
     fn get_new_ratio(
@@ -711,10 +740,11 @@ impl Pool {
             return Ok(0);
         }
 
-        math::checked_as_u64(math::checked_div(
+        let ratio = math::checked_as_u64(math::checked_div(
             math::checked_mul(new_token_aum_usd, Perpetuals::BPS_POWER)?,
             new_pool_aum_usd,
-        )?)
+        )?)?;
+        Ok(std::cmp::min(ratio, Perpetuals::BPS_POWER as u64))
     }
 
     fn get_price(

@@ -4,7 +4,12 @@ use {
     crate::{
         error::PerpetualsError,
         math,
-        state::{custody::Custody, oracle::OraclePrice, perpetuals::Perpetuals, pool::Pool},
+        state::{
+            custody::Custody,
+            oracle::OraclePrice,
+            perpetuals::Perpetuals,
+            pool::{AumCalcMode, Pool},
+        },
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
@@ -130,7 +135,17 @@ pub fn remove_liquidity(
         false,
     )?;
 
-    let pool_amount_usd = pool.get_assets_under_management_usd(ctx.remaining_accounts, curtime)?;
+    let token_ema_price = OraclePrice::new_from_oracle(
+        custody.oracle.oracle_type,
+        &ctx.accounts.custody_oracle_account.to_account_info(),
+        custody.oracle.max_price_error,
+        custody.oracle.max_price_age_sec,
+        curtime,
+        custody.pricing.use_ema,
+    )?;
+
+    let pool_amount_usd =
+        pool.get_assets_under_management_usd(AumCalcMode::Min, ctx.remaining_accounts, curtime)?;
 
     // compute amount of tokens to return
     let remove_amount_usd = math::checked_as_u64(math::checked_div(
@@ -138,7 +153,12 @@ pub fn remove_liquidity(
         ctx.accounts.lp_token_mint.supply as u128,
     )?)?;
 
-    let remove_amount = token_price.get_token_amount(remove_amount_usd, custody.decimals)?;
+    let max_price = if token_price > token_ema_price {
+        token_price
+    } else {
+        token_ema_price
+    };
+    let remove_amount = max_price.get_token_amount(remove_amount_usd, custody.decimals)?;
 
     // calculate fee
     let fee_amount =
@@ -207,11 +227,9 @@ pub fn remove_liquidity(
 
     // update pool stats
     msg!("Update pool stats");
-    pool.aum_usd = pool_amount_usd.saturating_sub(
-        token_price
-            .get_token_amount(withdrawal_amount, custody.decimals)?
-            .into(),
-    );
+    custody.exit(&crate::ID)?;
+    pool.aum_usd =
+        pool.get_assets_under_management_usd(AumCalcMode::EMA, ctx.remaining_accounts, curtime)?;
 
     Ok(())
 }

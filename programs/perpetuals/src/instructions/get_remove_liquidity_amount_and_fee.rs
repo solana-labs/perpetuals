@@ -7,7 +7,7 @@ use {
             custody::Custody,
             oracle::OraclePrice,
             perpetuals::{AmountAndFee, Perpetuals},
-            pool::Pool,
+            pool::{AumCalcMode, Pool},
         },
     },
     anchor_lang::prelude::*,
@@ -81,14 +81,29 @@ pub fn get_remove_liquidity_amount_and_fee(
         false,
     )?;
 
-    let pool_amount_usd = pool.get_assets_under_management_usd(ctx.remaining_accounts, curtime)?;
+    let token_ema_price = OraclePrice::new_from_oracle(
+        custody.oracle.oracle_type,
+        &ctx.accounts.custody_oracle_account.to_account_info(),
+        custody.oracle.max_price_error,
+        custody.oracle.max_price_age_sec,
+        curtime,
+        custody.pricing.use_ema,
+    )?;
+
+    let pool_amount_usd =
+        pool.get_assets_under_management_usd(AumCalcMode::Min, ctx.remaining_accounts, curtime)?;
 
     let remove_amount_usd = math::checked_as_u64(math::checked_div(
         math::checked_mul(pool_amount_usd, params.lp_amount_in as u128)?,
         ctx.accounts.lp_token_mint.supply as u128,
     )?)?;
 
-    let remove_amount = token_price.get_token_amount(remove_amount_usd, custody.decimals)?;
+    let max_price = if token_price > token_ema_price {
+        token_price
+    } else {
+        token_ema_price
+    };
+    let remove_amount = max_price.get_token_amount(remove_amount_usd, custody.decimals)?;
 
     let fee_amount =
         pool.get_remove_liquidity_fee(token_id, remove_amount, custody, &token_price)?;
