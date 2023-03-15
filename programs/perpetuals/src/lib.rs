@@ -244,4 +244,8 @@ pub mod perpetuals {
     ) -> Result<u128> {
         instructions::get_assets_under_management(ctx, &params)
     }
+
+    pub fn stake(ctx: Context<AddStake>, params: AddStakeParams) -> Result<()> {
+        instructions::stake(ctx, &params)
+    }
 }

@@ -1,7 +1,7 @@
 use {
     crate::{
         instructions,
-        utils::{self, fixtures},
+        utils::{self, fixtures, pda},
     },
     bonfida_test_utils::ProgramTestExt,
     perpetuals::{
@@ -51,10 +51,13 @@ pub async fn min_max_leverage() {
         &keypairs[MULTISIG_MEMBER_C],
     ];
 
+    let governance_realm_pda = pda::get_governance_realm_pda("ADRENA".to_string());
+
     instructions::test_init(
         &mut program_test_ctx,
         upgrade_authority,
         fixtures::init_params_permissions_full(1),
+        &governance_realm_pda,
         multisig_signers,
     )
     .await
@@ -62,7 +65,9 @@ pub async fn min_max_leverage() {
 
     // Initialize and fund associated token accounts
     {
-        // Alice: mint 10k ETH
+        let lm_token_mint = utils::pda::get_lm_token_mint_pda().0;
+
+        // Alice: mint 10k ETH, init LM token account
         {
             utils::initialize_and_fund_token_account(
                 &mut program_test_ctx,
@@ -74,7 +79,14 @@ pub async fn min_max_leverage() {
             .await;
         }
 
-        // Martin: mint 2 ETH
+        utils::initialize_token_account(
+            &mut program_test_ctx,
+            &lm_token_mint,
+            &keypairs[USER_ALICE].pubkey(),
+        )
+        .await;
+
+        // Martin: mint 2 ETH, init LM token account
         {
             utils::initialize_and_fund_token_account(
                 &mut program_test_ctx,
@@ -85,6 +97,13 @@ pub async fn min_max_leverage() {
             )
             .await;
         }
+
+        utils::initialize_token_account(
+            &mut program_test_ctx,
+            &lm_token_mint,
+            &keypairs[USER_MARTIN].pubkey(),
+        )
+        .await;
     }
 
     let (pool_pda, _, _, _, _) = utils::setup_pool_with_custodies_and_liquidity(

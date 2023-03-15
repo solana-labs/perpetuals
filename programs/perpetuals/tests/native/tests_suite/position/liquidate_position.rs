@@ -1,7 +1,7 @@
 use {
     crate::{
         instructions,
-        utils::{self, fixtures},
+        utils::{self, fixtures, pda},
     },
     bonfida_test_utils::ProgramTestExt,
     perpetuals::{
@@ -52,10 +52,13 @@ pub async fn liquidate_position() {
         &keypairs[MULTISIG_MEMBER_C],
     ];
 
+    let governance_realm_pda = pda::get_governance_realm_pda("ADRENA".to_string());
+
     instructions::test_init(
         &mut program_test_ctx,
         upgrade_authority,
         fixtures::init_params_permissions_full(1),
+        &governance_realm_pda,
         multisig_signers,
     )
     .await

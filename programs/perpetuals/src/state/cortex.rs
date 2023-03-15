@@ -83,7 +83,7 @@ impl Cortex {
         Ok(epoch)
     }
 
-    pub fn get_current_staking_round_mut(&mut self) -> Result<&mut StakingRound> {
+    pub fn get_latest_staking_round_mut(&mut self) -> Result<&mut StakingRound> {
         match self.staking_rounds.last_mut() {
             Some(current_staking_round) => Ok(current_staking_round),
             None => Err(ProgramError::InvalidAccountData.into()),

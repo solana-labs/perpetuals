@@ -1,5 +1,5 @@
 use {
-    super::{fixtures, get_program_data_pda, get_test_oracle_account},
+    super::{fixtures, get_lm_token_mint_pda, get_program_data_pda, get_test_oracle_account},
     crate::instructions,
     anchor_lang::{prelude::*, InstructionData},
     anchor_spl::token::spl_token,
@@ -408,6 +408,8 @@ pub async fn setup_pool_with_custodies_and_liquidity(
     for params in custodies_params.as_slice() {
         initialize_token_account(program_test_ctx, &lp_token_mint_pda, &params.payer.pubkey())
             .await;
+        let lm_token_mint = get_lm_token_mint_pda().0;
+        initialize_token_account(program_test_ctx, &lm_token_mint, &params.payer.pubkey()).await;
 
         if params.liquidity_amount > 0 {
             instructions::test_add_liquidity(
