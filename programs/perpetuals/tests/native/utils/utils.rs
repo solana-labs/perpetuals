@@ -321,7 +321,8 @@ pub async fn setup_pool_with_custodies_and_liquidity(
                 &pool_pda,
                 &params.setup_custody_params.mint,
                 AddLiquidityParams {
-                    amount: params.liquidity_amount,
+                    amount_in: params.liquidity_amount,
+                    min_lp_amount_out: 1,
                 },
             )
             .await

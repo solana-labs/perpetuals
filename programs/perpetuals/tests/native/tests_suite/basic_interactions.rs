@@ -253,7 +253,8 @@ pub async fn basic_interactions() {
             &pool_pda,
             &usdc_mint,
             RemoveLiquidityParams {
-                lp_amount: alice_lp_token_balance,
+                lp_amount_in: alice_lp_token_balance,
+                min_amount_out: 1,
             },
         )
         .await

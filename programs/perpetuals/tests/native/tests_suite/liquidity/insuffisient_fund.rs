@@ -141,7 +141,8 @@ pub async fn insuffisient_fund() {
         &pool_pda,
         &usdc_mint,
         AddLiquidityParams {
-            amount: utils::scale(1_000_000, USDC_DECIMALS),
+            amount_in: utils::scale(1_000_000, USDC_DECIMALS),
+            min_lp_amount_out: 1
         },
     )
     .await
@@ -156,7 +157,8 @@ pub async fn insuffisient_fund() {
             &pool_pda,
             &usdc_mint,
             AddLiquidityParams {
-                amount: utils::scale(15_000, USDC_DECIMALS),
+                amount_in: utils::scale(15_000, USDC_DECIMALS),
+                min_lp_amount_out: 1,
             },
         )
         .await
@@ -169,7 +171,8 @@ pub async fn insuffisient_fund() {
             &pool_pda,
             &eth_mint,
             AddLiquidityParams {
-                amount: utils::scale(10, ETH_DECIMALS),
+                amount_in: utils::scale(10, ETH_DECIMALS),
+                min_lp_amount_out: 1,
             },
         )
         .await
@@ -190,7 +193,8 @@ pub async fn insuffisient_fund() {
         &pool_pda,
         &usdc_mint,
         RemoveLiquidityParams {
-            lp_amount: alice_lp_token_account_balance + 1,
+            lp_amount_in: alice_lp_token_account_balance + 1,
+            min_amount_out: 1
         },
     )
     .await
@@ -204,7 +208,8 @@ pub async fn insuffisient_fund() {
         &pool_pda,
         &usdc_mint,
         RemoveLiquidityParams {
-            lp_amount: alice_lp_token_account_balance * 75 / 100,
+            lp_amount_in: alice_lp_token_account_balance * 75 / 100,
+            min_amount_out: 1
         },
     )
     .await

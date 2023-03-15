@@ -1171,7 +1171,7 @@ mod test {
 
     #[test]
     fn test_get_leverage() {
-        let (pool, custody, mut position, token_price, token_ema_price) = get_fixture();
+        let (pool, custody, mut position, _token_price, token_ema_price) = get_fixture();
 
         assert_eq!(
             scale_f64(4.9043, Perpetuals::BPS_DECIMALS),

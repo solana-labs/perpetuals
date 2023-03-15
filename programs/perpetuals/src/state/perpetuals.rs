@@ -10,6 +10,12 @@ pub struct PriceAndFee {
 }
 
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
+pub struct AmountAndFee {
+    pub amount: u64,
+    pub fee: u64,
+}
+
+#[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
 pub struct NewPositionPricesAndFee {
     pub entry_price: u64,
     pub liquidation_price: u64,

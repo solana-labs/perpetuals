@@ -92,7 +92,8 @@ pub struct AddLiquidity<'info> {
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct AddLiquidityParams {
-    pub amount: u64,
+    pub amount_in: u64,
+    pub min_lp_amount_out: u64,
 }
 
 pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) -> Result<()> {
@@ -107,7 +108,7 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
 
     // validate inputs
     msg!("Validate inputs");
-    if params.amount == 0 {
+    if params.amount_in == 0 {
         return Err(ProgramError::InvalidArgument.into());
     }
     let pool = ctx.accounts.pool.as_mut();
@@ -125,13 +126,14 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
         false,
     )?;
 
-    let fee_amount = pool.get_add_liquidity_fee(token_id, params.amount, custody, &token_price)?;
+    let fee_amount =
+        pool.get_add_liquidity_fee(token_id, params.amount_in, custody, &token_price)?;
     msg!("Collected fee: {}", fee_amount);
 
     // check pool constraints
     msg!("Check pool constraints");
     let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
-    let deposit_amount = math::checked_sub(params.amount, protocol_fee)?;
+    let deposit_amount = math::checked_sub(params.amount_in, protocol_fee)?;
     require!(
         pool.check_token_ratio(token_id, deposit_amount, 0, custody, &token_price)?,
         PerpetualsError::TokenRatioOutOfRange
@@ -144,7 +146,7 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
         ctx.accounts.custody_token_account.to_account_info(),
         ctx.accounts.owner.to_account_info(),
         ctx.accounts.token_program.to_account_info(),
-        params.amount,
+        params.amount_in,
     )?;
 
     // compute assets under management
@@ -152,7 +154,7 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
     let pool_amount_usd = pool.get_assets_under_management_usd(ctx.remaining_accounts, curtime)?;
 
     // compute amount of lp tokens to mint
-    let no_fee_amount = math::checked_sub(params.amount, fee_amount)?;
+    let no_fee_amount = math::checked_sub(params.amount_in, fee_amount)?;
     require_gte!(
         no_fee_amount,
         1u64,
@@ -174,6 +176,11 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
     };
     msg!("LP tokens to mint: {}", lp_amount);
 
+    require!(
+        lp_amount >= params.min_lp_amount_out,
+        PerpetualsError::MaxPriceSlippage
+    );
+
     // mint lp tokens
     perpetuals.mint_tokens(
         ctx.accounts.lp_token_mint.to_account_info(),
@@ -193,7 +200,7 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
     custody.volume_stats.add_liquidity_usd = custody
         .volume_stats
         .add_liquidity_usd
-        .wrapping_add(token_price.get_asset_amount_usd(params.amount, custody.decimals)?);
+        .wrapping_add(token_price.get_asset_amount_usd(params.amount_in, custody.decimals)?);
 
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
 

@@ -517,6 +517,60 @@ export class PerpetualsClient {
       });
   };
 
+  getAddLiquidityAmountAndFee = async (
+    poolName: string,
+    tokenMint: PublicKey,
+    amount: typeof BN
+  ) => {
+    return await this.program.methods
+      .getAddLiquidityAmountAndFee({
+        amountIn: amount,
+      })
+      .accounts({
+        perpetuals: this.perpetuals.publicKey,
+        pool: this.getPoolKey(poolName),
+        custody: this.getCustodyKey(poolName, tokenMint),
+        custodyOracleAccount: await this.getCustodyOracleAccountKey(
+          poolName,
+          tokenMint
+        ),
+        lpTokenMint: this.getPoolLpTokenKey(poolName),
+      })
+      .remainingAccounts(await this.getCustodyMetas(poolName))
+      .view()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
+  };
+
+  getRemoveLiquidityAmountAndFee = async (
+    poolName: string,
+    tokenMint: PublicKey,
+    lpAmount: typeof BN
+  ) => {
+    return await this.program.methods
+      .getRemoveLiquidityAmountAndFee({
+        lpAmountIn: lpAmount,
+      })
+      .accounts({
+        perpetuals: this.perpetuals.publicKey,
+        pool: this.getPoolKey(poolName),
+        custody: this.getCustodyKey(poolName, tokenMint),
+        custodyOracleAccount: await this.getCustodyOracleAccountKey(
+          poolName,
+          tokenMint
+        ),
+        lpTokenMint: this.getPoolLpTokenKey(poolName),
+      })
+      .remainingAccounts(await this.getCustodyMetas(poolName))
+      .view()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
+  };
+
   getEntryPriceAndFee = async (
     poolName: string,
     tokenMint: PublicKey,

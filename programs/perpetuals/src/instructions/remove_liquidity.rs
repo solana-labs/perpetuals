@@ -92,7 +92,8 @@ pub struct RemoveLiquidity<'info> {
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct RemoveLiquidityParams {
-    pub lp_amount: u64,
+    pub lp_amount_in: u64,
+    pub min_amount_out: u64,
 }
 
 pub fn remove_liquidity(
@@ -110,7 +111,7 @@ pub fn remove_liquidity(
 
     // validate inputs
     msg!("Validate inputs");
-    if params.lp_amount == 0 {
+    if params.lp_amount_in == 0 {
         return Err(ProgramError::InvalidArgument.into());
     }
     let pool = ctx.accounts.pool.as_mut();
@@ -133,7 +134,7 @@ pub fn remove_liquidity(
 
     // compute amount of tokens to return
     let remove_amount_usd = math::checked_as_u64(math::checked_div(
-        math::checked_mul(pool_amount_usd, params.lp_amount as u128)?,
+        math::checked_mul(pool_amount_usd, params.lp_amount_in as u128)?,
         ctx.accounts.lp_token_mint.supply as u128,
     )?)?;
 
@@ -146,6 +147,11 @@ pub fn remove_liquidity(
 
     let transfer_amount = math::checked_sub(remove_amount, fee_amount)?;
     msg!("Amount out: {}", transfer_amount);
+
+    require!(
+        transfer_amount >= params.min_amount_out,
+        PerpetualsError::MaxPriceSlippage
+    );
 
     // check pool constraints
     msg!("Check pool constraints");
@@ -178,7 +184,7 @@ pub fn remove_liquidity(
         ctx.accounts.lp_token_account.to_account_info(),
         ctx.accounts.owner.to_account_info(),
         ctx.accounts.token_program.to_account_info(),
-        params.lp_amount,
+        params.lp_amount_in,
     )?;
 
     // update custody stats

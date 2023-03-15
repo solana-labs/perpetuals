@@ -765,7 +765,8 @@ export class TestClient {
   };
 
   addLiquidity = async (
-    amount: typeof BN,
+    amountIn: typeof BN,
+    minLpAmountOut: typeof BN,
     user,
     fundingAccount: PublicKey,
     custody
@@ -773,7 +774,8 @@ export class TestClient {
     try {
       await this.program.methods
         .addLiquidity({
-          amount,
+          amountIn,
+          minLpAmountOut,
         })
         .accounts({
           owner: user.wallet.publicKey,
@@ -800,7 +802,8 @@ export class TestClient {
   };
 
   removeLiquidity = async (
-    lpAmount: typeof BN,
+    lpAmountIn: typeof BN,
+    minAmountOut: typeof BN,
     user,
     receivingAccount: PublicKey,
     custody
@@ -808,7 +811,8 @@ export class TestClient {
     try {
       await this.program.methods
         .removeLiquidity({
-          lpAmount,
+          lpAmountIn,
+          minAmountOut,
         })
         .accounts({
           owner: user.wallet.publicKey,

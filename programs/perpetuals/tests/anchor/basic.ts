@@ -387,12 +387,14 @@ describe("perpetuals", () => {
   it("addLiquidity", async () => {
     await tc.addLiquidity(
       tc.toTokenAmount(10, tc.custodies[0].decimals),
+      new BN(1),
       tc.users[0],
       tc.users[0].tokenAccounts[0],
       tc.custodies[0]
     );
     await tc.addLiquidity(
       tc.toTokenAmount(10, tc.custodies[1].decimals),
+      new BN(1),
       tc.users[1],
       tc.users[1].tokenAccounts[1],
       tc.custodies[1]
@@ -414,12 +416,14 @@ describe("perpetuals", () => {
   it("removeLiquidity", async () => {
     await tc.removeLiquidity(
       tc.toTokenAmount(1, 6),
+      new BN(1),
       tc.users[0],
       tc.users[0].tokenAccounts[0],
       tc.custodies[0]
     );
     await tc.removeLiquidity(
       tc.toTokenAmount(1, 6),
+      new BN(1),
       tc.users[1],
       tc.users[1].tokenAccounts[1],
       tc.custodies[1]

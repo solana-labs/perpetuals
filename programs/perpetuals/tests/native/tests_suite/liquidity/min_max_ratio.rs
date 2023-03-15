@@ -141,7 +141,8 @@ pub async fn min_max_ratio() {
         &pool_pda,
         &usdc_mint,
         AddLiquidityParams {
-            amount: utils::scale(1_000, USDC_DECIMALS),
+            amount_in: utils::scale(1_000, USDC_DECIMALS),
+            min_lp_amount_out: 1
         },
     )
     .await
@@ -162,7 +163,8 @@ pub async fn min_max_ratio() {
         &pool_pda,
         &usdc_mint,
         RemoveLiquidityParams {
-            lp_amount: alice_lp_token_account_balance * 35 / 100,
+            lp_amount_in: alice_lp_token_account_balance * 35 / 100,
+            min_amount_out: 1
         },
     )
     .await

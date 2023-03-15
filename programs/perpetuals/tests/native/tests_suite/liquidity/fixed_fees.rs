@@ -118,7 +118,8 @@ pub async fn fixed_fees() {
             &pool_pda,
             &usdc_mint,
             AddLiquidityParams {
-                amount: utils::scale(1_000, USDC_DECIMALS),
+                amount_in: utils::scale(1_000, USDC_DECIMALS),
+                min_lp_amount_out: 1,
             },
         )
         .await
@@ -156,7 +157,8 @@ pub async fn fixed_fees() {
             &pool_pda,
             &usdc_mint,
             RemoveLiquidityParams {
-                lp_amount: utils::scale(100, Perpetuals::LP_DECIMALS),
+                lp_amount_in: utils::scale(100, Perpetuals::LP_DECIMALS),
+                min_amount_out: 1,
             },
         )
         .await

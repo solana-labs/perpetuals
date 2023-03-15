@@ -10,7 +10,9 @@ pub mod state;
 use {
     anchor_lang::prelude::*,
     instructions::*,
-    state::perpetuals::{NewPositionPricesAndFee, PriceAndFee, ProfitAndLoss, SwapAmountAndFees},
+    state::perpetuals::{
+        AmountAndFee, NewPositionPricesAndFee, PriceAndFee, ProfitAndLoss, SwapAmountAndFees,
+    },
 };
 
 solana_security_txt::security_txt! {
@@ -161,6 +163,20 @@ pub mod perpetuals {
 
     pub fn liquidate(ctx: Context<Liquidate>, params: LiquidateParams) -> Result<()> {
         instructions::liquidate(ctx, &params)
+    }
+
+    pub fn get_add_liquidity_amount_and_fee(
+        ctx: Context<GetAddLiquidityAmountAndFee>,
+        params: GetAddLiquidityAmountAndFeeParams,
+    ) -> Result<AmountAndFee> {
+        instructions::get_add_liquidity_amount_and_fee(ctx, &params)
+    }
+
+    pub fn get_remove_liquidity_amount_and_fee(
+        ctx: Context<GetRemoveLiquidityAmountAndFee>,
+        params: GetRemoveLiquidityAmountAndFeeParams,
+    ) -> Result<AmountAndFee> {
+        instructions::get_remove_liquidity_amount_and_fee(ctx, &params)
     }
 
     pub fn get_entry_price_and_fee(
