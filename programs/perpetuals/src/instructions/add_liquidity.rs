@@ -140,8 +140,14 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
         custody.pricing.use_ema,
     )?;
 
+    let min_price = if token_price < token_ema_price {
+        token_price
+    } else {
+        token_ema_price
+    };
+
     let fee_amount =
-        pool.get_add_liquidity_fee(token_id, params.amount_in, custody, &token_price)?;
+        pool.get_add_liquidity_fee(token_id, params.amount_in, custody, &token_ema_price)?;
     msg!("Collected fee: {}", fee_amount);
 
     // check pool constraints
@@ -149,7 +155,7 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
     let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
     let deposit_amount = math::checked_sub(params.amount_in, protocol_fee)?;
     require!(
-        pool.check_token_ratio(token_id, deposit_amount, 0, custody, &token_price)?,
+        pool.check_token_ratio(token_id, deposit_amount, 0, custody, &token_ema_price)?,
         PerpetualsError::TokenRatioOutOfRange
     );
 
@@ -176,11 +182,6 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
         PerpetualsError::InsufficientAmountReturned
     );
 
-    let min_price = if token_price < token_ema_price {
-        token_price
-    } else {
-        token_ema_price
-    };
     let token_amount_usd = min_price.get_asset_amount_usd(no_fee_amount, custody.decimals)?;
 
     let lp_amount = if pool_amount_usd == 0 {
@@ -215,12 +216,12 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
     custody.collected_fees.add_liquidity_usd = custody
         .collected_fees
         .add_liquidity_usd
-        .wrapping_add(token_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
+        .wrapping_add(token_ema_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
 
     custody.volume_stats.add_liquidity_usd = custody
         .volume_stats
         .add_liquidity_usd
-        .wrapping_add(token_price.get_asset_amount_usd(params.amount_in, custody.decimals)?);
+        .wrapping_add(token_ema_price.get_asset_amount_usd(params.amount_in, custody.decimals)?);
 
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
 

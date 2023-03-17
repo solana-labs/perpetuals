@@ -161,7 +161,12 @@ impl Pool {
             0
         };
 
-        let close_amount = token_price.get_token_amount(available_amount_usd, custody.decimals)?;
+        let max_price = if token_price > token_ema_price {
+            token_price
+        } else {
+            token_ema_price
+        };
+        let close_amount = max_price.get_token_amount(available_amount_usd, custody.decimals)?;
         let max_amount = math::checked_add(position.locked_amount, position.collateral_amount)?;
 
         Ok((
@@ -489,18 +494,28 @@ impl Pool {
             return Ok((0, 0, 0));
         }
 
-        let collateral = token_price.get_token_amount(position.collateral_usd, custody.decimals)?;
+        let min_price = if token_price < token_ema_price {
+            token_price
+        } else {
+            token_ema_price
+        };
+        let max_price = if token_price > token_ema_price {
+            token_price
+        } else {
+            token_ema_price
+        };
+        let collateral = max_price.get_token_amount(position.collateral_usd, custody.decimals)?;
 
         let exit_price =
             self.get_exit_price(token_price, token_ema_price, position.side, custody)?;
 
         let exit_fee = if liquidation {
-            self.get_liquidation_fee(token_id, collateral, custody, token_price)?
+            self.get_liquidation_fee(token_id, collateral, custody, token_ema_price)?
         } else {
-            self.get_exit_fee(token_id, collateral, custody, token_price)?
+            self.get_exit_fee(token_id, collateral, custody, token_ema_price)?
         };
 
-        let exit_fee_usd = token_price.get_asset_amount_usd(exit_fee, custody.decimals)?;
+        let exit_fee_usd = token_ema_price.get_asset_amount_usd(exit_fee, custody.decimals)?;
         let interest_usd = custody.get_interest_amount_usd(position, curtime)?;
         let unrealized_loss_usd = math::checked_add(
             math::checked_add(exit_fee_usd, interest_usd)?,
@@ -536,7 +551,7 @@ impl Pool {
             if potential_profit_usd >= unrealized_loss_usd {
                 let cur_profit_usd = math::checked_sub(potential_profit_usd, unrealized_loss_usd)?;
                 let max_profit_usd =
-                    token_price.get_asset_amount_usd(position.locked_amount, custody.decimals)?;
+                    min_price.get_asset_amount_usd(position.locked_amount, custody.decimals)?;
                 Ok((
                     std::cmp::min(max_profit_usd, cur_profit_usd),
                     0u64,
@@ -570,7 +585,7 @@ impl Pool {
                 let cur_profit_usd =
                     math::checked_sub(position.unrealized_profit_usd, potential_loss_usd)?;
                 let max_profit_usd =
-                    token_price.get_asset_amount_usd(position.locked_amount, custody.decimals)?;
+                    min_price.get_asset_amount_usd(position.locked_amount, custody.decimals)?;
                 Ok((
                     std::cmp::min(max_profit_usd, cur_profit_usd),
                     0u64,

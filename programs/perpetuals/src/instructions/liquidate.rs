@@ -201,7 +201,7 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
     custody.collected_fees.liquidation_usd = custody
         .collected_fees
         .liquidation_usd
-        .wrapping_add(token_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
+        .wrapping_add(token_ema_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
 
     custody.volume_stats.liquidation_usd =
         math::checked_add(custody.volume_stats.liquidation_usd, position.size_usd)?;

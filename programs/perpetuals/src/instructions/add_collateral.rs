@@ -125,25 +125,22 @@ pub fn add_collateral(ctx: Context<AddCollateral>, params: &AddCollateralParams)
         custody.pricing.use_ema,
     )?;
 
+    let min_price = if token_price < token_ema_price {
+        token_price
+    } else {
+        token_ema_price
+    };
+
     // compute fee
     let fee_amount =
-        pool.get_add_liquidity_fee(token_id, params.collateral, custody, &token_price)?;
+        pool.get_add_liquidity_fee(token_id, params.collateral, custody, &token_ema_price)?;
     msg!("Collected fee: {}", fee_amount);
 
     // compute amount to transfer
     let transfer_amount = math::checked_add(params.collateral, fee_amount)?;
-    let collateral_usd = token_price.get_asset_amount_usd(params.collateral, custody.decimals)?;
+    let collateral_usd = min_price.get_asset_amount_usd(params.collateral, custody.decimals)?;
     msg!("Amount in: {}", transfer_amount);
     msg!("Collateral added in USD: {}", collateral_usd);
-
-    // check pool constraints
-    msg!("Check pool constraints");
-    let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
-    let deposit_amount = math::checked_sub(transfer_amount, protocol_fee)?;
-    require!(
-        pool.check_token_ratio(token_id, deposit_amount, 0, custody, &token_price)?,
-        PerpetualsError::TokenRatioOutOfRange
-    );
 
     // update existing position
     msg!("Update existing position");
@@ -173,9 +170,11 @@ pub fn add_collateral(ctx: Context<AddCollateral>, params: &AddCollateralParams)
     custody.collected_fees.open_position_usd = custody
         .collected_fees
         .open_position_usd
-        .wrapping_add(token_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
+        .wrapping_add(token_ema_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
 
     custody.assets.collateral = math::checked_add(custody.assets.collateral, params.collateral)?;
+
+    let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
 
     custody.add_collateral(position.side, collateral_usd)?;

@@ -185,7 +185,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     custody.collected_fees.close_position_usd = custody
         .collected_fees
         .close_position_usd
-        .wrapping_add(token_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
+        .wrapping_add(token_ema_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
 
     custody.volume_stats.close_position_usd = custody
         .volume_stats

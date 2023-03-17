@@ -144,6 +144,12 @@ pub fn remove_liquidity(
         custody.pricing.use_ema,
     )?;
 
+    let max_price = if token_price > token_ema_price {
+        token_price
+    } else {
+        token_ema_price
+    };
+
     let pool_amount_usd =
         pool.get_assets_under_management_usd(AumCalcMode::Min, ctx.remaining_accounts, curtime)?;
 
@@ -153,16 +159,11 @@ pub fn remove_liquidity(
         ctx.accounts.lp_token_mint.supply as u128,
     )?)?;
 
-    let max_price = if token_price > token_ema_price {
-        token_price
-    } else {
-        token_ema_price
-    };
     let remove_amount = max_price.get_token_amount(remove_amount_usd, custody.decimals)?;
 
     // calculate fee
     let fee_amount =
-        pool.get_remove_liquidity_fee(token_id, remove_amount, custody, &token_price)?;
+        pool.get_remove_liquidity_fee(token_id, remove_amount, custody, &token_ema_price)?;
     msg!("Collected fee: {}", fee_amount);
 
     let transfer_amount = math::checked_sub(remove_amount, fee_amount)?;
@@ -178,7 +179,7 @@ pub fn remove_liquidity(
     let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
     let withdrawal_amount = math::checked_add(transfer_amount, protocol_fee)?;
     require!(
-        pool.check_token_ratio(token_id, 0, withdrawal_amount, custody, &token_price)?,
+        pool.check_token_ratio(token_id, 0, withdrawal_amount, custody, &token_ema_price)?,
         PerpetualsError::TokenRatioOutOfRange
     );
 
@@ -212,7 +213,7 @@ pub fn remove_liquidity(
     custody.collected_fees.remove_liquidity_usd = custody
         .collected_fees
         .remove_liquidity_usd
-        .wrapping_add(token_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
+        .wrapping_add(token_ema_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
 
     custody.volume_stats.remove_liquidity_usd = custody
         .volume_stats

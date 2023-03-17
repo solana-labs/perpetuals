@@ -136,9 +136,16 @@ pub fn remove_collateral(
         custody.pricing.use_ema,
     )?;
 
+    let max_price = if token_price > token_ema_price {
+        token_price
+    } else {
+        token_ema_price
+    };
+
     // compute fee
-    let collateral = token_price.get_token_amount(params.collateral_usd, custody.decimals)?;
-    let fee_amount = pool.get_remove_liquidity_fee(token_id, collateral, custody, &token_price)?;
+    let collateral = max_price.get_token_amount(params.collateral_usd, custody.decimals)?;
+    let fee_amount =
+        pool.get_remove_liquidity_fee(token_id, collateral, custody, &token_ema_price)?;
     msg!("Collected fee: {}", fee_amount);
 
     // compute amount to transfer
@@ -147,15 +154,6 @@ pub fn remove_collateral(
     }
     let transfer_amount = math::checked_sub(collateral, fee_amount)?;
     msg!("Amount out: {}", transfer_amount);
-
-    // check pool constraints
-    msg!("Check pool constraints");
-    let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
-    let withdrawal_amount = math::checked_add(transfer_amount, protocol_fee)?;
-    require!(
-        pool.check_token_ratio(token_id, 0, withdrawal_amount, custody, &token_price)?,
-        PerpetualsError::TokenRatioOutOfRange
-    );
 
     // update existing position
     msg!("Update existing position");
@@ -185,9 +183,11 @@ pub fn remove_collateral(
     custody.collected_fees.open_position_usd = custody
         .collected_fees
         .open_position_usd
-        .wrapping_add(token_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
+        .wrapping_add(token_ema_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
 
     custody.assets.collateral = math::checked_sub(custody.assets.collateral, collateral)?;
+
+    let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
 
     custody.remove_collateral(position.side, params.collateral_usd)?;
