@@ -231,10 +231,19 @@ async function getLiquidationPrice(
   wallet: PublicKey,
   poolName: string,
   tokenMint: PublicKey,
-  side: PositionSide
+  side: PositionSide,
+  addCollateral: BN,
+  removeCollateral: BN
 ) {
   client.prettyPrint(
-    await client.getLiquidationPrice(wallet, poolName, tokenMint, side)
+    await client.getLiquidationPrice(
+      wallet,
+      poolName,
+      tokenMint,
+      side,
+      addCollateral,
+      removeCollateral
+    )
   );
 }
 
@@ -540,12 +549,16 @@ async function getAum(poolName: string) {
     .argument("<string>", "Pool name")
     .argument("<pubkey>", "Token mint")
     .argument("<string>", "Position side (long / short)")
-    .action(async (wallet, poolName, tokenMint, side) => {
+    .option("-a, --add-collateral <bigint>", "Collateral to add")
+    .option("-r, --remove-collateral <bigint>", "Collateral to remove")
+    .action(async (wallet, poolName, tokenMint, side, options) => {
       await getLiquidationPrice(
         new PublicKey(wallet),
         poolName,
         new PublicKey(tokenMint),
-        side
+        side,
+        new BN(options.addCollateral),
+        new BN(options.removeCollateral)
       );
     });
 

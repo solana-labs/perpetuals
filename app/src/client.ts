@@ -629,10 +629,15 @@ export class PerpetualsClient {
     wallet: PublicKey,
     poolName: string,
     tokenMint: PublicKey,
-    side: PositionSide
+    side: PositionSide,
+    addCollateral: typeof BN,
+    removeCollateral: typeof BN
   ) => {
     return await this.program.methods
-      .getLiquidationPrice({})
+      .getLiquidationPrice({
+        addCollateral,
+        removeCollateral,
+      })
       .accounts({
         perpetuals: this.perpetuals.publicKey,
         pool: this.getPoolKey(poolName),
