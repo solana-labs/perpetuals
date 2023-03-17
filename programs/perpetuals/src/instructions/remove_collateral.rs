@@ -166,14 +166,7 @@ pub fn remove_collateral(
     // check position risk
     msg!("Check position risks");
     require!(
-        pool.check_leverage(
-            token_id,
-            position,
-            &token_ema_price,
-            custody,
-            curtime,
-            false
-        )?,
+        pool.check_leverage(token_id, position, &token_ema_price, custody, curtime, true)?,
         PerpetualsError::MaxLeverage
     );
 
