@@ -82,7 +82,7 @@ async function addCustody(
     maxPayoffMult: new BN(10000),
     maxUtilization: new BN(10000),
     maxPositionLockedUsd: new BN(1000000000),
-    maxTotalLockedUsd: new BN(0),
+    maxTotalLockedUsd: new BN(1000000000),
   };
   let permissions = {
     allowSwap: true,
@@ -112,11 +112,14 @@ async function addCustody(
     slope2: new BN(120000),
     optimalUtilization: new BN(800000000),
   };
-  let ratios = {
+
+  let pool = await client.getPool(poolName);
+  pool.ratios.push({
     target: new BN(5000),
     min: new BN(10),
-    max: new BN(20000),
-  };
+    max: new BN(10000),
+  });
+  let ratios = client.adjustTokenRatios(pool.ratios);
 
   client.addCustody(
     poolName,
@@ -140,7 +143,11 @@ async function getCustodies(poolName: string) {
 }
 
 async function removeCustody(poolName: string, tokenMint: PublicKey) {
-  client.removeCustody(poolName, tokenMint);
+  let pool = await client.getPool(poolName);
+  pool.ratios.pop();
+  let ratios = client.adjustTokenRatios(pool.ratios);
+
+  client.removeCustody(poolName, tokenMint, ratios);
 }
 
 async function upgradeCustody(poolName: string, tokenMint: PublicKey) {

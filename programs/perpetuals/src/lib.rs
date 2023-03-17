@@ -24,7 +24,7 @@ solana_security_txt::security_txt! {
     auditors: ""
 }
 
-declare_id!("PERP9EeXeGnyEqGmxGSan4nGRAFNLwTufLJmiYsTJ8j");
+declare_id!("PERP38nWNVRkULEKeNHyEyAwuQor2u6EnXZn3cMZCwS");
 
 #[program]
 pub mod perpetuals {

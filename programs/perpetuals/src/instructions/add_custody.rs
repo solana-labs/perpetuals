@@ -7,7 +7,7 @@ use {
             custody::{BorrowRateParams, Custody, Fees, OracleParams, PricingParams},
             multisig::{AdminInstruction, Multisig},
             perpetuals::{Permissions, Perpetuals},
-            pool::{Pool, PoolToken},
+            pool::{Pool, TokenRatios},
         },
     },
     anchor_lang::prelude::*,
@@ -41,7 +41,8 @@ pub struct AddCustody<'info> {
 
     #[account(
         mut,
-        realloc = Pool::LEN + (pool.tokens.len() + 1) * std::mem::size_of::<PoolToken>(),
+        realloc = Pool::LEN + (pool.custodies.len() + 1) * std::mem::size_of::<Pubkey>() +
+                              (pool.ratios.len() + 1) * std::mem::size_of::<TokenRatios>(),
         realloc::payer = admin,
         realloc::zero = false,
         seeds = [b"pool",
@@ -81,7 +82,7 @@ pub struct AddCustody<'info> {
     rent: Sysvar<'info, Rent>,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct AddCustodyParams {
     pub is_stable: bool,
     pub oracle: OracleParams,
@@ -89,9 +90,7 @@ pub struct AddCustodyParams {
     pub permissions: Permissions,
     pub fees: Fees,
     pub borrow_rate: BorrowRateParams,
-    pub target_ratio: u64,
-    pub min_ratio: u64,
-    pub max_ratio: u64,
+    pub ratios: Vec<TokenRatios>,
 }
 
 pub fn add_custody<'info>(
@@ -99,7 +98,7 @@ pub fn add_custody<'info>(
     params: &AddCustodyParams,
 ) -> Result<u8> {
     // validate inputs
-    if params.min_ratio > params.target_ratio || params.target_ratio > params.max_ratio {
+    if params.ratios.len() != ctx.accounts.pool.ratios.len() + 1 {
         return Err(ProgramError::InvalidArgument.into());
     }
 
@@ -119,20 +118,17 @@ pub fn add_custody<'info>(
         return Ok(signatures_left);
     }
 
-    // update pool data
     let pool = ctx.accounts.pool.as_mut();
-    if let Ok(idx) = pool.get_token_id(&ctx.accounts.custody.key()) {
-        pool.tokens[idx].custody = ctx.accounts.custody.key();
-        pool.tokens[idx].target_ratio = params.target_ratio;
-        pool.tokens[idx].min_ratio = params.min_ratio;
-        pool.tokens[idx].max_ratio = params.max_ratio;
-    } else {
-        pool.tokens.push(PoolToken {
-            custody: ctx.accounts.custody.key(),
-            target_ratio: params.target_ratio,
-            min_ratio: params.min_ratio,
-            max_ratio: params.max_ratio,
-        });
+    if pool.get_token_id(&ctx.accounts.custody.key()).is_ok() {
+        // return error if custody is already initialized
+        return Err(ProgramError::AccountAlreadyInitialized.into());
+    }
+
+    // update pool data
+    pool.custodies.push(ctx.accounts.custody.key());
+    pool.ratios = params.ratios.clone();
+    if !pool.validate() {
+        return err!(PerpetualsError::InvalidPoolConfig);
     }
 
     // record custody data

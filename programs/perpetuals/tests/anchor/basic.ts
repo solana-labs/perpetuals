@@ -113,7 +113,8 @@ describe("perpetuals", () => {
     let pool = await tc.program.account.pool.fetch(tc.pool.publicKey);
     let poolExpected = {
       name: "test pool",
-      tokens: [],
+      custodies: [],
+      ratios: [],
       aumUsd: new BN(0),
       bump: tc.pool.bump,
       lpTokenBump: pool.lpTokenBump,
@@ -176,11 +177,25 @@ describe("perpetuals", () => {
       slope2: new BN(120000),
       optimalUtilization: new BN(800000000),
     };
-    ratios = {
-      target: new BN(5000),
-      min: new BN(10),
-      max: new BN(20000),
-    };
+    ratios = [
+      {
+        target: new BN(5000),
+        min: new BN(10),
+        max: new BN(10000),
+      },
+      {
+        target: new BN(5000),
+        min: new BN(10),
+        max: new BN(10000),
+      },
+    ];
+    let ratios1 = [
+      {
+        target: new BN(10000),
+        min: new BN(10),
+        max: new BN(10000),
+      },
+    ];
     isStable = false;
     await tc.addCustody(
       tc.custodies[0],
@@ -190,7 +205,7 @@ describe("perpetuals", () => {
       permissions,
       fees,
       borrowRate,
-      ratios
+      ratios1
     );
 
     let token = await tc.program.account.custody.fetch(tc.custodies[0].custody);
@@ -319,7 +334,7 @@ describe("perpetuals", () => {
       ratios
     );
 
-    await tc.removeCustody(tc.custodies[1]);
+    await tc.removeCustody(tc.custodies[1], ratios1);
     tc.ensureFails(tc.program.account.custody.fetch(tc.custodies[1].custody));
 
     await tc.addCustody(
@@ -338,7 +353,7 @@ describe("perpetuals", () => {
     oracleConfig.maxPriceAgeSec = 90;
     permissions.allowPnlWithdrawal = false;
     fees.liquidation = new BN(200);
-    ratios.target = new BN(90);
+    ratios[0].min = new BN(90);
     await tc.setCustodyConfig(
       tc.custodies[0],
       isStable,

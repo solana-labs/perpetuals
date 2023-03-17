@@ -30,6 +30,7 @@ import fetch from "node-fetch";
 import { sha256 } from "js-sha256";
 import { encode } from "bs58";
 import { readFileSync } from "fs";
+import { resolveOrCreateAssociatedTokenAddress } from "@orca-so/sdk";
 
 export type PositionSide = "long" | "short";
 
@@ -79,6 +80,22 @@ export class PerpetualsClient {
     }
     let res = PublicKey.findProgramAddressSync(seeds, this.program.programId);
     return { publicKey: res[0], bump: res[1] };
+  };
+
+  adjustTokenRatios = (ratios) => {
+    let target = Math.floor(10000 / ratios.length);
+
+    for (let ratio of ratios) {
+      ratio.target = new BN(target);
+    }
+
+    if (10000 % ratios.length !== 0) {
+      ratios[ratios.length - 1].target = new BN(
+        target + (10000 % ratios.length)
+      );
+    }
+
+    return ratios;
   };
 
   getPerpetuals = async () => {
@@ -385,9 +402,7 @@ export class PerpetualsClient {
         permissions,
         fees,
         borrowRate,
-        targetRatio: ratios.target,
-        minRatio: ratios.min,
-        maxRatio: ratios.max,
+        ratios,
       })
       .accounts({
         admin: this.admin.publicKey,
@@ -413,9 +428,9 @@ export class PerpetualsClient {
       });
   };
 
-  removeCustody = async (poolName: string, tokenMint: PublicKey) => {
+  removeCustody = async (poolName: string, tokenMint: PublicKey, ratios) => {
     await this.program.methods
-      .removeCustody({})
+      .removeCustody({ ratios })
       .accounts({
         admin: this.admin.publicKey,
         multisig: this.multisig.publicKey,

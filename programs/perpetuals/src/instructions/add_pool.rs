@@ -1,10 +1,13 @@
 //! AddPool instruction handler
 
 use {
-    crate::state::{
-        multisig::{AdminInstruction, Multisig},
-        perpetuals::Perpetuals,
-        pool::Pool,
+    crate::{
+        error::PerpetualsError,
+        state::{
+            multisig::{AdminInstruction, Multisig},
+            perpetuals::Perpetuals,
+            pool::Pool,
+        },
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token},
@@ -118,6 +121,10 @@ pub fn add_pool<'info>(
         .bumps
         .get("lp_token_mint")
         .ok_or(ProgramError::InvalidSeeds)?;
+
+    if !pool.validate() {
+        return err!(PerpetualsError::InvalidPoolConfig);
+    }
 
     perpetuals.pools.push(ctx.accounts.pool.key());
 

@@ -78,7 +78,7 @@ pub fn remove_pool<'info>(
     }
 
     require!(
-        ctx.accounts.pool.tokens.is_empty(),
+        ctx.accounts.pool.custodies.is_empty(),
         PerpetualsError::InvalidPoolState
     );
 

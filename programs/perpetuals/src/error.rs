@@ -32,6 +32,8 @@ pub enum PerpetualsError {
     InvalidPositionState,
     #[msg("Invalid perpetuals config")]
     InvalidPerpetualsConfig,
+    #[msg("Invalid pool config")]
+    InvalidPoolConfig,
     #[msg("Invalid custody config")]
     InvalidCustodyConfig,
     #[msg("Insufficient token amount returned")]

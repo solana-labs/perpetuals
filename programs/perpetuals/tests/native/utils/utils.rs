@@ -12,6 +12,7 @@ use {
         state::{
             custody::{Custody, Fees, PricingParams},
             perpetuals::Permissions,
+            pool::TokenRatios,
         },
     },
     perpetuals::{math, state::perpetuals::Perpetuals},
@@ -235,9 +236,7 @@ pub async fn set_custody_ratios(
     custody_admin: &Keypair,
     payer: &Keypair,
     custody_pda: &Pubkey,
-    target_ratio: u64,
-    min_ratio: u64,
-    max_ratio: u64,
+    ratios: Vec<TokenRatios>,
     multisig_signers: &[&Keypair],
 ) {
     let custody_account = get_account::<Custody>(program_test_ctx, *custody_pda).await;
@@ -255,9 +254,7 @@ pub async fn set_custody_ratios(
             permissions: custody_account.permissions,
             fees: custody_account.fees,
             borrow_rate: custody_account.borrow_rate,
-            target_ratio,
-            min_ratio,
-            max_ratio,
+            ratios,
         },
         multisig_signers,
     )
@@ -331,15 +328,26 @@ pub async fn setup_pool_with_custodies_and_liquidity(
     }
 
     // Set proper ratios
-    for (idx, params) in custodies_params.as_slice().iter().enumerate() {
+    let target_ratio = 10000 / custodies_params.len() as u64;
+    let mut ratios: Vec<TokenRatios> = custodies_params
+        .iter()
+        .map(|x| TokenRatios {
+            target: target_ratio,
+            min: x.setup_custody_params.min_ratio,
+            max: x.setup_custody_params.max_ratio,
+        })
+        .collect();
+    if 10000 % custodies_params.len() != 0 {
+        let len = ratios.len();
+        ratios[len - 1].target += 10000 % custodies_params.len() as u64;
+    }
+    for (idx, _params) in custodies_params.as_slice().iter().enumerate() {
         set_custody_ratios(
             program_test_ctx,
             admin,
             payer,
             &custodies_info[idx].custody_pda,
-            params.setup_custody_params.target_ratio,
-            params.setup_custody_params.min_ratio,
-            params.setup_custody_params.max_ratio,
+            ratios.clone(),
             multisig_signers,
         )
         .await;
@@ -397,8 +405,23 @@ pub async fn setup_pool_with_custodies(
 
     let mut custodies_info: Vec<SetupCustodyInfo> = Vec::new();
 
-    for custody_param in custodies_params {
+    let mut ratios = vec![];
+
+    for (idx, custody_param) in custodies_params.iter().enumerate() {
         let test_oracle_pda = get_test_oracle_account(&pool_pda, &custody_param.mint).0;
+
+        let target_ratio = 10000 / (idx + 1) as u64;
+        ratios.push(TokenRatios {
+            target: target_ratio,
+            min: custody_param.min_ratio,
+            max: custody_param.max_ratio,
+        });
+        ratios.iter_mut().for_each(|x| x.target = target_ratio);
+
+        if 10000 % (idx + 1) != 0 {
+            let len = ratios.len();
+            ratios[len - 1].target += 10000 % (idx + 1) as u64;
+        }
 
         let custody_pda = {
             let add_custody_params = AddCustodyParams {
@@ -418,9 +441,7 @@ pub async fn setup_pool_with_custodies(
                     .unwrap_or_else(fixtures::borrow_rate_regular),
 
                 // in BPS, 10_000 = 100%
-                target_ratio: custody_param.target_ratio,
-                min_ratio: custody_param.min_ratio,
-                max_ratio: custody_param.max_ratio,
+                ratios: ratios.clone(),
             };
 
             instructions::test_add_custody(

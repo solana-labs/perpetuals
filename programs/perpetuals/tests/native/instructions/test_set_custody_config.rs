@@ -52,7 +52,9 @@ pub async fn test_set_custody_config(
         utils::create_and_execute_perpetuals_ix(
             program_test_ctx,
             accounts_meta,
-            perpetuals::instruction::SetCustodyConfig { params },
+            perpetuals::instruction::SetCustodyConfig {
+                params: params.clone(),
+            },
             Some(&payer.pubkey()),
             &[admin, payer, signer],
         )

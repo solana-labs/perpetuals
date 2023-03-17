@@ -73,18 +73,17 @@ pub async fn test_add_liquidity(
         let pool_account = utils::get_account::<Pool>(program_test_ctx, *pool_pda).await;
 
         // For each token, add custody account as remaining_account
-        for token in pool_account.tokens.as_slice() {
+        for custody in &pool_account.custodies {
             accounts_meta.push(AccountMeta {
-                pubkey: token.custody,
+                pubkey: *custody,
                 is_signer: false,
                 is_writable: false,
             });
         }
 
         // For each token, add custody oracle account as remaining_account
-        for token in pool_account.tokens.as_slice() {
-            let custody_account =
-                utils::get_account::<Custody>(program_test_ctx, token.custody).await;
+        for custody in &pool_account.custodies {
+            let custody_account = utils::get_account::<Custody>(program_test_ctx, *custody).await;
 
             accounts_meta.push(AccountMeta {
                 pubkey: custody_account.oracle.oracle_account,

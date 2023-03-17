@@ -67,7 +67,9 @@ pub async fn test_add_custody(
         utils::create_and_execute_perpetuals_ix(
             program_test_ctx,
             accounts_meta,
-            perpetuals::instruction::AddCustody { params },
+            perpetuals::instruction::AddCustody {
+                params: params.clone(),
+            },
             Some(&payer.pubkey()),
             &[admin, payer, signer],
         )
@@ -101,12 +103,13 @@ pub async fn test_add_custody(
     // Check pool token
     {
         let idx = pool_account.get_token_id(&custody_pda).unwrap();
-        let pool_token = pool_account.tokens[idx];
+        let custody = pool_account.custodies[idx];
+        let ratios = pool_account.ratios[idx];
 
-        assert_eq!(pool_token.custody, custody_pda);
-        assert_eq!(pool_token.target_ratio, params.target_ratio);
-        assert_eq!(pool_token.min_ratio, params.min_ratio);
-        assert_eq!(pool_token.max_ratio, params.max_ratio);
+        assert_eq!(custody, custody_pda);
+        assert_eq!(ratios.target, params.ratios[idx].target);
+        assert_eq!(ratios.min, params.ratios[idx].min);
+        assert_eq!(ratios.max, params.ratios[idx].max);
     }
 
     Ok((custody_pda, custody_bump))
