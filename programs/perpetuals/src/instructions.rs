@@ -21,6 +21,7 @@ pub mod test_init;
 pub mod add_collateral;
 pub mod add_liquidity;
 pub mod add_stake;
+pub mod claim_stake;
 pub mod claim_vest;
 pub mod close_position;
 pub mod get_add_liquidity_amount_and_fee;
@@ -43,7 +44,7 @@ pub mod swap;
 // bring everything in scope
 pub use {
     add_collateral::*, add_custody::*, add_liquidity::*, add_pool::*, add_stake::*, add_vest::*,
-    claim_vest::*, close_position::*, get_add_liquidity_amount_and_fee::*,
+    claim_stake::*, claim_vest::*, close_position::*, get_add_liquidity_amount_and_fee::*,
     get_assets_under_management::*, get_entry_price_and_fee::*, get_exit_price_and_fee::*,
     get_liquidation_price::*, get_liquidation_state::*, get_oracle_price::*, get_pnl::*,
     get_remove_liquidity_amount_and_fee::*, get_swap_amount_and_fees::*, init::*, liquidate::*,

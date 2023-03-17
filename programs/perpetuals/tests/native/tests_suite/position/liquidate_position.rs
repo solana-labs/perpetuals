@@ -25,6 +25,7 @@ const USER_EXECUTIONER: usize = 8;
 const KEYPAIRS_COUNT: usize = 9;
 
 const ETH_DECIMALS: u8 = 9;
+const USDC_DECIMALS: u8 = 6;
 
 pub async fn liquidate_position() {
     let mut program_test = ProgramTest::default();
@@ -34,6 +35,10 @@ pub async fn liquidate_position() {
         utils::create_and_fund_multiple_accounts(&mut program_test, KEYPAIRS_COUNT).await;
 
     // Initialize mints
+    let usdc_mint = program_test
+        .add_mint(None, USDC_DECIMALS, &keypairs[ROOT_AUTHORITY].pubkey())
+        .0;
+
     let eth_mint = program_test
         .add_mint(None, ETH_DECIMALS, &keypairs[ROOT_AUTHORITY].pubkey())
         .0;
@@ -54,11 +59,15 @@ pub async fn liquidate_position() {
 
     let governance_realm_pda = pda::get_governance_realm_pda("ADRENA".to_string());
 
+    // mint for the payouts of the LM token staking (ADX staking)
+    let cortex_stake_reward_mint = usdc_mint;
+
     instructions::test_init(
         &mut program_test_ctx,
         upgrade_authority,
         fixtures::init_params_permissions_full(1),
         &governance_realm_pda,
+        &cortex_stake_reward_mint,
         multisig_signers,
     )
     .await

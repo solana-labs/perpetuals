@@ -1,3 +1,5 @@
+use solana_program::{clock::SLOT_MS, epoch_schedule::DEFAULT_SLOTS_PER_EPOCH};
+
 use {
     super::{fixtures, get_lm_token_mint_pda, get_program_data_pda, get_test_oracle_account},
     crate::instructions,
@@ -178,6 +180,30 @@ pub async fn mint_tokens(
         .mint_tokens(mint_authority, mint, token_account, amount)
         .await
         .unwrap();
+}
+
+// Doesn't check if you go before epoch 0 when passing negative amounts, be wary
+pub async fn warp_forward(ctx: &mut ProgramTestContext, seconds: i64) {
+    let clock_sysvar: Clock = ctx.banks_client.get_sysvar().await.unwrap();
+    println!(
+        "Original Time: epoch = {}, timestamp = {}",
+        clock_sysvar.epoch, clock_sysvar.unix_timestamp
+    );
+    let mut new_clock = clock_sysvar.clone();
+    new_clock.unix_timestamp += seconds;
+
+    let seconds_since_epoch_start = new_clock.unix_timestamp - clock_sysvar.epoch_start_timestamp;
+    let ms_since_epoch_start = seconds_since_epoch_start * 1_000;
+    let slots_since_epoch_start = ms_since_epoch_start / SLOT_MS as i64;
+    let epochs_since_epoch_start = slots_since_epoch_start / DEFAULT_SLOTS_PER_EPOCH as i64;
+    new_clock.epoch = (new_clock.epoch as i64 + epochs_since_epoch_start) as u64;
+
+    ctx.set_sysvar(&new_clock);
+    let clock_sysvar: Clock = ctx.banks_client.get_sysvar().await.unwrap();
+    println!(
+        "New Time: epoch = {}, timestamp = {}",
+        clock_sysvar.epoch, clock_sysvar.unix_timestamp
+    );
 }
 
 pub async fn add_spl_governance_program(

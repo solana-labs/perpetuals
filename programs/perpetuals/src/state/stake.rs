@@ -29,7 +29,7 @@ pub struct Stake {
     pub amount: u64,
     pub bump: u8,
     // this value is refreshed during each call to add_stake, remove_stake or claim_stake
-    pub inception_time: i64,
+    pub stake_time: i64,
 }
 
 /// Stake

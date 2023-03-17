@@ -44,7 +44,7 @@ pub struct AddVest<'info> {
 
     #[account(
         mut,
-        realloc = Cortex::LEN + (cortex.vests.len() + 1) * std::mem::size_of::<Vest>(),
+        realloc = cortex.size() + std::mem::size_of::<Vest>(),
         realloc::payer = admin,
         realloc::zero = false,
         seeds = [b"cortex"],

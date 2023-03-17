@@ -1,3 +1,6 @@
+use anchor_lang::prelude::Clock;
+use perpetuals::state::cortex::StakingRound;
+
 use {
     crate::utils::{self, pda},
     anchor_lang::{
@@ -18,6 +21,7 @@ pub async fn test_init(
     upgrade_authority: &Keypair,
     params: InitParams,
     governance_realm_pda: &Pubkey,
+    stake_reward_token_mint: &Pubkey,
     multisig_signers: &[&Keypair],
 ) -> std::result::Result<(), BanksClientError> {
     // ==== WHEN ==============================================================
@@ -28,6 +32,8 @@ pub async fn test_init(
     let (cortex_pda, cortex_bump) = pda::get_cortex_pda();
     let (lm_token_mint_pda, lm_token_mint_bump) = pda::get_lm_token_mint_pda();
     let (stake_token_account_pda, stake_token_account_bump) = pda::get_stake_token_account_pda();
+    let (stake_reward_token_account_pda, stake_reward_token_account_bump) =
+        pda::get_stake_reward_token_account_pda();
 
     let accounts_meta = {
         let accounts = perpetuals::accounts::Init {
@@ -37,11 +43,13 @@ pub async fn test_init(
             cortex: cortex_pda,
             lm_token_mint: lm_token_mint_pda,
             stake_token_account: stake_token_account_pda,
+            stake_reward_token_account: stake_reward_token_account_pda,
             perpetuals: perpetuals_pda,
             perpetuals_program: perpetuals::ID,
             perpetuals_program_data: perpetuals_program_data_pda,
             governance_realm: *governance_realm_pda,
             governance_program: spl_governance_program_adapter::ID,
+            stake_reward_token_mint: *stake_reward_token_mint,
             system_program: anchor_lang::system_program::ID,
             token_program: anchor_spl::token::ID,
         };
@@ -98,6 +106,7 @@ pub async fn test_init(
     let cortex_account = utils::get_account::<Cortex>(program_test_ctx, cortex_pda).await;
     // Assert cortex
     {
+        let clock = program_test_ctx.banks_client.get_sysvar::<Clock>().await?;
         assert_eq!(cortex_account.bump, cortex_bump);
         assert_eq!(cortex_account.lm_token_bump, lm_token_mint_bump);
         assert_eq!(cortex_account.inception_epoch, 0);
@@ -105,7 +114,20 @@ pub async fn test_init(
             cortex_account.stake_token_account_bump,
             stake_token_account_bump
         );
-        assert_eq!(cortex_account.staking_rounds.len(), 1);
+        assert_eq!(
+            cortex_account.stake_reward_token_account_bump,
+            stake_reward_token_account_bump
+        );
+        assert_eq!(
+            cortex_account.stake_reward_token_mint,
+            *stake_reward_token_mint
+        );
+        assert_eq!(
+            cortex_account.current_staking_round,
+            StakingRound::new(clock.unix_timestamp)
+        );
+        assert_eq!(cortex_account.next_staking_round, StakingRound::new(0));
+        assert_eq!(cortex_account.resolved_staking_rounds.len(), 0);
     }
 
     let multisig_account = utils::get_account::<Multisig>(program_test_ctx, multisig_pda).await;

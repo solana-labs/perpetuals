@@ -252,4 +252,8 @@ pub mod perpetuals {
     pub fn remove_stake(ctx: Context<RemoveStake>, params: RemoveStakeParams) -> Result<()> {
         instructions::remove_stake(ctx, &params)
     }
+
+    pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<()> {
+        instructions::claim_stake(ctx)
+    }
 }

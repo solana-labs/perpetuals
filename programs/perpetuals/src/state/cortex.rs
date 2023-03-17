@@ -1,10 +1,13 @@
 //! Cortex state and routines
 
-use {super::perpetuals::Perpetuals, crate::math, anchor_lang::prelude::*};
+use {
+    super::{perpetuals::Perpetuals, vest::Vest},
+    crate::math,
+    anchor_lang::prelude::*,
+};
 
-// lenght of our epoch relative to Solana epochs (1 Solana epoch is ~2-3 days)
-const ADRENA_EPOCH: u8 = 10;
-pub const STAKING_ROUND_MIN_DURATION: i64 = 3600 * 6;
+// pub const STAKING_ROUND_MIN_DURATION: i64 = 3600 * 6;
+pub const SOLANA_ACCOUNT_MAX_SIZE_BYTE: usize = 10_485_760;
 
 #[account]
 #[derive(Default, Debug)]
@@ -13,13 +16,18 @@ pub struct Cortex {
     pub bump: u8,
     pub lm_token_bump: u8,
     pub stake_token_account_bump: u8,
+    pub stake_reward_token_account_bump: u8,
     pub inception_epoch: u64,
     pub governance_program: Pubkey,
     pub governance_realm: Pubkey,
-    pub staking_rounds: Vec<StakingRound>,
+    pub stake_reward_token_mint: Pubkey,
+    pub current_staking_round: StakingRound,
+    pub next_staking_round: StakingRound,
+    // must be the last element of the struct for reallocs
+    pub resolved_staking_rounds: Vec<StakingRound>,
 }
 
-#[derive(Default, Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Default, Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
 pub struct StakingRound {
     pub timestamp_start: i64,
     pub rate: u64, // the amount of reward you get per staked stake-token for that round - set at Round's resolution
@@ -28,6 +36,12 @@ pub struct StakingRound {
 }
 
 impl StakingRound {
+    const LEN: usize = std::mem::size_of::<StakingRound>();
+    // the amount of rounds that can be stored before being over the 10Mb limit of Solana accounts
+    pub const MAX_RESOLVED_STAKING_ROUNDS: usize =
+        (SOLANA_ACCOUNT_MAX_SIZE_BYTE - Cortex::LEN - (Vest::LEN * Cortex::MAX_ONGOING_VESTS))
+            % StakingRound::LEN;
+
     pub fn new(current_time: i64) -> Self {
         Self {
             timestamp_start: current_time,
@@ -44,7 +58,10 @@ impl Cortex {
     const INCEPTION_EMISSION_RATE: u64 = Perpetuals::RATE_POWER as u64; // 100%
     pub const FEE_TO_REWARD_RATIO_BPS: u8 = 10; //  0.10% of fees paid become rewards
     pub const LM_DECIMALS: u8 = Perpetuals::USD_DECIMALS;
-    pub const STAKE_REDEEMABLE_DECIMALS: u8 = Perpetuals::USD_DECIMALS; // LM token staking redeemable
+    // a limit is needed to keep the Cortex size deterministic for the Staking
+    pub const MAX_ONGOING_VESTS: usize = 20;
+    // lenght of our epoch relative to Solana epochs (1 Solana epoch is ~2-3 days)
+    const ADRENA_EPOCH: u8 = 10;
 
     pub fn get_swap_lm_rewards_amounts(&self, (fee_in, fee_out): (u64, u64)) -> Result<(u64, u64)> {
         Ok((
@@ -72,7 +89,7 @@ impl Cortex {
 
         math::checked_div(
             Self::INCEPTION_EMISSION_RATE,
-            std::cmp::max(elapsed_epochs / ADRENA_EPOCH as u64, 1),
+            std::cmp::max(elapsed_epochs / Cortex::ADRENA_EPOCH as u64, 1),
         )
     }
 
@@ -81,11 +98,18 @@ impl Cortex {
         Ok(epoch)
     }
 
-    pub fn get_latest_staking_round_mut(&mut self) -> Result<&mut StakingRound> {
-        match self.staking_rounds.last_mut() {
-            Some(current_staking_round) => Ok(current_staking_round),
-            None => Err(ProgramError::InvalidAccountData.into()),
-        }
+    // returns the current size of the Cortex
+    pub fn size(&self) -> usize {
+        let size = Cortex::LEN
+            + self.vests.len() * Vest::LEN
+            + self.resolved_staking_rounds.len() * StakingRound::LEN;
+        msg!("size = {}", size);
+        return size;
+    }
+
+    // returns the new size of the structure after removing some staking rounds
+    pub fn new_size(&self, removed_staking_rounds_count: usize) -> usize {
+        self.size() - (removed_staking_rounds_count * StakingRound::LEN)
     }
 }
 

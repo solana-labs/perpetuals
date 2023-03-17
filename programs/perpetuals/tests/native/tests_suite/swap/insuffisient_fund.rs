@@ -57,11 +57,15 @@ pub async fn insuffisient_fund() {
 
     let governance_realm_pda = pda::get_governance_realm_pda("ADRENA".to_string());
 
+    // mint for the payouts of the LM token staking (ADX staking)
+    let cortex_stake_reward_mint = usdc_mint;
+
     instructions::test_init(
         &mut program_test_ctx,
         upgrade_authority,
         fixtures::init_params_permissions_full(1),
         &governance_realm_pda,
+        &cortex_stake_reward_mint,
         multisig_signers,
     )
     .await

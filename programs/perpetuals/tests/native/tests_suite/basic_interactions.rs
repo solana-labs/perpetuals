@@ -64,11 +64,15 @@ pub async fn basic_interactions() {
 
     let governance_realm_pda = pda::get_governance_realm_pda("ADRENA".to_string());
 
+    // mint for the payouts of the LM token staking (ADX staking)
+    let cortex_stake_reward_mint = usdc_mint;
+
     instructions::test_init(
         &mut program_test_ctx,
         upgrade_authority,
         fixtures::init_params_permissions_full(1),
         &governance_realm_pda,
+        &cortex_stake_reward_mint,
         multisig_signers,
     )
     .await
@@ -91,7 +95,7 @@ pub async fn basic_interactions() {
     {
         let lm_token_mint = utils::pda::get_lm_token_mint_pda().0;
 
-        // Alice: mint 1k USDC, create LM token account, create stake r-token token account
+        // Alice: mint 1k USDC, create LM token account, create stake reward token account
         {
             utils::initialize_and_fund_token_account(
                 &mut program_test_ctx,
@@ -105,6 +109,13 @@ pub async fn basic_interactions() {
             utils::initialize_token_account(
                 &mut program_test_ctx,
                 &lm_token_mint,
+                &keypairs[USER_ALICE].pubkey(),
+            )
+            .await;
+
+            utils::initialize_token_account(
+                &mut program_test_ctx,
+                &cortex_stake_reward_mint,
                 &keypairs[USER_ALICE].pubkey(),
             )
             .await;
@@ -359,6 +370,7 @@ pub async fn basic_interactions() {
             AddStakeParams {
                 amount: scale(1, Cortex::LM_DECIMALS),
             },
+            &cortex_stake_reward_mint,
         )
         .await
         .unwrap();
@@ -371,6 +383,7 @@ pub async fn basic_interactions() {
             RemoveStakeParams {
                 amount: scale(1, Cortex::LM_DECIMALS),
             },
+            &cortex_stake_reward_mint,
         )
         .await
         .unwrap();

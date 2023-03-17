@@ -3,6 +3,7 @@
 use {
     crate::{
         error::PerpetualsError,
+        math,
         state::{cortex::Cortex, perpetuals::Perpetuals, stake::Stake},
     },
     anchor_lang::prelude::*,
@@ -23,7 +24,7 @@ pub struct RemoveStake<'info> {
     )]
     pub lm_token_account: Box<Account<'info, TokenAccount>>,
 
-    // staking vault
+    // staked token vault
     #[account(
         mut,
         token::mint = lm_token_mint,
@@ -31,6 +32,15 @@ pub struct RemoveStake<'info> {
         bump = cortex.stake_token_account_bump
     )]
     pub stake_token_account: Box<Account<'info, TokenAccount>>,
+
+    // staking reward token vault
+    #[account(
+        mut,
+        token::mint = stake_reward_token_mint,
+        seeds = [b"stake_reward_token_account"],
+        bump = cortex.stake_reward_token_account_bump
+    )]
+    pub stake_reward_token_account: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: empty PDA, authority for token accounts
     #[account(
@@ -43,14 +53,15 @@ pub struct RemoveStake<'info> {
         mut,
         seeds = [b"stake",
                  owner.key().as_ref()],
-        bump
+        bump = stake.bump
     )]
     pub stake: Box<Account<'info, Stake>>,
 
     #[account(
         mut,
         seeds = [b"cortex"],
-        bump = cortex.bump
+        bump = cortex.bump,
+        has_one = stake_reward_token_mint
     )]
     pub cortex: Box<Account<'info, Cortex>>,
 
@@ -66,6 +77,9 @@ pub struct RemoveStake<'info> {
         bump = cortex.lm_token_bump
     )]
     pub lm_token_mint: Box<Account<'info, Mint>>,
+
+    #[account()]
+    pub stake_reward_token_mint: Box<Account<'info, Mint>>,
 
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
@@ -104,21 +118,24 @@ pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Re
         params.amount,
     )?;
 
-    // record stake in the user `Stake` PDA and update stake time
-    let stake = ctx.accounts.stake.as_mut();
-    stake.amount -= params.amount;
-    stake.inception_time = ctx.accounts.perpetuals.get_time()?;
-
-    // record stake in current staking round
-    // (no double count as the previous amount is counted as claimed after the claim IX call, even if called during the same round)
+    // update Stake and Cortex data
+    // note: the update to the current round has already been done in the `claim` ix call,
+    //       only the delta is processed here
     let cortex = ctx.accounts.cortex.as_mut();
-    cortex.get_latest_staking_round_mut()?.total_stake += stake.amount;
+    let stake = ctx.accounts.stake.as_mut();
+
+    // record updated stake amount in the user `Stake` PDA
+    stake.amount = math::checked_sub(stake.amount, params.amount)?;
+
+    // remove requested stake from next round
+    cortex.next_staking_round.total_stake =
+        math::checked_sub(cortex.next_staking_round.total_stake, params.amount)?;
 
     // cleanup the stake PDA if all stake has been removed
     if stake.amount.is_zero() {
         stake.amount = 0;
         stake.bump = 0;
-        stake.inception_time = 0;
+        stake.stake_time = 0;
         stake.close(ctx.accounts.owner.to_account_info())?;
     }
 
