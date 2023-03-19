@@ -29,22 +29,21 @@ pub struct Cortex {
 
 #[derive(Default, Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
 pub struct StakingRound {
-    pub timestamp_start: i64,
+    pub start_time: i64,
     pub rate: u64, // the amount of reward you get per staked stake-token for that round - set at Round's resolution
     pub total_stake: u64, // - set at Round's resolution
     pub total_claim: u64, // - set at Round's resolution
 }
-
 impl StakingRound {
     const LEN: usize = std::mem::size_of::<StakingRound>();
     // the amount of rounds that can be stored before being over the 10Mb limit of Solana accounts
     pub const MAX_RESOLVED_STAKING_ROUNDS: usize =
         (SOLANA_ACCOUNT_MAX_SIZE_BYTE - Cortex::LEN - (Vest::LEN * Cortex::MAX_ONGOING_VESTS))
-            % StakingRound::LEN;
+            / StakingRound::LEN;
 
     pub fn new(current_time: i64) -> Self {
         Self {
-            timestamp_start: current_time,
+            start_time: current_time,
             rate: u64::MIN,
             total_stake: u64::MIN,
             total_claim: u64::MIN,

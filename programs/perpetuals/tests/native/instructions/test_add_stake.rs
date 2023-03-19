@@ -62,9 +62,9 @@ pub async fn test_add_stake(
             perpetuals: perpetuals_pda,
             lm_token_mint: lm_token_mint_pda,
             stake_reward_token_mint: *stake_reward_token_mint,
+            perpetuals_program: perpetuals::ID,
             system_program: anchor_lang::system_program::ID,
             token_program: anchor_spl::token::ID,
-            perpetuals_program: ,
         }
         .to_account_metas(None),
         perpetuals::instruction::AddStake {

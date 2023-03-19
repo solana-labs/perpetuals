@@ -2,7 +2,7 @@
 
 use {
     crate::{
-        instructions, math, program,
+        math, program,
         state::{cortex::Cortex, perpetuals::Perpetuals, stake::Stake},
     },
     anchor_lang::prelude::*,
@@ -100,68 +100,105 @@ pub struct AddStakeParams {
 
 pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> {
     // validate inputs
-    msg!("Validate inputs");
-    if params.amount == 0 {
-        return Err(ProgramError::InvalidArgument.into());
+    {
+        msg!("Validate inputs");
+        if params.amount == 0 {
+            return Err(ProgramError::InvalidArgument.into());
+        }
     }
 
     // initialize Stake PDA if needed, or claim existing rewards
-    let stake = ctx.accounts.stake.as_mut();
-    if stake.stake_time == 0 {
-        stake.bump = *ctx.bumps.get("stake").ok_or(ProgramError::InvalidSeeds)?;
-        stake.stake_time = ctx.accounts.perpetuals.get_time()?;
-    } else {
-        let cpi_accounts = instructions::claim_stake::ClaimStake {
-            caller: ctx.accounts.owner.clone(),
-            owner: ctx.accounts.owner.to_account_info(),
-            caller_reward_token_account: ctx.accounts.owner_reward_token_account.clone(),
-            owner_reward_token_account: ctx.accounts.owner_reward_token_account.clone(),
-            stake_token_account: ctx.accounts.stake_token_account.clone(),
-            stake_reward_token_account: ctx.accounts.stake_reward_token_account.clone(),
-            transfer_authority: ctx.accounts.transfer_authority.clone(),
-            stake: ctx.accounts.stake.clone(),
-            cortex: ctx.accounts.cortex.clone(),
-            perpetuals: ctx.accounts.perpetuals.clone(),
-            lm_token_mint: ctx.accounts.lm_token_mint.clone(),
-            stake_reward_token_mint: ctx.accounts.stake_reward_token_mint.clone(),
-            system_program: ctx.accounts.system_program.clone(),
-            token_program: ctx.accounts.token_program.clone(),
-        };
+    let did_claim = {
+        let stake = ctx.accounts.stake.as_mut();
+        if stake.stake_time == 0 {
+            stake.bump = *ctx.bumps.get("stake").ok_or(ProgramError::InvalidSeeds)?;
+            stake.stake_time = ctx.accounts.perpetuals.get_time()?;
+            false
+        } else {
+            // calling the program itself through CPI to enforce parity with cpi API
+            let cpi_accounts = crate::cpi::accounts::ClaimStake {
+                caller: ctx.accounts.owner.to_account_info(),
+                owner: ctx.accounts.owner.to_account_info(),
+                caller_reward_token_account: ctx
+                    .accounts
+                    .owner_reward_token_account
+                    .to_account_info(),
+                owner_reward_token_account: ctx
+                    .accounts
+                    .owner_reward_token_account
+                    .to_account_info(),
+                stake_token_account: ctx.accounts.stake_token_account.to_account_info(),
+                stake_reward_token_account: ctx
+                    .accounts
+                    .stake_reward_token_account
+                    .to_account_info(),
+                transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
+                stake: ctx.accounts.stake.to_account_info(),
+                cortex: ctx.accounts.cortex.to_account_info(),
+                perpetuals: ctx.accounts.perpetuals.to_account_info(),
+                lm_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+                stake_reward_token_mint: ctx.accounts.stake_reward_token_mint.to_account_info(),
+                system_program: ctx.accounts.system_program.to_account_info(),
+                token_program: ctx.accounts.token_program.to_account_info(),
+            };
 
-        let cpi_program = ctx.accounts.perpetuals_program.to_account_info();
-        instructions::claim_stake(CpiContext::new(cpi_program, cpi_accounts).into())?;
-    }
+            let cpi_program = ctx.accounts.perpetuals_program.to_account_info();
+            crate::cpi::claim_stake(CpiContext::new(cpi_program, cpi_accounts))?.get()
+        }
+    };
 
     // stake owner's tokens
     msg!("Transfer tokens");
-    let perpetuals = ctx.accounts.perpetuals.as_mut();
-    perpetuals.transfer_tokens_from_user(
-        ctx.accounts.funding_account.to_account_info(),
-        ctx.accounts.stake_token_account.to_account_info(),
-        ctx.accounts.owner.to_account_info(),
-        ctx.accounts.token_program.to_account_info(),
-        params.amount,
-    )?;
+    {
+        let perpetuals = ctx.accounts.perpetuals.as_mut();
+        perpetuals.transfer_tokens_from_user(
+            ctx.accounts.funding_account.to_account_info(),
+            ctx.accounts.stake_token_account.to_account_info(),
+            ctx.accounts.owner.to_account_info(),
+            ctx.accounts.token_program.to_account_info(),
+            params.amount,
+        )?;
+    }
 
     // update Stake and Cortex data
-    // note: the update to the current round has already been done in the `claim` ix call,
-    //       only the delta is processed here
-    let cortex = ctx.accounts.cortex.as_mut();
-    let stake = ctx.accounts.stake.as_mut();
+    {
+        let perpetuals = ctx.accounts.perpetuals.as_mut();
+        let cortex = ctx.accounts.cortex.as_mut();
+        let stake = ctx.accounts.stake.as_mut();
 
-    // record updated stake amount in the user `Stake` PDA
-    stake.amount = math::checked_add(stake.amount, params.amount)?;
+        if !did_claim {
+            // forfeit current round participation, if any
+            if stake.qualifies_for_rewards_from(&cortex.current_staking_round) {
+                // remove previous stake from current staking round
+                cortex.current_staking_round.total_stake =
+                    math::checked_sub(cortex.current_staking_round.total_stake, stake.amount)?;
+            }
 
-    // add new stake to next round
-    cortex.next_staking_round.total_stake =
-        math::checked_add(cortex.next_staking_round.total_stake, params.amount)?;
+            // refresh stake_time
+            stake.stake_time = perpetuals.get_time()?;
+        }
+
+        // apply delta to user stake
+        stake.amount = math::checked_add(stake.amount, params.amount)?;
+
+        // apply delta to next round
+        cortex.next_staking_round.total_stake =
+            math::checked_add(cortex.next_staking_round.total_stake, params.amount)?;
+
+        msg!(
+            "Cortex.resolved_staking_rounds after add stake {:?}",
+            cortex.resolved_staking_rounds
+        );
+        msg!(
+            "Cortex.current_staking_round after add stake {:?}",
+            cortex.current_staking_round
+        );
+        msg!(
+            "Cortex.next_staking_round after add stake {:?}",
+            cortex.next_staking_round
+        );
+        msg!("STATE after add stake {:?}", stake);
+    }
 
     Ok(())
 }
-
-// impl<'info> AddStake<'info> {
-//     pub fn into_claim_stake_context(
-//         &self,
-//     ) -> CpiContext<'_, '_, '_, 'info, perpetuals::cpi::accounts::ClaimStake<'info>> {
-//     }
-// }

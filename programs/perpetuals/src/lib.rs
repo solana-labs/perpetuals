@@ -3,11 +3,11 @@
 #![allow(clippy::result_large_err)]
 
 pub mod adapters;
+pub mod adapters;
 pub mod error;
 pub mod instructions;
 pub mod math;
 pub mod state;
-pub mod adapters;
 
 use {
     anchor_lang::prelude::*,
@@ -253,7 +253,7 @@ pub mod perpetuals {
         instructions::remove_stake(ctx, &params)
     }
 
-    pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<()> {
+    pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
         instructions::claim_stake(ctx)
     }
 }

@@ -23,6 +23,8 @@
 
 use anchor_lang::prelude::*;
 
+use super::cortex::StakingRound;
+
 #[account]
 #[derive(Default, Debug)]
 pub struct Stake {
@@ -35,4 +37,8 @@ pub struct Stake {
 /// Stake
 impl Stake {
     pub const LEN: usize = 8 + std::mem::size_of::<Stake>();
+
+    pub fn qualifies_for_rewards_from(&self, staking_round: &StakingRound) -> bool {
+        self.stake_time < staking_round.start_time
+    }
 }

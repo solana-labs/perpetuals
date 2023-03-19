@@ -1,6 +1,9 @@
 use {
     crate::utils::{self, pda},
-    anchor_lang::{prelude::{Clock, Pubkey}, ToAccountMetas},
+    anchor_lang::{
+        prelude::{Clock, Pubkey},
+        ToAccountMetas,
+    },
     bonfida_test_utils::ProgramTestContextExt,
     perpetuals::{
         instructions::RemoveStakeParams,
@@ -29,6 +32,8 @@ pub async fn test_remove_stake(
 
     let lm_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), &lm_token_mint_pda).0;
+    let stake_reward_token_account_address =
+        utils::find_associated_token_account(&owner.pubkey(), &stake_reward_token_mint).0;
 
     // // ==== WHEN ==============================================================
     // save account state before tx execution
@@ -47,6 +52,7 @@ pub async fn test_remove_stake(
         perpetuals::accounts::RemoveStake {
             owner: owner.pubkey(),
             lm_token_account: lm_token_account_address,
+            owner_reward_token_account: stake_reward_token_account_address,
             stake_token_account: stake_token_account_pda,
             stake_reward_token_account: stake_reward_token_account_pda,
             transfer_authority: transfer_authority_pda,
@@ -55,6 +61,7 @@ pub async fn test_remove_stake(
             perpetuals: perpetuals_pda,
             lm_token_mint: lm_token_mint_pda,
             stake_reward_token_mint: *stake_reward_token_mint,
+            perpetuals_program: perpetuals::ID,
             system_program: anchor_lang::system_program::ID,
             token_program: anchor_spl::token::ID,
         }
@@ -93,10 +100,8 @@ pub async fn test_remove_stake(
             cortex_account_before.resolved_staking_rounds.len()
         );
         // forfeited the previously staked amount for this round
-        assert_eq!(
-            cortex_account_after.current_staking_round.total_stake,
-            cortex_account_before.current_staking_round.total_stake - stake_account_before.amount
-        );
+        // checked in advanced test suite
+
         // restaked the initial amount minus the removed amount for next round
         assert_eq!(
             cortex_account_after.next_staking_round.total_stake,

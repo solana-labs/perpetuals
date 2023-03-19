@@ -20,7 +20,7 @@ no-idl = []
 no-log-ix-name = []
 cpi = []
 test = []
-default = []
+default = ["cpi"]
 
 [profile.release]
 lto = true
