@@ -120,7 +120,6 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     }
     let position = ctx.accounts.position.as_mut();
     let pool = ctx.accounts.pool.as_mut();
-    let token_id = pool.get_token_id(&custody.key())?;
 
     // compute position price
     let curtime = perpetuals.get_time()?;
@@ -168,13 +167,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     }
 
     // compute fee
-    let fee_amount = pool.get_entry_fee(
-        token_id,
-        params.collateral,
-        params.size,
-        custody,
-        &token_ema_price,
-    )?;
+    let fee_amount = pool.get_entry_fee(params.size, custody)?;
     msg!("Collected fee: {}", fee_amount);
 
     // compute amount to transfer
@@ -216,7 +209,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         PerpetualsError::InsufficientAmountReturned
     );
     require!(
-        pool.check_leverage(token_id, position, &token_ema_price, custody, curtime, true)?,
+        pool.check_leverage(position, &token_ema_price, custody, curtime, true)?,
         PerpetualsError::MaxLeverage
     );
 

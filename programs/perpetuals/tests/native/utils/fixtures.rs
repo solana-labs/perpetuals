@@ -38,9 +38,12 @@ pub fn borrow_rate_regular() -> BorrowRateParams {
 pub fn fees_linear_regular() -> Fees {
     Fees {
         mode: FeesMode::Linear,
-        max_increase: 20_000,
-        max_decrease: 10_000,
-        swap: 100,
+        ratio_mult: 20_000,
+        utilization_mult: 20_000,
+        swap_in: 100,
+        swap_out: 100,
+        stable_swap_in: 100,
+        stable_swap_out: 100,
         add_liquidity: 200,
         remove_liquidity: 300,
         open_position: 100,

@@ -73,19 +73,34 @@ pub fn get_liquidation_price(
         false,
     )?;
 
+    let token_ema_price = OraclePrice::new_from_oracle(
+        custody.oracle.oracle_type,
+        &ctx.accounts.custody_oracle_account.to_account_info(),
+        custody.oracle.max_price_error,
+        custody.oracle.max_price_age_sec,
+        curtime,
+        custody.pricing.use_ema,
+    )?;
+
+    let min_price = if token_price < token_ema_price {
+        token_price
+    } else {
+        token_ema_price
+    };
+
     let mut position = ctx.accounts.position.clone();
     position.update_time = ctx.accounts.perpetuals.get_time()?;
 
     if params.add_collateral > 0 {
         let collateral_usd =
-            token_price.get_asset_amount_usd(params.add_collateral, custody.decimals)?;
+            min_price.get_asset_amount_usd(params.add_collateral, custody.decimals)?;
         position.collateral_usd = math::checked_add(position.collateral_usd, collateral_usd)?;
         position.collateral_amount =
             math::checked_add(position.collateral_amount, params.add_collateral)?;
     }
     if params.remove_collateral > 0 {
         let collateral_usd =
-            token_price.get_asset_amount_usd(params.remove_collateral, custody.decimals)?;
+            min_price.get_asset_amount_usd(params.remove_collateral, custody.decimals)?;
         if collateral_usd >= position.collateral_usd
             || params.remove_collateral >= position.collateral_amount
         {
@@ -96,11 +111,7 @@ pub fn get_liquidation_price(
             math::checked_sub(position.collateral_amount, params.remove_collateral)?;
     }
 
-    ctx.accounts.pool.get_liquidation_price(
-        ctx.accounts.pool.get_token_id(&custody.key())?,
-        &position,
-        &token_price,
-        custody,
-        curtime,
-    )
+    ctx.accounts
+        .pool
+        .get_liquidation_price(&position, &token_ema_price, custody, curtime)
 }

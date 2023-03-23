@@ -82,16 +82,11 @@ pub fn get_exit_price_and_fee(
         custody.pricing.use_ema,
     )?;
 
-    let collateral = token_price.get_token_amount(position.collateral_usd, custody.decimals)?;
-
     let price = pool.get_exit_price(&token_price, &token_ema_price, position.side, custody)?;
 
-    let fee = pool.get_exit_fee(
-        pool.get_token_id(&custody.key())?,
-        collateral,
-        custody,
-        &token_price,
-    )?;
+    let size = token_ema_price.get_token_amount(position.size_usd, custody.decimals)?;
+
+    let fee = pool.get_exit_fee(size, custody)?;
 
     Ok(PriceAndFee { price, fee })
 }

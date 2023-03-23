@@ -21,9 +21,12 @@ pub enum FeesMode {
 pub struct Fees {
     pub mode: FeesMode,
     // fees have implied BPS_DECIMALS decimals
-    pub max_increase: u64,
-    pub max_decrease: u64,
-    pub swap: u64,
+    pub ratio_mult: u64,
+    pub utilization_mult: u64,
+    pub swap_in: u64,
+    pub swap_out: u64,
+    pub stable_swap_in: u64,
+    pub stable_swap_out: u64,
     pub add_liquidity: u64,
     pub remove_liquidity: u64,
     pub open_position: u64,
@@ -124,8 +127,8 @@ pub struct PositionStats {
     pub collateral_usd: u64,
     pub size_usd: u64,
     pub locked_amount: u64,
-    pub weighted_leverage: u128,
-    pub total_leverage: u128,
+    pub weighted_price: u128,
+    pub total_quantity: u128,
     pub cumulative_interest_usd: u64,
     pub cumulative_interest_snapshot: u128,
 }
@@ -211,8 +214,10 @@ impl Default for FeesMode {
 
 impl Fees {
     pub fn validate(&self) -> bool {
-        self.max_decrease as u128 <= Perpetuals::BPS_POWER
-            && self.swap as u128 <= Perpetuals::BPS_POWER
+        self.swap_in as u128 <= Perpetuals::BPS_POWER
+            && self.swap_out as u128 <= Perpetuals::BPS_POWER
+            && self.stable_swap_in as u128 <= Perpetuals::BPS_POWER
+            && self.stable_swap_out as u128 <= Perpetuals::BPS_POWER
             && self.add_liquidity as u128 <= Perpetuals::BPS_POWER
             && self.remove_liquidity as u128 <= Perpetuals::BPS_POWER
             && self.open_position as u128 <= Perpetuals::BPS_POWER
@@ -236,7 +241,6 @@ impl PricingParams {
             && (self.trade_spread_long as u128) < Perpetuals::BPS_POWER
             && (self.trade_spread_short as u128) < Perpetuals::BPS_POWER
             && (self.swap_spread as u128) < Perpetuals::BPS_POWER
-            && self.max_payoff_mult > 0
             && (self.max_utilization as u128) <= Perpetuals::BPS_POWER
             && self.max_position_locked_usd <= self.max_total_locked_usd
     }
@@ -400,8 +404,8 @@ impl Custody {
             Ok(Position {
                 side,
                 price: math::checked_as_u64(math::checked_div(
-                    stats.weighted_leverage,
-                    stats.total_leverage,
+                    stats.weighted_price,
+                    stats.total_quantity,
                 )?)?,
                 size_usd: stats.size_usd,
                 collateral_usd: stats.collateral_usd,
@@ -441,12 +445,20 @@ impl Custody {
         stats.size_usd = math::checked_add(stats.size_usd, position.size_usd)?;
         stats.locked_amount = math::checked_add(stats.locked_amount, position.locked_amount)?;
 
-        let leverage = position.get_initial_leverage()? as u128;
-        stats.weighted_leverage = math::checked_add(
-            stats.weighted_leverage,
-            math::checked_mul(position.price as u128, leverage)?,
+        let position_price = math::scale_to_exponent(
+            position.price,
+            -(Perpetuals::PRICE_DECIMALS as i32),
+            -(Perpetuals::USD_DECIMALS as i32),
         )?;
-        stats.total_leverage = math::checked_add(stats.total_leverage, leverage)?;
+        let quantity = math::checked_div(
+            math::checked_mul(position.size_usd as u128, Perpetuals::BPS_POWER)?,
+            position_price as u128,
+        )?;
+        stats.weighted_price = math::checked_add(
+            stats.weighted_price,
+            math::checked_mul(position.price as u128, quantity)?,
+        )?;
+        stats.total_quantity = math::checked_add(stats.total_quantity, quantity)?;
 
         // check limits
         if self.pricing.max_position_locked_usd > 0 {
@@ -500,12 +512,20 @@ impl Custody {
         stats.size_usd = math::checked_sub(stats.size_usd, position.size_usd)?;
         stats.locked_amount = math::checked_sub(stats.locked_amount, position.locked_amount)?;
 
-        let leverage = position.get_initial_leverage()? as u128;
-        stats.weighted_leverage = math::checked_sub(
-            stats.weighted_leverage,
-            math::checked_mul(position.price as u128, leverage)?,
+        let position_price = math::scale_to_exponent(
+            position.price,
+            -(Perpetuals::PRICE_DECIMALS as i32),
+            -(Perpetuals::USD_DECIMALS as i32),
         )?;
-        stats.total_leverage = math::checked_sub(stats.total_leverage, leverage)?;
+        let quantity = math::checked_div(
+            math::checked_mul(position.size_usd as u128, Perpetuals::BPS_POWER)?,
+            position_price as u128,
+        )?;
+        stats.weighted_price = math::checked_sub(
+            stats.weighted_price,
+            math::checked_mul(position.price as u128, quantity)?,
+        )?;
+        stats.total_quantity = math::checked_sub(stats.total_quantity, quantity)?;
 
         Ok(())
     }

@@ -151,7 +151,7 @@ pub fn add_collateral(ctx: Context<AddCollateral>, params: &AddCollateralParams)
     // check position risk
     msg!("Check position risks");
     require!(
-        pool.check_leverage(token_id, position, &token_ema_price, custody, curtime, true)?,
+        pool.check_leverage(position, &token_ema_price, custody, curtime, true)?,
         PerpetualsError::MaxLeverage
     );
 

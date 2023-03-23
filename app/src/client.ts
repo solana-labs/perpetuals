@@ -83,6 +83,9 @@ export class PerpetualsClient {
   };
 
   adjustTokenRatios = (ratios) => {
+    if (ratios.length == 0) {
+      return ratios;
+    }
     let target = Math.floor(10000 / ratios.length);
 
     for (let ratio of ratios) {

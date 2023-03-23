@@ -68,7 +68,6 @@ pub fn get_liquidation_state(
     )?;
 
     if ctx.accounts.pool.check_leverage(
-        ctx.accounts.pool.get_token_id(&custody.key())?,
         &ctx.accounts.position,
         &token_ema_price,
         custody,

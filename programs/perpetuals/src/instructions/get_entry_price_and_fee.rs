@@ -59,7 +59,6 @@ pub fn get_entry_price_and_fee(
     }
     let pool = &ctx.accounts.pool;
     let custody = ctx.accounts.custody.as_mut();
-    let token_id = pool.get_token_id(&custody.key())?;
 
     // compute position price
     let curtime = ctx.accounts.perpetuals.get_time()?;
@@ -82,10 +81,16 @@ pub fn get_entry_price_and_fee(
         custody.pricing.use_ema,
     )?;
 
+    let min_price = if token_price < token_ema_price {
+        token_price
+    } else {
+        token_ema_price
+    };
+
     let entry_price = pool.get_entry_price(&token_price, &token_ema_price, params.side, custody)?;
 
-    let size_usd = token_price.get_asset_amount_usd(params.size, custody.decimals)?;
-    let collateral_usd = token_price.get_asset_amount_usd(params.collateral, custody.decimals)?;
+    let size_usd = min_price.get_asset_amount_usd(params.size, custody.decimals)?;
+    let collateral_usd = min_price.get_asset_amount_usd(params.collateral, custody.decimals)?;
 
     let position = Position {
         side: params.side,
@@ -97,15 +102,9 @@ pub fn get_entry_price_and_fee(
     };
 
     let liquidation_price =
-        pool.get_liquidation_price(token_id, &position, &token_price, custody, curtime)?;
+        pool.get_liquidation_price(&position, &token_ema_price, custody, curtime)?;
 
-    let fee = pool.get_entry_fee(
-        token_id,
-        params.collateral,
-        params.size,
-        custody,
-        &token_price,
-    )?;
+    let fee = pool.get_entry_fee(params.size, custody)?;
 
     Ok(NewPositionPricesAndFee {
         entry_price,

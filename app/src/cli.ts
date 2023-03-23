@@ -96,9 +96,12 @@ async function addCustody(
   };
   let fees = {
     mode: { linear: {} },
-    maxIncrease: new BN(20000),
-    maxDecrease: new BN(5000),
-    swap: new BN(100),
+    ratioMult: new BN(20000),
+    utilizationMult: new BN(20000),
+    swapIn: new BN(100),
+    swapOut: new BN(100),
+    stableSwapIn: new BN(100),
+    stableSwapOut: new BN(100),
     addLiquidity: new BN(100),
     removeLiquidity: new BN(100),
     openPosition: new BN(100),
