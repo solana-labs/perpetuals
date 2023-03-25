@@ -2,10 +2,11 @@ use {
     crate::utils::{self, pda},
     anchor_lang::{prelude::Pubkey, ToAccountMetas},
     bonfida_test_utils::ProgramTestContextExt,
-    perpetuals::state::custody::Custody,
-    perpetuals::{instructions::LiquidateParams, state::position::Position},
-    solana_program_test::BanksClientError,
-    solana_program_test::ProgramTestContext,
+    perpetuals::{
+        instructions::LiquidateParams,
+        state::{custody::Custody, position::Position},
+    },
+    solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 

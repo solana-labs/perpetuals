@@ -9,8 +9,7 @@ use {
         instructions::AddLiquidityParams,
         state::{custody::Custody, pool::Pool},
     },
-    solana_program_test::BanksClientError,
-    solana_program_test::ProgramTestContext,
+    solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 

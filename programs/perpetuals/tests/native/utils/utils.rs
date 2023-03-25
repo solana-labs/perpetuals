@@ -4,24 +4,24 @@ use {
     anchor_lang::{prelude::*, InstructionData},
     anchor_spl::token::spl_token,
     bonfida_test_utils::ProgramTestContextExt,
-    perpetuals::state::custody::BorrowRateParams,
     perpetuals::{
         instructions::{
             AddCustodyParams, AddLiquidityParams, SetCustodyConfigParams, SetTestOraclePriceParams,
         },
+        math,
         state::{
-            custody::{Custody, Fees, PricingParams},
-            perpetuals::Permissions,
+            custody::{BorrowRateParams, Custody, Fees, PricingParams},
+            perpetuals::{Permissions, Perpetuals},
             pool::TokenRatios,
         },
     },
-    perpetuals::{math, state::perpetuals::Perpetuals},
     solana_program::{bpf_loader_upgradeable, program_pack::Pack, stake_history::Epoch},
-    solana_program_test::BanksClientError,
-    solana_program_test::{read_file, ProgramTest, ProgramTestContext},
+    solana_program_test::{read_file, BanksClientError, ProgramTest, ProgramTestContext},
     solana_sdk::{account, signature::Keypair, signer::Signer, signers::Signers},
-    std::ops::{Div, Mul},
-    std::path::Path,
+    std::{
+        ops::{Div, Mul},
+        path::Path,
+    },
 };
 
 pub const ANCHOR_DISCRIMINATOR_SIZE: usize = 8;

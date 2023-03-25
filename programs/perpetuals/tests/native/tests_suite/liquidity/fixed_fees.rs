@@ -4,12 +4,14 @@ use {
         utils::{self, fixtures},
     },
     bonfida_test_utils::ProgramTestExt,
-    perpetuals::instructions::AddLiquidityParams,
-    perpetuals::instructions::RemoveLiquidityParams,
-    perpetuals::state::custody::Custody,
-    perpetuals::state::custody::{Fees, FeesMode},
-    perpetuals::state::perpetuals::Perpetuals,
-    perpetuals::state::pool::Pool,
+    perpetuals::{
+        instructions::{AddLiquidityParams, RemoveLiquidityParams},
+        state::{
+            custody::{Custody, Fees, FeesMode},
+            perpetuals::Perpetuals,
+            pool::Pool,
+        },
+    },
     solana_program_test::ProgramTest,
     solana_sdk::signer::Signer,
 };

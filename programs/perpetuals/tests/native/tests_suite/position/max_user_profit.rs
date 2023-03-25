@@ -4,9 +4,10 @@ use {
         utils::{self, fixtures},
     },
     bonfida_test_utils::ProgramTestExt,
-    perpetuals::instructions::{ClosePositionParams, SetTestOraclePriceParams},
-    perpetuals::state::custody::PricingParams,
-    perpetuals::{instructions::OpenPositionParams, state::position::Side},
+    perpetuals::{
+        instructions::{ClosePositionParams, OpenPositionParams, SetTestOraclePriceParams},
+        state::{custody::PricingParams, position::Side},
+    },
     solana_program_test::ProgramTest,
     solana_sdk::signer::Signer,
 };

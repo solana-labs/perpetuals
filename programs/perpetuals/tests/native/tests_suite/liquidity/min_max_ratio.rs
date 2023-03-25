@@ -4,8 +4,7 @@ use {
         utils::{self, fixtures},
     },
     bonfida_test_utils::ProgramTestExt,
-    perpetuals::instructions::AddLiquidityParams,
-    perpetuals::instructions::RemoveLiquidityParams,
+    perpetuals::instructions::{AddLiquidityParams, RemoveLiquidityParams},
     solana_program_test::ProgramTest,
     solana_sdk::signer::Signer,
 };

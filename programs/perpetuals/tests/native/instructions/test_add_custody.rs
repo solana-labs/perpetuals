@@ -8,8 +8,7 @@ use {
         instructions::AddCustodyParams,
         state::{custody::Custody, multisig::Multisig, pool::Pool},
     },
-    solana_program_test::BanksClientError,
-    solana_program_test::ProgramTestContext,
+    solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 

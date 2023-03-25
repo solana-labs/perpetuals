@@ -2,11 +2,10 @@
 
 use {
     anchor_lang::prelude::Pubkey,
-    perpetuals::state::custody::BorrowRateParams,
     perpetuals::{
         instructions::InitParams,
         state::{
-            custody::{Fees, FeesMode, OracleParams, PricingParams},
+            custody::{BorrowRateParams, Fees, FeesMode, OracleParams, PricingParams},
             oracle::OracleType,
             perpetuals::Permissions,
         },

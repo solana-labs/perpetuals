@@ -5,8 +5,7 @@ use {
         instructions::InitParams,
         state::{multisig::Multisig, perpetuals::Perpetuals},
     },
-    solana_program_test::BanksClientError,
-    solana_program_test::ProgramTestContext,
+    solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 

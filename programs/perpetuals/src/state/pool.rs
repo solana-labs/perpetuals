@@ -950,11 +950,13 @@ impl Pool {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::state::{
-        custody::{BorrowRateParams, Fees, OracleParams, PricingParams},
-        oracle::OracleType,
-        perpetuals::Permissions,
+    use {
+        super::*,
+        crate::state::{
+            custody::{BorrowRateParams, Fees, OracleParams, PricingParams},
+            oracle::OracleType,
+            perpetuals::Permissions,
+        },
     };
 
     fn get_fixture() -> (Pool, Custody, Position, OraclePrice, OraclePrice) {

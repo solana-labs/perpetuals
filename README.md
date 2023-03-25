@@ -13,6 +13,15 @@ Solana Perpetuals protocol is an open-source implementation of a non-custodial d
 3. Install the latest Rust stable from <https://rustup.rs/>. If you already have Rust, run `rustup update` to get the latest version.
 4. Install the latest Anchor framework from <https://www.anchor-lang.com/docs/installation>. If you already have Anchor, run `avm update` to get the latest version.
 
+Rustfmt is used to format the code. It requires `nightly` features to be activated.
+5. Install `nightly` rust toolchain. <https://rust-lang.github.io/rustup/installation/index.html#installing-nightly>
+6. Execute `git config core.hooksPath .githooks` to activate pre-commit hooks
+
+#### [Optionnal] Vscode setup
+
+1. Install `rust-analyzer` extension
+2. If formatting doesn't work, make sure that `rust-analyzer.rustfmt.extraArgs` is set to `+nightly`
+
 ### Build
 
 First, generate a new key for the program address with `solana-keygen new -o <PROG_ID_JSON>`. Then replace the existing program ID with the newly generated address in Anchor.toml and `programs/perpetuals/src/lib.rs`.
