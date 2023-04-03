@@ -144,7 +144,7 @@ pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
             msg!("Transfer reward tokens");
             let perpetuals = ctx.accounts.perpetuals.as_mut();
 
-            // TODO - add a deadline as to when the  caller_reward_token_account is also rewarded with 1% of the stake
+            // TODO - add a deadline as to when the  caller_reward_token_account is also rewarded with % of the stake
 
             perpetuals.transfer_tokens(
                 ctx.accounts.stake_reward_token_account.to_account_info(),

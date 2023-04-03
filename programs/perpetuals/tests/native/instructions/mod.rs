@@ -3,6 +3,7 @@ pub mod test_add_liquidity;
 pub mod test_add_pool;
 pub mod test_add_stake;
 pub mod test_add_vest;
+pub mod test_claim_stake;
 pub mod test_claim_vest;
 pub mod test_close_position;
 pub mod test_init;
@@ -16,7 +17,7 @@ pub mod test_swap;
 
 pub use {
     test_add_custody::*, test_add_liquidity::*, test_add_pool::*, test_add_stake::*,
-    test_add_vest::*, test_claim_vest::*, test_close_position::*, test_init::*, test_liquidate::*,
-    test_open_position::*, test_remove_liquidity::*, test_remove_stake::*,
-    test_set_custody_config::*, test_set_test_oracle_price::*, test_swap::*,
+    test_add_vest::*, test_claim_stake::*, test_claim_vest::*, test_close_position::*,
+    test_init::*, test_liquidate::*, test_open_position::*, test_remove_liquidity::*,
+    test_remove_stake::*, test_set_custody_config::*, test_set_test_oracle_price::*, test_swap::*,
 };

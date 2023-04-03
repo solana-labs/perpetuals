@@ -178,6 +178,8 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
             stake.stake_time = perpetuals.get_time()?;
         }
 
+        // TODO add voting power on governance like it's done in vest
+
         // apply delta to user stake
         stake.amount = math::checked_add(stake.amount, params.amount)?;
 
