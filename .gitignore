@@ -3,5 +3,9 @@
 .DS_Store
 target
 **/*.rs.bk
-node_modules
+**/node_modules
 test-ledger
+
+**/yarn.lock
+
+**/.next

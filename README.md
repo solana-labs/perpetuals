@@ -13,9 +13,7 @@ Solana Perpetuals protocol is an open-source implementation of a non-custodial d
 3. Install the latest Rust stable from <https://rustup.rs/>. If you already have Rust, run `rustup update` to get the latest version.
 4. Install the latest Anchor framework from <https://www.anchor-lang.com/docs/installation>. If you already have Anchor, run `avm update` to get the latest version.
 
-Rustfmt is used to format the code. It requires `nightly` features to be activated.
-5. Install `nightly` rust toolchain. <https://rust-lang.github.io/rustup/installation/index.html#installing-nightly>
-6. Execute `git config core.hooksPath .githooks` to activate pre-commit hooks
+Rustfmt is used to format the code. It requires `nightly` features to be activated. 5. Install `nightly` rust toolchain. <https://rust-lang.github.io/rustup/installation/index.html#installing-nightly> 6. Execute `git config core.hooksPath .githooks` to activate pre-commit hooks
 
 #### [Optionnal] Vscode setup
 
@@ -129,9 +127,35 @@ CLI offers other useful commands. You can get the list of all of them by running
 npx ts-node src/cli.ts --help
 ```
 
-### Further Steps
+## UI
 
-To allow users to interact with the program, you need a UI. An open-source reference implementation is under development and will be available soon. In the meantime, you can use the test client available under the `test` directory and the CLI client under the `app/src` directory for examples of how user instructions can be built and executed. Feel free to implement your own version of the UI.
+We have implemented a coressponding UI for the smartcontract, written in Typescript/Tailwind/Next. To quickly spin up a ui linked to the contract, first follow the previous directions to build the contract, and to init the exchange.
+
+In the main directory, run `./migrations/migrate-target.sh` to copy over the target build directory to the ui.
+
+Now, you can use the following cli commands to quickly spin-up a TestPool1 consisting of the three following tokens.
+
+Sol Token: J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix
+Test Token oracle: BLArYBCUYhdWiY8PCUTpvFE21iaJq85dvxLk9bYMobcU
+usdc oracle: 5SSkXsEKQepHHAewytPVwdej4epN1nxgLVM84L4KXgy7
+
+```
+npx ts-node app/src/cli.ts -k ~/.config/solana/perps-admin.json add-pool TestPool1
+
+npx ts-node app/src/cli.ts -k ~/.config/solana/perps-admin.json add-custody TestPool1 So11111111111111111111111111111111111111112 J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix
+
+npx ts-node app/src/cli.ts -k ~/.config/solana/perps-admin.json add-custody TestPool1 6QGdQbaZEgpXqqbGwXJZXwbZ9xJnthfyYNZ92ARzTdAX BLArYBCUYhdWiY8PCUTpvFE21iaJq85dvxLk9bYMobcU
+
+npx ts-node app/src/cli.ts -k ~/.config/solana/perps-admin.json add-custody TestPool1 Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr 5SSkXsEKQepHHAewytPVwdej4epN1nxgLVM84L4KXgy7 true
+```
+
+Now, use the following commands to build and run the UI, (navigate to localhost:3000 to use the UI)
+
+```
+cd ui
+yarn install
+yarn dev
+```
 
 ## Support
 
