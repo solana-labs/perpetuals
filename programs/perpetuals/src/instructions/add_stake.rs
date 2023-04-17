@@ -107,15 +107,16 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
         }
     }
 
-    // initialize Stake PDA if needed, or claim existing rewards
     let did_claim = {
         let stake = ctx.accounts.stake.as_mut();
+        // initialize the Stake PDA for first time stake
         if stake.stake_time == 0 {
             stake.bump = *ctx.bumps.get("stake").ok_or(ProgramError::InvalidSeeds)?;
             stake.stake_time = ctx.accounts.perpetuals.get_time()?;
             false
         } else {
-            // calling the program itself through CPI to enforce parity with cpi API
+            // claim reward on previously staked tokens
+            // recursive program call
             let cpi_accounts = crate::cpi::accounts::ClaimStake {
                 caller: ctx.accounts.owner.to_account_info(),
                 owner: ctx.accounts.owner.to_account_info(),
@@ -147,7 +148,7 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
         }
     };
 
-    // stake owner's tokens
+    // transfer newly staked tokens to Stake PDA
     msg!("Transfer tokens");
     {
         let perpetuals = ctx.accounts.perpetuals.as_mut();

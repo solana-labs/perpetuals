@@ -387,5 +387,29 @@ pub async fn basic_interactions() {
         )
         .await
         .unwrap();
+
+        // Alice: test claim stake (no stake account, none)
+        instructions::test_claim_stake(
+            &mut program_test_ctx,
+            &keypairs[USER_ALICE],
+            &keypairs[USER_ALICE],
+            &keypairs[PAYER],
+            &cortex_stake_reward_mint,
+        )
+        .await
+        .unwrap();
+
+        // Alice: test claim stake (no stake account, none)
+        instructions::test_resolve_staking_round(
+            &mut program_test_ctx,
+            &keypairs[USER_ALICE],
+            &keypairs[USER_ALICE],
+            &keypairs[PAYER],
+            &cortex_stake_reward_mint,
+        )
+        .await
+        .unwrap();
+
+        // more test in specific stake test suite
     }
 }

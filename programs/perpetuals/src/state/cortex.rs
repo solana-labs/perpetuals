@@ -6,7 +6,7 @@ use {
     anchor_lang::prelude::*,
 };
 
-// pub const STAKING_ROUND_MIN_DURATION: i64 = 3600 * 6;
+pub const STAKING_ROUND_MIN_DURATION: i64 = 3600 * 6; // 6h
 pub const SOLANA_ACCOUNT_MAX_SIZE_BYTE: usize = 10_485_760;
 
 #[account]
@@ -21,6 +21,11 @@ pub struct Cortex {
     pub governance_program: Pubkey,
     pub governance_realm: Pubkey,
     pub stake_reward_token_mint: Pubkey,
+    // these two values are used to resolve staking rounds
+    // `resolved_reward_token_amount` represents the amount of rewards allocated to resolved rounds, claimable (excluding current/next round)
+    pub resolved_reward_token_amount: u64,
+    // `resolved_stake_token_amount`represents the amount of staked token locked in resolved rounds, claimable (excluding current/next round)
+    pub resolved_stake_token_amount: u64,
     pub current_staking_round: StakingRound,
     pub next_staking_round: StakingRound,
     // must be the last element of the struct for reallocs
@@ -34,6 +39,7 @@ pub struct StakingRound {
     pub total_stake: u64, // - set at Round's resolution
     pub total_claim: u64, // - set at Round's resolution
 }
+
 impl StakingRound {
     const LEN: usize = std::mem::size_of::<StakingRound>();
     // the amount of rounds that can be stored before being over the 10Mb limit of Solana accounts
@@ -109,6 +115,14 @@ impl Cortex {
     // returns the new size of the structure after removing some staking rounds
     pub fn new_size(&self, removed_staking_rounds_count: usize) -> usize {
         self.size() - (removed_staking_rounds_count * StakingRound::LEN)
+    }
+
+    pub fn current_staking_round_is_resolvable(&self, current_time: i64) -> Result<bool> {
+        Ok(current_time
+            >= math::checked_add(
+                self.current_staking_round.start_time,
+                STAKING_ROUND_MIN_DURATION,
+            )?)
     }
 }
 

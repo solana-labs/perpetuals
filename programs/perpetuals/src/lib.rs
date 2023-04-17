@@ -256,4 +256,8 @@ pub mod perpetuals {
     pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
         instructions::claim_stake(ctx)
     }
+
+    pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
+        instructions::resolve_staking_round(ctx)
+    }
 }

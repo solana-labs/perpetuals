@@ -139,8 +139,8 @@ pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
     }
 
     {
-        let rewards_amount = math::checked_mul(stake.amount, rate_sum)?;
-        if !rewards_amount.is_zero() {
+        let reward_token_amount = math::checked_mul(stake.amount, rate_sum)?;
+        if !reward_token_amount.is_zero() {
             msg!("Transfer reward tokens");
             let perpetuals = ctx.accounts.perpetuals.as_mut();
 
@@ -151,7 +151,7 @@ pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
                 ctx.accounts.owner_reward_token_account.to_account_info(),
                 ctx.accounts.transfer_authority.to_account_info(),
                 ctx.accounts.token_program.to_account_info(),
-                rewards_amount,
+                reward_token_amount,
             )?;
 
             // refresh stake time
@@ -160,6 +160,14 @@ pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
             // remove stake from current staking round
             cortex.current_staking_round.total_stake =
                 math::checked_sub(cortex.current_staking_round.total_stake, stake.amount)?;
+
+            // update resolved stake token amount left, by removing the previously staked amount
+            cortex.resolved_stake_token_amount =
+                math::checked_sub(cortex.resolved_stake_token_amount, stake.amount)?;
+
+            // update resolved reward token amount left
+            cortex.resolved_reward_token_amount =
+                math::checked_sub(cortex.resolved_reward_token_amount, reward_token_amount)?;
 
             // add stake to next staking round
             cortex.next_staking_round.total_stake =
