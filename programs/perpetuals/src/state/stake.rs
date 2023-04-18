@@ -21,9 +21,7 @@
 //! (Adrena will run a claim-bot until decentralized enough, but anyone can partake)
 //!
 
-use anchor_lang::prelude::*;
-
-use super::cortex::StakingRound;
+use {super::cortex::StakingRound, anchor_lang::prelude::*};
 
 #[account]
 #[derive(Default, Debug)]
@@ -39,6 +37,6 @@ impl Stake {
     pub const LEN: usize = 8 + std::mem::size_of::<Stake>();
 
     pub fn qualifies_for_rewards_from(&self, staking_round: &StakingRound) -> bool {
-        self.stake_time < staking_round.start_time
+        self.stake_time > 0 && self.stake_time < staking_round.start_time
     }
 }

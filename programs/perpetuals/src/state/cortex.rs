@@ -6,8 +6,9 @@ use {
     anchor_lang::prelude::*,
 };
 
-pub const STAKING_ROUND_MIN_DURATION: i64 = 3600 * 6; // 6h
-pub const SOLANA_ACCOUNT_MAX_SIZE_BYTE: usize = 10_485_760;
+const DAYS_PER_YEAR: i64 = 365;
+const HOURS_PER_DAY: i64 = 24;
+const SECONDS_PER_HOURS: i64 = 3600;
 
 #[account]
 #[derive(Default, Debug)]
@@ -42,10 +43,12 @@ pub struct StakingRound {
 
 impl StakingRound {
     const LEN: usize = std::mem::size_of::<StakingRound>();
-    // the amount of rounds that can be stored before being over the 10Mb limit of Solana accounts
-    pub const MAX_RESOLVED_STAKING_ROUNDS: usize =
-        (SOLANA_ACCOUNT_MAX_SIZE_BYTE - Cortex::LEN - (Vest::LEN * Cortex::MAX_ONGOING_VESTS))
-            / StakingRound::LEN;
+    // a staking round can be resolved after at least 6 hours
+    const ROUND_MIN_DURATION_HOURS: i64 = 6;
+    pub const ROUND_MIN_DURATION_SECONDS: i64 = Self::ROUND_MIN_DURATION_HOURS * SECONDS_PER_HOURS;
+    // a limit is set to keep the account size manageable. Accomodates 365 days of staking rounds at 6h per round
+    pub const MAX_RESOLVED_ROUNDS: usize =
+        (DAYS_PER_YEAR * HOURS_PER_DAY / Self::ROUND_MIN_DURATION_HOURS) as usize;
 
     pub fn new(current_time: i64) -> Self {
         Self {
@@ -63,7 +66,7 @@ impl Cortex {
     const INCEPTION_EMISSION_RATE: u64 = Perpetuals::RATE_POWER as u64; // 100%
     pub const FEE_TO_REWARD_RATIO_BPS: u8 = 10; //  0.10% of fees paid become rewards
     pub const LM_DECIMALS: u8 = Perpetuals::USD_DECIMALS;
-    // a limit is needed to keep the Cortex size deterministic for the Staking
+    // a limit is needed to keep the Cortex size deterministic
     pub const MAX_ONGOING_VESTS: usize = 20;
     // lenght of our epoch relative to Solana epochs (1 Solana epoch is ~2-3 days)
     const ADRENA_EPOCH: u8 = 10;
@@ -121,7 +124,7 @@ impl Cortex {
         Ok(current_time
             >= math::checked_add(
                 self.current_staking_round.start_time,
-                STAKING_ROUND_MIN_DURATION,
+                StakingRound::ROUND_MIN_DURATION_SECONDS,
             )?)
     }
 }
