@@ -1,3 +1,5 @@
+use perpetuals::state::cortex::StakingRound;
+
 use {
     crate::{
         adapters, instructions,
@@ -399,7 +401,14 @@ pub async fn basic_interactions() {
         .await
         .unwrap();
 
-        // Alice: test claim stake (no stake account, none)
+        // resolution of the round
+        // warps to when the round is resolvable
+        utils::warp_forward(
+            &mut program_test_ctx,
+            StakingRound::ROUND_MIN_DURATION_SECONDS,
+        )
+        .await;
+
         instructions::test_resolve_staking_round(
             &mut program_test_ctx,
             &keypairs[USER_ALICE],
@@ -409,7 +418,5 @@ pub async fn basic_interactions() {
         )
         .await
         .unwrap();
-
-        // more test in specific stake test suite
     }
 }
