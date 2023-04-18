@@ -44,9 +44,6 @@ pub async fn test_remove_stake(
         .await
         .unwrap();
 
-    // warps 48h in the future
-    utils::warp_forward(program_test_ctx, 3_600 * 48).await;
-
     utils::create_and_execute_perpetuals_ix(
         program_test_ctx,
         perpetuals::accounts::RemoveStake {
