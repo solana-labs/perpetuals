@@ -26,12 +26,15 @@ impl Vest {
         if circulating_supply.is_zero() {
             return Ok(false);
         }
-
         let amount_share = math::checked_as_u64(math::checked_div(
             math::checked_mul(self.amount as u128, Perpetuals::BPS_POWER)?,
             circulating_supply as u128,
         )?)?;
-
+        msg!(
+            "amount_share {} and unlock_share {}",
+            amount_share,
+            self.unlock_share
+        );
         Ok(amount_share >= self.unlock_share)
     }
 }

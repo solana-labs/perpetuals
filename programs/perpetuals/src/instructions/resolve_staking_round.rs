@@ -88,6 +88,8 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
         ctx.accounts.stake_token_account.amount,
         cortex.resolved_stake_token_amount,
     )?;
+    msg!("reward_token_amount {}", current_round_reward_token_amount);
+    msg!("stake_token_amount {}", current_round_stake_token_amount);
 
     msg!("Updates Cortex.current_staking_round data");
     {
