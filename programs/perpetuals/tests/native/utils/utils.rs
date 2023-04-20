@@ -1,5 +1,3 @@
-use solana_program::{clock::SLOT_MS, epoch_schedule::DEFAULT_SLOTS_PER_EPOCH};
-
 use {
     super::{fixtures, get_lm_token_mint_pda, get_program_data_pda, get_test_oracle_account},
     crate::instructions,
@@ -20,8 +18,8 @@ use {
         },
     },
     solana_program::{
-        borsh::try_from_slice_unchecked, bpf_loader_upgradeable, program_pack::Pack,
-        stake_history::Epoch,
+        borsh::try_from_slice_unchecked, bpf_loader_upgradeable, clock::SLOT_MS,
+        epoch_schedule::DEFAULT_SLOTS_PER_EPOCH, program_pack::Pack, stake_history::Epoch,
     },
     solana_program_test::{read_file, BanksClientError, ProgramTest, ProgramTestContext},
     solana_sdk::{

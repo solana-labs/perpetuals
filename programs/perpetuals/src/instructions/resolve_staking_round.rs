@@ -1,16 +1,17 @@
 //! ResolveStakingRound instruction handler
 
-use num::Zero;
-
-use crate::{error::PerpetualsError, state::cortex::StakingRound};
-
 use {
     crate::{
+        error::PerpetualsError,
         math,
-        state::{cortex::Cortex, perpetuals::Perpetuals},
+        state::{
+            cortex::{Cortex, StakingRound},
+            perpetuals::Perpetuals,
+        },
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
+    num::Zero,
 };
 
 #[derive(Accounts)]

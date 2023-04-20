@@ -1,9 +1,10 @@
 //! ClaimStake instruction handler
 
-use crate::math;
-
 use {
-    crate::state::{cortex::Cortex, perpetuals::Perpetuals, stake::Stake},
+    crate::{
+        math,
+        state::{cortex::Cortex, perpetuals::Perpetuals, stake::Stake},
+    },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
     num::Zero,

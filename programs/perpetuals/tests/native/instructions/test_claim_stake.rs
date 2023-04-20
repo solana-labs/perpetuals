@@ -6,8 +6,7 @@ use {
     },
     bonfida_test_utils::ProgramTestContextExt,
     perpetuals::state::{cortex::Cortex, stake::Stake},
-    solana_program_test::BanksClientError,
-    solana_program_test::ProgramTestContext,
+    solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 

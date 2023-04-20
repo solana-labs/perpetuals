@@ -1,12 +1,10 @@
-use num::Zero;
-
 use {
     crate::utils::{self, pda},
     anchor_lang::{prelude::Pubkey, ToAccountMetas},
     bonfida_test_utils::ProgramTestContextExt,
+    num::Zero,
     perpetuals::state::cortex::Cortex,
-    solana_program_test::BanksClientError,
-    solana_program_test::ProgramTestContext,
+    solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 

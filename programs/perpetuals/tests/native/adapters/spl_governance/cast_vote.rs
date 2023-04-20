@@ -1,11 +1,9 @@
 use {
     anchor_lang::prelude::Pubkey,
     perpetuals::adapters::spl_governance_program_adapter,
-    solana_program_test::BanksClientError,
-    solana_program_test::ProgramTestContext,
+    solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
-    spl_governance::state::vote_record::Vote,
-    spl_governance::state::vote_record::VoteChoice,
+    spl_governance::state::vote_record::{Vote, VoteChoice},
 };
 
 #[allow(clippy::too_many_arguments)]

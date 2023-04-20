@@ -1,20 +1,12 @@
-use bonfida_test_utils::ProgramTestContextExt;
-use perpetuals::{
-    instructions::{ClosePositionParams, OpenPositionParams},
-    state::position::Side,
-};
-
 use {
-    crate::adapters,
-    crate::utils::pda,
     crate::{
-        instructions,
-        utils::{self, fixtures, scale},
+        adapters, instructions,
+        utils::{self, fixtures, pda, scale},
     },
-    bonfida_test_utils::ProgramTestExt,
+    bonfida_test_utils::{ProgramTestContextExt, ProgramTestExt},
     perpetuals::{
-        instructions::{AddStakeParams, AddVestParams},
-        state::{cortex::Cortex, perpetuals::Perpetuals},
+        instructions::{AddStakeParams, AddVestParams, ClosePositionParams, OpenPositionParams},
+        state::{cortex::Cortex, perpetuals::Perpetuals, position::Side},
     },
     solana_program_test::ProgramTest,
     solana_sdk::signer::Signer,

@@ -3,6 +3,7 @@
 use {
     crate::{
         adapters,
+        adapters::SplGovernanceV3Adapter,
         error::PerpetualsError,
         state::{
             cortex::Cortex,

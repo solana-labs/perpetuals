@@ -1,5 +1,3 @@
-use perpetuals::state::cortex::StakingRound;
-
 use {
     crate::{
         adapters, instructions,
@@ -11,7 +9,11 @@ use {
             AddStakeParams, AddVestParams, ClosePositionParams, OpenPositionParams,
             RemoveLiquidityParams, RemoveStakeParams, SwapParams,
         },
-        state::{cortex::Cortex, perpetuals::Perpetuals, position::Side},
+        state::{
+            cortex::{Cortex, StakingRound},
+            perpetuals::Perpetuals,
+            position::Side,
+        },
     },
     solana_program_test::ProgramTest,
     solana_sdk::signer::Signer,
