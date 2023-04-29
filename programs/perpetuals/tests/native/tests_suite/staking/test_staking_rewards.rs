@@ -200,7 +200,7 @@ pub async fn test_staking_rewards() {
                     min_ratio: utils::ratio_from_percentage(0.0),
                     max_ratio: utils::ratio_from_percentage(100.0),
                     initial_price: utils::scale(1_500, ETH_DECIMALS),
-                    initial_conf: utils::scale(10, ETH_DECIMALS),
+                    initial_conf: utils::scale(10, ETH_DECIMALS), // Prob USDC change later
                     pricing_params: None,
                     permissions: None,
                     fees: None,

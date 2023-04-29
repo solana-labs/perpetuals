@@ -1,7 +1,7 @@
 use {
     crate::{
         adapters, instructions,
-        utils::{self, fixtures, pda},
+        utils::{self, fixtures, pda, scale},
     },
     bonfida_test_utils::ProgramTestExt,
     perpetuals::{
@@ -259,7 +259,7 @@ pub async fn basic_interactions() {
                     target_ratio: utils::ratio_from_percentage(50.0),
                     min_ratio: utils::ratio_from_percentage(0.0),
                     max_ratio: utils::ratio_from_percentage(100.0),
-                    initial_price: utils::scale(1_500, USDC_DECIMALS),
+                    initial_price: utils::scale(1_500, ETH_DECIMALS),
                     initial_conf: utils::scale(10, ETH_DECIMALS),
                     pricing_params: None,
                     permissions: None,

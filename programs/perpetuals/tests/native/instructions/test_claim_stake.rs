@@ -1,9 +1,6 @@
 use {
     crate::utils::{self, pda},
-    anchor_lang::{
-        prelude::{Clock, Pubkey},
-        ToAccountMetas,
-    },
+    anchor_lang::{prelude::Pubkey, ToAccountMetas},
     bonfida_test_utils::ProgramTestContextExt,
     perpetuals::state::{cortex::Cortex, stake::Stake},
     solana_program_test::{BanksClientError, ProgramTestContext},
