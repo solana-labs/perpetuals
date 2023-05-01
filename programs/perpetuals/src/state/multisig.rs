@@ -174,7 +174,7 @@ impl Multisig {
             err!(PerpetualsError::MultisigAlreadySigned)
         } else if self.num_signed < self.min_signatures {
             // count the signature in
-            self.num_signed += 1;
+            self.num_signed = math::checked_add(self.num_signed, 1)?;
             self.signed[signer_idx] = true;
 
             if self.num_signed == self.min_signatures {
@@ -212,7 +212,7 @@ impl Multisig {
         }
 
         // remove signature
-        self.num_signed -= 1;
+        self.num_signed = math::checked_sub(self.num_signed, 1)?;
         self.signed[signer_idx] = false;
 
         Ok(())

@@ -190,8 +190,13 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         .close_position_usd
         .wrapping_add(position.size_usd);
 
-    let amount_lost = transfer_amount.saturating_sub(position.collateral_amount);
-    custody.assets.owned = math::checked_sub(custody.assets.owned, amount_lost)?;
+    if transfer_amount > position.collateral_amount {
+        let amount_lost = transfer_amount.saturating_sub(position.collateral_amount);
+        custody.assets.owned = math::checked_sub(custody.assets.owned, amount_lost)?;
+    } else {
+        let amount_gained = position.collateral_amount.saturating_sub(transfer_amount);
+        custody.assets.owned = math::checked_add(custody.assets.owned, amount_gained)?;
+    }
     custody.assets.collateral =
         math::checked_sub(custody.assets.collateral, position.collateral_amount)?;
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
