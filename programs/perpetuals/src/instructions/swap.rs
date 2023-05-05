@@ -14,7 +14,7 @@ use {
 #[derive(Accounts)]
 #[instruction(params: SwapParams)]
 pub struct Swap<'info> {
-    #[account(mut)]
+    #[account()]
     pub owner: Signer<'info>,
 
     #[account(
