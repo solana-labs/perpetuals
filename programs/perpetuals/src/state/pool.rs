@@ -562,9 +562,7 @@ impl Pool {
         };
 
         let exit_fee_usd = token_ema_price.get_asset_amount_usd(exit_fee, custody.decimals)?;
-
         let interest_usd = custody.get_interest_amount_usd(position, curtime)?;
-
         let unrealized_loss_usd = math::checked_add(
             math::checked_add(exit_fee_usd, interest_usd)?,
             position.unrealized_loss_usd,
@@ -795,7 +793,6 @@ impl Pool {
                 )
             }
         };
-
         if new_token_aum_usd == 0 || new_pool_aum_usd == 0 {
             return Ok(0);
         }
@@ -804,7 +801,6 @@ impl Pool {
             math::checked_mul(new_token_aum_usd, Perpetuals::BPS_POWER)?,
             new_pool_aum_usd,
         )?)?;
-
         Ok(std::cmp::min(ratio, Perpetuals::BPS_POWER as u64))
     }
 
