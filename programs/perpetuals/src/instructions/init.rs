@@ -107,7 +107,7 @@ pub struct Init<'info> {
     pub governance_program: Program<'info, SplGovernanceV3Adapter>,
 
     #[account()]
-    pub stake_reward_token_mint: AccountInfo<'info>,
+    pub stake_reward_token_mint: Box<Account<'info, Mint>>,
 
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
@@ -184,6 +184,8 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
     cortex.stake_reward_token_mint = ctx.accounts.stake_reward_token_mint.key();
     cortex.resolved_reward_token_amount = u64::MIN;
     cortex.resolved_stake_token_amount = u64::MIN;
+    cortex.stake_token_decimals = ctx.accounts.lm_token_mint.decimals;
+    cortex.stake_reward_token_decimals = ctx.accounts.stake_reward_token_mint.decimals;
     // initialize the first staking rounds
     cortex.current_staking_round = StakingRound::new(perpetuals.get_time()?);
     cortex.next_staking_round = StakingRound::new(0);

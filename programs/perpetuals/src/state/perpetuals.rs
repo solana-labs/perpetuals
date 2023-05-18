@@ -1,4 +1,5 @@
 use {
+    crate::instructions::SwapParams,
     anchor_lang::prelude::*,
     anchor_spl::token::{Burn, MintTo, Transfer},
 };
@@ -256,5 +257,64 @@ impl Perpetuals {
         target_account
             .realloc(new_len, zero_init)
             .map_err(|_| ProgramError::InvalidRealloc.into())
+    }
+
+    // recursive swap CPI
+    pub fn internal_swap<'a>(
+        &self,
+        authority: AccountInfo<'a>,
+        funding_account: AccountInfo<'a>,
+        receiving_account: AccountInfo<'a>,
+        lm_token_account: AccountInfo<'a>,
+        cortex: AccountInfo<'a>,
+        perpetuals: AccountInfo<'a>,
+        pool: AccountInfo<'a>,
+        receiving_custody: AccountInfo<'a>,
+        receiving_custody_oracle_account: AccountInfo<'a>,
+        receiving_custody_token_account: AccountInfo<'a>,
+        dispensing_custody: AccountInfo<'a>,
+        dispensing_custody_oracle_account: AccountInfo<'a>,
+        dispensing_custody_token_account: AccountInfo<'a>,
+        stake_reward_token_custody: AccountInfo<'a>,
+        stake_reward_token_custody_oracle_account: AccountInfo<'a>,
+        stake_reward_token_custody_token_account: AccountInfo<'a>,
+        stake_reward_token_account: AccountInfo<'a>,
+        stake_reward_token_mint: AccountInfo<'a>,
+        lm_token_mint: AccountInfo<'a>,
+        token_program: AccountInfo<'a>,
+        perpetuals_program: AccountInfo<'a>,
+        params: SwapParams,
+    ) -> Result<()> {
+        let authority_seeds: &[&[&[u8]]] =
+            &[&[b"transfer_authority", &[self.transfer_authority_bump]]];
+        let cpi_accounts = crate::cpi::accounts::Swap {
+            owner: authority.clone(),
+            funding_account,
+            receiving_account,
+            lm_token_account,
+            transfer_authority: authority,
+            cortex,
+            perpetuals,
+            pool,
+            receiving_custody,
+            receiving_custody_oracle_account,
+            receiving_custody_token_account,
+            dispensing_custody,
+            dispensing_custody_oracle_account,
+            dispensing_custody_token_account,
+            stake_reward_token_custody,
+            stake_reward_token_custody_oracle_account,
+            stake_reward_token_custody_token_account,
+            stake_reward_token_account,
+            lm_token_mint,
+            stake_reward_token_mint,
+            token_program,
+            perpetuals_program: perpetuals_program.clone(),
+        };
+        let cpi_program = perpetuals_program;
+        let cpi_context = anchor_lang::context::CpiContext::new(cpi_program, cpi_accounts)
+            .with_signer(authority_seeds);
+
+        crate::cpi::swap(cpi_context, params)
     }
 }

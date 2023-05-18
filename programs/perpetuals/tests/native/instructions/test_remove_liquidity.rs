@@ -19,6 +19,7 @@ pub async fn test_remove_liquidity(
     payer: &Keypair,
     pool_pda: &Pubkey,
     custody_token_mint: &Pubkey,
+    stake_reward_token_mint: &Pubkey,
     params: RemoveLiquidityParams,
 ) -> std::result::Result<(), BanksClientError> {
     // ==== WHEN ==============================================================
@@ -42,6 +43,15 @@ pub async fn test_remove_liquidity(
 
     let custody_account = utils::get_account::<Custody>(program_test_ctx, custody_pda).await;
     let custody_oracle_account_address = custody_account.oracle.oracle_account;
+
+    let stake_reward_token_account_pda = pda::get_stake_reward_token_account_pda().0;
+
+    let srt_custody_pda = pda::get_custody_pda(pool_pda, stake_reward_token_mint).0;
+    let srt_custody_token_account_pda =
+        pda::get_custody_token_account_pda(pool_pda, stake_reward_token_mint).0;
+    let srt_custody_account =
+        utils::get_account::<Custody>(program_test_ctx, srt_custody_pda).await;
+    let srt_custody_oracle_account_address = srt_custody_account.oracle.oracle_account;
 
     // Save account state before tx execution
     let owner_receiving_account_before = program_test_ctx
@@ -74,9 +84,15 @@ pub async fn test_remove_liquidity(
             custody: custody_pda,
             custody_oracle_account: custody_oracle_account_address,
             custody_token_account: custody_token_account_pda,
+            stake_reward_token_custody: srt_custody_pda,
+            stake_reward_token_custody_oracle_account: srt_custody_oracle_account_address,
+            stake_reward_token_custody_token_account: srt_custody_token_account_pda,
+            stake_reward_token_account: stake_reward_token_account_pda, // the stake reward vault
             lp_token_mint: lp_token_mint_pda,
             lm_token_mint: lm_token_mint_pda,
+            stake_reward_token_mint: *stake_reward_token_mint,
             token_program: anchor_spl::token::ID,
+            perpetuals_program: perpetuals::ID,
         };
 
         let mut accounts_meta = accounts.to_account_metas(None);

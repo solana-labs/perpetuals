@@ -36,15 +36,6 @@ pub struct ClaimStake<'info> {
     )]
     pub owner_reward_token_account: Box<Account<'info, TokenAccount>>,
 
-    // staked token vault
-    #[account(
-        mut,
-        token::mint = lm_token_mint,
-        seeds = [b"stake_token_account"],
-        bump = cortex.stake_token_account_bump
-    )]
-    pub stake_token_account: Box<Account<'info, TokenAccount>>,
-
     // staking reward token vault
     #[account(
         mut,
@@ -99,11 +90,12 @@ pub struct ClaimStake<'info> {
 
 pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
     let stake = ctx.accounts.stake.as_mut();
-    let cortex = &mut ctx.accounts.cortex.as_mut();
+    let cortex = ctx.accounts.cortex.as_mut();
     let did_claim: bool;
 
+    // rewards = rate_sum * token_staked -- Done this way as any stake/unstake claim all previous rewards
     let mut rate_sum = 0;
-    msg!("Process resolved_staking_rounds");
+    msg!("Process resolved rounds");
     {
         // prints compute budget before
         sol_log_compute_units();
@@ -117,46 +109,76 @@ pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
             }
             // retain element if there is stake that has not been claimed yet by other participants
             let round_fully_claimed = round.total_claim == round.total_stake;
+            // note: some dust of rewards will build up in the token account due to rate precision of 9 units
             !round_fully_claimed
         });
-        let unretained_resolved_staking_rounds_amount = math::checked_sub(
-            resolved_staking_rounds_len_before,
-            cortex.resolved_staking_rounds.len(),
+        let staking_rounds_delta = math::checked_sub(
+            cortex.resolved_staking_rounds.len() as i32,
+            resolved_staking_rounds_len_before as i32,
         )?;
         // prints compute budget after
         sol_log_compute_units();
 
         // realloc Cortex after update to its `stake_rounds` if needed
-        if !unretained_resolved_staking_rounds_amount.is_zero() {
+        if !staking_rounds_delta.is_zero() {
             msg!("Realloc Cortex");
             Perpetuals::realloc(
                 ctx.accounts.caller.to_account_info(),
-                ctx.accounts.caller.to_account_info(),
+                cortex.clone().to_account_info(),
                 ctx.accounts.system_program.to_account_info(),
-                cortex.new_size(unretained_resolved_staking_rounds_amount),
+                cortex.new_size(staking_rounds_delta)?,
                 true,
             )?;
         }
     }
 
+    msg!("Rewards distribution");
     {
-        let reward_token_amount = math::checked_mul(stake.amount, rate_sum)?;
+        let reward_token_amount = math::checked_decimal_mul(
+            stake.amount,
+            -(cortex.stake_token_decimals as i32),
+            rate_sum,
+            -(Perpetuals::RATE_DECIMALS as i32),
+            -(cortex.stake_reward_token_decimals as i32),
+        )?;
         if !reward_token_amount.is_zero() {
-            msg!("Transfer reward tokens");
+            msg!("Transfer reward_token_amount: {}", reward_token_amount);
             let perpetuals = ctx.accounts.perpetuals.as_mut();
 
-            // TODO - add a deadline as to when the  caller_reward_token_account is also rewarded with % of the stake
+            let caller_reward_token_amount = stake.get_claim_stake_caller_reward_token_amounts(
+                reward_token_amount,
+                perpetuals.get_time()?,
+            )?;
+
+            let owner_reward_token_amount =
+                math::checked_sub(reward_token_amount, caller_reward_token_amount)?;
+
+            msg!("owner_reward_token_amount: {}", owner_reward_token_amount);
+            msg!("caller_reward_token_amount: {}", caller_reward_token_amount);
 
             perpetuals.transfer_tokens(
                 ctx.accounts.stake_reward_token_account.to_account_info(),
                 ctx.accounts.owner_reward_token_account.to_account_info(),
                 ctx.accounts.transfer_authority.to_account_info(),
                 ctx.accounts.token_program.to_account_info(),
-                reward_token_amount,
+                owner_reward_token_amount,
             )?;
 
-            // refresh stake time
-            stake.stake_time = ctx.accounts.perpetuals.get_time()?;
+            if !caller_reward_token_amount.is_zero() {
+                perpetuals.transfer_tokens(
+                    ctx.accounts.stake_reward_token_account.to_account_info(),
+                    ctx.accounts.caller_reward_token_account.to_account_info(),
+                    ctx.accounts.transfer_authority.to_account_info(),
+                    ctx.accounts.token_program.to_account_info(),
+                    caller_reward_token_amount,
+                )?;
+            }
+
+            // refresh stake time while keeping the stake time out of the current round
+            // so that the user stay eligible for current round rewards
+            stake.stake_time = math::checked_sub(cortex.current_staking_round.start_time, 1)?;
+
+            // note: here can possibly check if user was already staked and prevent him to loose one round of rewards
 
             // remove stake from current staking round
             cortex.current_staking_round.total_stake =
@@ -192,6 +214,5 @@ pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
         "Cortex.next_staking_round after claim stake {:?}",
         cortex.next_staking_round
     );
-    msg!("STATE after claim stake {:?}", stake);
     Ok(did_claim)
 }

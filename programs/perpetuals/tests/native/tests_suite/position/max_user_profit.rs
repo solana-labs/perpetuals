@@ -103,6 +103,7 @@ pub async fn max_user_profit() {
         &keypairs[MULTISIG_MEMBER_A],
         "FOO",
         &keypairs[PAYER],
+        &cortex_stake_reward_mint,
         multisig_signers,
         vec![utils::SetupCustodyWithLiquidityParams {
             setup_custody_params: utils::SetupCustodyParams {
@@ -137,6 +138,7 @@ pub async fn max_user_profit() {
         &keypairs[PAYER],
         &pool_pda,
         &eth_mint,
+        &cortex_stake_reward_mint,
         OpenPositionParams {
             // max price paid (slippage implied)
             price: utils::scale(1_550, ETH_DECIMALS),
@@ -181,6 +183,7 @@ pub async fn max_user_profit() {
         &keypairs[PAYER],
         &pool_pda,
         &eth_mint,
+        &cortex_stake_reward_mint,
         &position_pda,
         ClosePositionParams {
             // lowest exit price paid (slippage implied)

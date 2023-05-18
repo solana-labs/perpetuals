@@ -137,6 +137,7 @@ pub async fn insuffisient_fund() {
         &keypairs[MULTISIG_MEMBER_A],
         "FOO",
         &keypairs[PAYER],
+        &cortex_stake_reward_mint,
         multisig_signers,
         vec![
             utils::SetupCustodyWithLiquidityParams {
@@ -190,6 +191,7 @@ pub async fn insuffisient_fund() {
             &eth_mint,
             // The program receives USDC
             &usdc_mint,
+            &cortex_stake_reward_mint,
             SwapParams {
                 amount_in: utils::scale(5_000, USDC_DECIMALS),
                 min_amount_out: 0,
@@ -210,6 +212,7 @@ pub async fn insuffisient_fund() {
             &usdc_mint,
             // The program receives ETH
             &eth_mint,
+            &cortex_stake_reward_mint,
             SwapParams {
                 amount_in: utils::scale(10, ETH_DECIMALS),
                 min_amount_out: 0,

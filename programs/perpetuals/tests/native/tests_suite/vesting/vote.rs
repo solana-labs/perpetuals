@@ -24,7 +24,6 @@ const USDC_DECIMALS: u8 = 6;
 const KEYPAIRS_COUNT: usize = 7;
 const LM_TOKEN_DECIMALS: u8 = 6;
 
-#[tokio::test]
 pub async fn vote() {
     let mut program_test = ProgramTest::default();
 

@@ -2,6 +2,8 @@
 
 use {
     crate::{
+        adapters,
+        adapters::SplGovernanceV3Adapter,
         error::PerpetualsError,
         math, program,
         state::{cortex::Cortex, perpetuals::Perpetuals, stake::Stake},
@@ -88,6 +90,24 @@ pub struct RemoveStake<'info> {
     #[account()]
     pub stake_reward_token_mint: Box<Account<'info, Mint>>,
 
+    /// CHECK: checked by spl governance v3 program
+    /// A realm represent one project (ADRENA, MANGO etc.) within the governance program
+    pub governance_realm: UncheckedAccount<'info>,
+
+    /// CHECK: checked by spl governance v3 program
+    pub governance_realm_config: UncheckedAccount<'info>,
+
+    /// CHECK: checked by spl governance v3 program
+    /// Token account owned by governance program holding user's locked tokens
+    #[account(mut)]
+    pub governance_governing_token_holding: UncheckedAccount<'info>,
+
+    /// CHECK: checked by spl governance v3 program
+    /// Account owned by governance storing user informations
+    #[account(mut)]
+    pub governance_governing_token_owner_record: UncheckedAccount<'info>,
+
+    governance_program: Program<'info, SplGovernanceV3Adapter>,
     perpetuals_program: Program<'info, program::Perpetuals>,
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
@@ -124,7 +144,6 @@ pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Re
             owner: ctx.accounts.owner.to_account_info(),
             caller_reward_token_account: ctx.accounts.owner_reward_token_account.to_account_info(),
             owner_reward_token_account: ctx.accounts.owner_reward_token_account.to_account_info(),
-            stake_token_account: ctx.accounts.stake_token_account.to_account_info(),
             stake_reward_token_account: ctx.accounts.stake_reward_token_account.to_account_info(),
             transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
             stake: ctx.accounts.stake.to_account_info(),
@@ -140,6 +159,60 @@ pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Re
         crate::cpi::claim_stake(CpiContext::new(cpi_program, cpi_accounts))?.get()
     };
 
+    // // Revoke vote delegation
+    // {
+    //     let owner_key = ctx.accounts.owner.key();
+    //     let stake_signer_seeds: &[&[u8]] =
+    //         &[b"stake", owner_key.as_ref(), &[ctx.accounts.stake.bump]];
+
+    //     let cpi_accounts = adapters::SetGovernanceDelegate {
+    //         realm: ctx.accounts.governance_realm.to_account_info(),
+    //         governance_authority: ctx.accounts.stake.to_account_info(),
+    //         governing_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+    //         governing_token_owner: ctx.accounts.stake.to_account_info(),
+    //         governing_token_owner_record: ctx
+    //             .accounts
+    //             .governance_governing_token_owner_record
+    //             .to_account_info(),
+    //     };
+
+    //     let cpi_program = ctx.accounts.governance_program.to_account_info();
+
+    //     adapters::set_governance_delegate(
+    //         CpiContext::new(cpi_program, cpi_accounts).with_signer(&[stake_signer_seeds]),
+    //     )?;
+    // }
+
+    // // Withdraw tokens from governance directly to the stake owner token account
+    // // can only withdraw all at this point
+    // {
+    //     let owner_key = ctx.accounts.owner.key();
+    //     let stake_signer_seeds: &[&[u8]] =
+    //         &[b"stake", owner_key.as_ref(), &[ctx.accounts.stake.bump]];
+
+    //     let cpi_accounts = adapters::WithdrawGoverningTokens {
+    //         realm: ctx.accounts.governance_realm.to_account_info(),
+    //         realm_config: ctx.accounts.governance_realm_config.to_account_info(),
+    //         governing_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+    //         governing_token_destination: ctx.accounts.lm_token_account.to_account_info(),
+    //         governing_token_owner: ctx.accounts.stake.to_account_info(),
+    //         governing_token_holding: ctx
+    //             .accounts
+    //             .governance_governing_token_holding
+    //             .to_account_info(),
+    //         governing_token_owner_record: ctx
+    //             .accounts
+    //             .governance_governing_token_owner_record
+    //             .to_account_info(),
+    //     };
+
+    //     let cpi_program = ctx.accounts.governance_program.to_account_info();
+
+    //     adapters::withdraw_governing_tokens(
+    //         CpiContext::new(cpi_program, cpi_accounts).with_signer(&[stake_signer_seeds]),
+    //     )?;
+    // }
+
     // unstake owner's tokens
     {
         msg!("Transfer tokens");
@@ -151,6 +224,78 @@ pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Re
             ctx.accounts.token_program.to_account_info(),
             params.amount,
         )?;
+
+        // let stake = ctx.accounts.stake.as_mut();
+        // let remove_delta_amount = math::checked_sub(stake.amount, params.amount)?;
+        // // Deposit left overs back in governance
+        // {
+        //     let owner_key = ctx.accounts.owner.key();
+        //     let stake_signer_seeds: &[&[u8]] =
+        //         &[b"stake", owner_key.as_ref(), &[ctx.accounts.stake.bump]];
+        //     let authority_seeds: &[&[u8]] = &[
+        //         b"transfer_authority",
+        //         &[ctx.accounts.perpetuals.transfer_authority_bump],
+        //     ];
+
+        //     let cpi_accounts = adapters::DepositGoverningTokens {
+        //         realm: ctx.accounts.governance_realm.to_account_info(),
+        //         realm_config: ctx.accounts.governance_realm_config.to_account_info(),
+        //         governing_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+        //         governing_token_source: ctx.accounts.stake_token_account.to_account_info(),
+        //         governing_token_owner: ctx.accounts.stake.to_account_info(),
+        //         governing_token_transfer_authority: ctx
+        //             .accounts
+        //             .transfer_authority
+        //             .to_account_info(),
+        //         payer: ctx.accounts.owner.to_account_info(),
+        //         governing_token_holding: ctx
+        //             .accounts
+        //             .governance_governing_token_holding
+        //             .to_account_info(),
+        //         governing_token_owner_record: ctx
+        //             .accounts
+        //             .governance_governing_token_owner_record
+        //             .to_account_info(),
+        //     };
+
+        //     let cpi_program = ctx.accounts.governance_program.to_account_info();
+
+        //     adapters::deposit_governing_tokens(
+        //         CpiContext::new(cpi_program, cpi_accounts)
+        //             .with_signer(&[stake_signer_seeds, authority_seeds]),
+        //         remove_delta_amount,
+        //     )?;
+        // }
+
+        // // Set vote delegate to stake owner
+        // {
+        //     let owner_key = ctx.accounts.owner.key();
+        //     let stake_signer_seeds: &[&[u8]] =
+        //         &[b"stake", owner_key.as_ref(), &[ctx.accounts.stake.bump]];
+
+        //     let cpi_accounts = adapters::SetGovernanceDelegate {
+        //         realm: ctx.accounts.governance_realm.to_account_info(),
+        //         governance_authority: ctx.accounts.stake.to_account_info(),
+        //         governing_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+        //         governing_token_owner: ctx.accounts.stake.to_account_info(),
+        //         governing_token_owner_record: ctx
+        //             .accounts
+        //             .governance_governing_token_owner_record
+        //             .to_account_info(),
+        //     };
+
+        //     let cpi_program = ctx.accounts.governance_program.to_account_info();
+
+        //     let mut cpi_context = CpiContext::new(cpi_program, cpi_accounts);
+
+        //     let new_governance_delegate = ctx.accounts.owner.to_account_info();
+
+        //     cpi_context
+        //         .remaining_accounts
+        //         .append(&mut Vec::from([new_governance_delegate]));
+
+        //     adapters::set_governance_delegate(cpi_context.with_signer(&[stake_signer_seeds]))?;
+        // }
     }
 
     // update Stake and Cortex data

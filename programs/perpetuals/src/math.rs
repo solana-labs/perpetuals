@@ -327,6 +327,19 @@ pub fn checked_powi(arg: f64, exp: i32) -> Result<f64> {
     }
 }
 
+pub fn checked_as_usize<T>(arg: T) -> Result<usize>
+where
+    T: Display + num_traits::ToPrimitive + Clone,
+{
+    let option: Option<usize> = num_traits::NumCast::from(arg.clone());
+    if let Some(res) = option {
+        Ok(res)
+    } else {
+        msg!("Error: Overflow in {} as usize", arg);
+        err!(PerpetualsError::MathOverflow)
+    }
+}
+
 pub fn checked_as_u64<T>(arg: T) -> Result<u64>
 where
     T: Display + num_traits::ToPrimitive + Clone,

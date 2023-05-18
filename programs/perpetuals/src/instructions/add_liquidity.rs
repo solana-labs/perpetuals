@@ -3,6 +3,7 @@
 use {
     crate::{
         error::PerpetualsError,
+        instructions::SwapParams,
         math,
         state::{
             cortex::Cortex,
@@ -14,6 +15,7 @@ use {
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
+    num_traits::Zero,
     solana_program::program_error::ProgramError,
 };
 
@@ -97,6 +99,40 @@ pub struct AddLiquidity<'info> {
 
     #[account(
         mut,
+        seeds = [b"custody",
+                 pool.key().as_ref(),
+                 stake_reward_token_custody.mint.as_ref()],
+        bump = stake_reward_token_custody.bump,
+        constraint = stake_reward_token_custody.mint == stake_reward_token_mint.key(),
+    )]
+    pub stake_reward_token_custody: Box<Account<'info, Custody>>,
+
+    /// CHECK: oracle account for the stake_reward token
+    #[account(
+        constraint = stake_reward_token_custody_oracle_account.key() == stake_reward_token_custody.oracle.oracle_account
+    )]
+    pub stake_reward_token_custody_oracle_account: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"custody_token_account",
+                 pool.key().as_ref(),
+                 stake_reward_token_custody.mint.as_ref()],
+        bump = stake_reward_token_custody.token_account_bump,
+    )]
+    pub stake_reward_token_custody_token_account: Box<Account<'info, TokenAccount>>,
+
+    // staking reward token vault (receiving fees swapped to `stake_reward_token_mint`)
+    #[account(
+        mut,
+        token::mint = cortex.stake_reward_token_mint,
+        seeds = [b"stake_reward_token_account"],
+        bump = cortex.stake_reward_token_account_bump
+    )]
+    pub stake_reward_token_account: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
         seeds = [b"lp_token_mint",
                  pool.key().as_ref()],
         bump = pool.lp_token_bump
@@ -110,7 +146,11 @@ pub struct AddLiquidity<'info> {
     )]
     pub lm_token_mint: Box<Account<'info, Mint>>,
 
+    #[account()]
+    pub stake_reward_token_mint: Box<Account<'info, Mint>>,
+
     token_program: Program<'info, Token>,
+    perpetuals_program: Program<'info, Perpetuals>,
     // remaining accounts:
     //   pool.tokens.len() custody accounts (read-only, unsigned)
     //   pool.tokens.len() custody oracles (read-only, unsigned)
@@ -245,6 +285,72 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
     )?;
     msg!("Amount LM rewards out: {}", lm_rewards_amount);
 
+    // Note: must be done before the swap
+    custody.assets.owned = math::checked_add(custody.assets.owned, deposit_amount)?;
+
+    // force state persistence before CPI call
+    custody.exit(&crate::ID)?;
+    custody.reload()?;
+
+    // if there is no collected fees, skip transfer to staking vault
+    if !protocol_fee.is_zero() {
+        // if the collected fees are in the right denomination, skip swap
+        if custody.mint == ctx.accounts.stake_reward_token_custody.mint {
+            msg!("Transfer collected fees to stake vault (no swap)");
+            perpetuals.transfer_tokens(
+                ctx.accounts.custody_token_account.to_account_info(),
+                ctx.accounts.stake_reward_token_account.to_account_info(),
+                ctx.accounts.transfer_authority.to_account_info(),
+                ctx.accounts.token_program.to_account_info(),
+                fee_amount,
+            )?;
+            // Force sync between two account that are the same in that specific case, and that can have race condition at IX end
+            // when accounts state is saved (A is modified not B, A is saved, B is saved and overwrite)
+            let srt_custody = ctx.accounts.stake_reward_token_custody.as_mut();
+            srt_custody.assets.owned = custody.assets.owned;
+            srt_custody.exit(&crate::ID)?;
+            srt_custody.reload()?;
+        } else {
+            // swap the collected fee_amount to stable and send to staking rewards
+            msg!("Swap collected fees to stake reward mint internally");
+            perpetuals.internal_swap(
+                ctx.accounts.transfer_authority.to_account_info(),
+                ctx.accounts.custody_token_account.to_account_info(),
+                ctx.accounts.stake_reward_token_account.to_account_info(),
+                ctx.accounts.lm_token_account.to_account_info(),
+                ctx.accounts.cortex.to_account_info(),
+                perpetuals.to_account_info(),
+                pool.to_account_info(),
+                custody.to_account_info(),
+                ctx.accounts.custody_oracle_account.to_account_info(),
+                ctx.accounts.custody_token_account.to_account_info(),
+                ctx.accounts.stake_reward_token_custody.to_account_info(),
+                ctx.accounts
+                    .stake_reward_token_custody_oracle_account
+                    .to_account_info(),
+                ctx.accounts
+                    .stake_reward_token_custody_token_account
+                    .to_account_info(),
+                ctx.accounts.stake_reward_token_custody.to_account_info(),
+                ctx.accounts
+                    .stake_reward_token_custody_oracle_account
+                    .to_account_info(),
+                ctx.accounts
+                    .stake_reward_token_custody_token_account
+                    .to_account_info(),
+                ctx.accounts.stake_reward_token_account.to_account_info(),
+                ctx.accounts.stake_reward_token_mint.to_account_info(),
+                ctx.accounts.lm_token_mint.to_account_info(),
+                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.perpetuals_program.to_account_info(),
+                SwapParams {
+                    amount_in: protocol_fee,
+                    min_amount_out: protocol_fee,
+                },
+            )?;
+        }
+    }
+
     // update custody stats
     msg!("Update custody stats");
     custody.collected_fees.add_liquidity_usd = custody
@@ -268,8 +374,6 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
         .wrapping_add(token_ema_price.get_asset_amount_usd(params.amount_in, custody.decimals)?);
 
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
-
-    custody.assets.owned = math::checked_add(custody.assets.owned, deposit_amount)?;
 
     custody.update_borrow_rate(curtime)?;
 

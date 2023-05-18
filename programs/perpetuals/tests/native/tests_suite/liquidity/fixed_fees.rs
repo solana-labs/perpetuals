@@ -101,6 +101,7 @@ pub async fn fixed_fees() {
         &keypairs[MULTISIG_MEMBER_A],
         "FOO",
         &keypairs[PAYER],
+        &cortex_stake_reward_mint,
         multisig_signers,
         vec![utils::SetupCustodyWithLiquidityParams {
             setup_custody_params: utils::SetupCustodyParams {
@@ -137,6 +138,7 @@ pub async fn fixed_fees() {
             &keypairs[PAYER],
             &pool_pda,
             &usdc_mint,
+            &cortex_stake_reward_mint,
             AddLiquidityParams {
                 amount_in: utils::scale(1_000, USDC_DECIMALS),
                 min_lp_amount_out: 1,
@@ -176,6 +178,7 @@ pub async fn fixed_fees() {
             &keypairs[PAYER],
             &pool_pda,
             &usdc_mint,
+            &cortex_stake_reward_mint,
             RemoveLiquidityParams {
                 lp_amount_in: utils::scale(100, Perpetuals::LP_DECIMALS),
                 min_amount_out: 1,

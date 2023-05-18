@@ -5,8 +5,11 @@ use {
     },
     bonfida_test_utils::{ProgramTestContextExt, ProgramTestExt},
     perpetuals::{
-        instructions::{AddStakeParams, AddVestParams, ClosePositionParams, OpenPositionParams},
-        state::{cortex::Cortex, perpetuals::Perpetuals, position::Side},
+        instructions::{AddStakeParams, AddVestParams, SwapParams},
+        state::{
+            cortex::{Cortex, StakingRound},
+            perpetuals::Perpetuals,
+        },
     },
     solana_program_test::ProgramTest,
     solana_sdk::signer::Signer,
@@ -30,7 +33,7 @@ const LM_TOKEN_DECIMALS: u8 = 6;
 // this test is about filling the maximum number of staking rounds the systme can hold (StakingRound::MAX_RESOLVED_ROUNDS)
 // and playing around that limit for different edge cases
 
-pub async fn test_staking_rewards() {
+pub async fn test_bounty_phase_one() {
     let mut program_test = ProgramTest::default();
 
     // Initialize the accounts that will be used during the test suite
@@ -170,6 +173,7 @@ pub async fn test_staking_rewards() {
         &keypairs[MULTISIG_MEMBER_A],
         "FOO",
         &keypairs[PAYER],
+        &cortex_stake_reward_mint,
         multisig_signers,
         vec![
             utils::SetupCustodyWithLiquidityParams {
@@ -232,22 +236,6 @@ pub async fn test_staking_rewards() {
         .await
         .unwrap();
 
-        // // Martin: vest 2 token, unlockable at 50% unlock share (circulating supply 4 tokens)
-        // instructions::test_add_vest(
-        //     &mut program_test_ctx,
-        //     &keypairs[MULTISIG_MEMBER_A],
-        //     &keypairs[PAYER],
-        //     &keypairs[USER_MARTIN],
-        //     &governance_realm_pda,
-        //     &AddVestParams {
-        //         amount: utils::scale(2, Cortex::LM_DECIMALS),
-        //         unlock_share: utils::scale_f64(0.99, Perpetuals::BPS_DECIMALS),
-        //     },
-        //     multisig_signers,
-        // )
-        // .await
-        // .unwrap();
-
         // Alice: claim vest
         instructions::test_claim_vest(
             &mut program_test_ctx,
@@ -257,57 +245,30 @@ pub async fn test_staking_rewards() {
         )
         .await
         .unwrap();
-
-        // // Martin: claim vest
-        // instructions::test_claim_vest(
-        //     &mut program_test_ctx,
-        //     &keypairs[PAYER],
-        //     &keypairs[USER_MARTIN],
-        //     &governance_realm_pda,
-        // )
-        // .await
-        // .unwrap();
     }
 
     // Prep work: Generate some platform activity to fill current round' rewards
     {
-        // Martin: Open 0.1 ETH position
-        let position_pda = instructions::test_open_position(
+        // Martin: Swap 500 USDC for ETH
+        instructions::test_swap(
             &mut program_test_ctx,
             &keypairs[USER_MARTIN],
             &keypairs[PAYER],
             &pool_pda,
             &eth_mint,
-            OpenPositionParams {
-                // max price paid (slippage implied)
-                price: utils::scale(1_550, USDC_DECIMALS),
-                collateral: utils::scale_f64(0.1, ETH_DECIMALS),
-                size: utils::scale_f64(0.1, ETH_DECIMALS),
-                side: Side::Long,
-            },
-        )
-        .await
-        .unwrap()
-        .0;
-
-        // Martin: Close the ETH position
-        instructions::test_close_position(
-            &mut program_test_ctx,
-            &keypairs[USER_MARTIN],
-            &keypairs[PAYER],
-            &pool_pda,
-            &eth_mint,
-            &position_pda,
-            ClosePositionParams {
-                // lowest exit price paid (slippage implied)
-                price: utils::scale(1_450, USDC_DECIMALS),
+            // The program receives USDC
+            &usdc_mint,
+            &cortex_stake_reward_mint,
+            SwapParams {
+                amount_in: utils::scale(500, USDC_DECIMALS),
+                min_amount_out: 0,
             },
         )
         .await
         .unwrap();
     }
 
-    // happy path: stake, resolve, claim
+    // tests bounties
     {
         // GIVEN
         let alice_stake_reward_token_account_address = utils::find_associated_token_account(
@@ -315,12 +276,20 @@ pub async fn test_staking_rewards() {
             &cortex_stake_reward_mint,
         )
         .0;
+        let martin_stake_reward_token_account_address = utils::find_associated_token_account(
+            &keypairs[USER_MARTIN].pubkey(),
+            &cortex_stake_reward_mint,
+        )
+        .0;
         let alice_stake_reward_token_account_before = program_test_ctx
             .get_token_account(alice_stake_reward_token_account_address)
             .await
             .unwrap();
+        let martin_stake_reward_token_account_before = program_test_ctx
+            .get_token_account(martin_stake_reward_token_account_address)
+            .await
+            .unwrap();
 
-        // WHEN
         // Alice: add stake LM token
         instructions::test_add_stake(
             &mut program_test_ctx,
@@ -330,12 +299,19 @@ pub async fn test_staking_rewards() {
                 amount: scale(1, Cortex::LM_DECIMALS),
             },
             &cortex_stake_reward_mint,
+            &governance_realm_pda,
         )
         .await
         .unwrap();
 
-        // go to next round warps 6h in the future
-        utils::warp_forward(&mut program_test_ctx, 3_600 * 6).await;
+        // Info - at this stage, alice won't be eligible for current round rewards, as she joined after round inception
+
+        // go to next round warps in the future
+        utils::warp_forward(
+            &mut program_test_ctx,
+            StakingRound::ROUND_MIN_DURATION_SECONDS,
+        )
+        .await;
 
         // resolve round
         instructions::test_resolve_staking_round(
@@ -348,7 +324,7 @@ pub async fn test_staking_rewards() {
         .await
         .unwrap();
 
-        // Alice: test claim stake (no stake account, none)
+        // Alice: test claim stake (stake account but not eligible for current round, none)
         instructions::test_claim_stake(
             &mut program_test_ctx,
             &keypairs[USER_ALICE],
@@ -365,18 +341,61 @@ pub async fn test_staking_rewards() {
             .await
             .unwrap();
 
-        // alice received stake rewards
-        println!(
-            "alice_stake_reward_token_account_after.amount {}",
-            alice_stake_reward_token_account_after.amount
-        );
-        println!(
-            "alice_stake_reward_token_account_before.amount {}",
+        // alice didn't receive stake rewards
+        assert_eq!(
+            alice_stake_reward_token_account_after.amount,
             alice_stake_reward_token_account_before.amount
         );
+
+        // Info - new round started, forwarding the previous reward since no stake previously
+        // Info - this time Alice was subscribed in time and will qualify for rewards
+
+        // go 90% of a year later (to enable bounty at 0.01%)
+        utils::warp_forward(&mut program_test_ctx, 28382400).await;
+
+        // resolve round
+        instructions::test_resolve_staking_round(
+            &mut program_test_ctx,
+            &keypairs[USER_ALICE],
+            &keypairs[USER_ALICE],
+            &keypairs[PAYER],
+            &cortex_stake_reward_mint,
+        )
+        .await
+        .unwrap();
+
+        // Alice: test claim stake (stake account eligible for round, some)
+        // but not eligible for bounty
+        instructions::test_claim_stake(
+            &mut program_test_ctx,
+            &keypairs[USER_MARTIN],
+            &keypairs[USER_ALICE],
+            &keypairs[PAYER],
+            &cortex_stake_reward_mint,
+        )
+        .await
+        .unwrap();
+
+        // THEN
+        let alice_stake_reward_token_account_before = alice_stake_reward_token_account_after;
+        let alice_stake_reward_token_account_after = program_test_ctx
+            .get_token_account(alice_stake_reward_token_account_address)
+            .await
+            .unwrap();
+        let martin_stake_reward_token_account_after = program_test_ctx
+            .get_token_account(martin_stake_reward_token_account_address)
+            .await
+            .unwrap();
+
+        // alice received stake rewards
         assert!(
             alice_stake_reward_token_account_after.amount
                 > alice_stake_reward_token_account_before.amount
+        );
+        // martin received stake rewards (bounty)
+        assert!(
+            martin_stake_reward_token_account_after.amount
+                > martin_stake_reward_token_account_before.amount
         );
     }
 }

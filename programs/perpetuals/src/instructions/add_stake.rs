@@ -2,6 +2,8 @@
 
 use {
     crate::{
+        adapters,
+        adapters::SplGovernanceV3Adapter,
         math, program,
         state::{cortex::Cortex, perpetuals::Perpetuals, stake::Stake},
     },
@@ -88,6 +90,24 @@ pub struct AddStake<'info> {
     #[account()]
     pub stake_reward_token_mint: Box<Account<'info, Mint>>,
 
+    /// CHECK: checked by spl governance v3 program
+    /// A realm represent one project (ADRENA, MANGO etc.) within the governance program
+    pub governance_realm: UncheckedAccount<'info>,
+
+    /// CHECK: checked by spl governance v3 program
+    pub governance_realm_config: UncheckedAccount<'info>,
+
+    /// CHECK: checked by spl governance v3 program
+    /// Token account owned by governance program holding user's locked tokens
+    #[account(mut)]
+    pub governance_governing_token_holding: UncheckedAccount<'info>,
+
+    /// CHECK: checked by spl governance v3 program
+    /// Account owned by governance storing user informations
+    #[account(mut)]
+    pub governance_governing_token_owner_record: UncheckedAccount<'info>,
+
+    governance_program: Program<'info, SplGovernanceV3Adapter>,
     perpetuals_program: Program<'info, program::Perpetuals>,
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
@@ -128,7 +148,6 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
                     .accounts
                     .owner_reward_token_account
                     .to_account_info(),
-                stake_token_account: ctx.accounts.stake_token_account.to_account_info(),
                 stake_reward_token_account: ctx
                     .accounts
                     .stake_reward_token_account
@@ -161,6 +180,68 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
         )?;
     }
 
+    // Deposit tokens in governance
+    {
+        let owner_key = ctx.accounts.owner.key();
+        let stake_signer_seeds: &[&[u8]] =
+            &[b"stake", owner_key.as_ref(), &[ctx.accounts.stake.bump]];
+
+        let cpi_accounts = adapters::DepositGoverningTokens {
+            realm: ctx.accounts.governance_realm.to_account_info(),
+            realm_config: ctx.accounts.governance_realm_config.to_account_info(),
+            governing_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+            governing_token_source: ctx.accounts.stake_token_account.to_account_info(),
+            governing_token_owner: ctx.accounts.stake.to_account_info(),
+            governing_token_transfer_authority: ctx.accounts.stake.to_account_info(),
+            payer: ctx.accounts.owner.to_account_info(),
+            governing_token_holding: ctx
+                .accounts
+                .governance_governing_token_holding
+                .to_account_info(),
+            governing_token_owner_record: ctx
+                .accounts
+                .governance_governing_token_owner_record
+                .to_account_info(),
+        };
+
+        let cpi_program = ctx.accounts.governance_program.to_account_info();
+
+        adapters::deposit_governing_tokens(
+            CpiContext::new(cpi_program, cpi_accounts).with_signer(&[stake_signer_seeds]),
+            params.amount,
+        )?;
+    }
+
+    // // Set vote delegate to stake owner
+    // {
+    //     let owner_key = ctx.accounts.owner.key();
+    //     let stake_signer_seeds: &[&[u8]] =
+    //         &[b"stake", owner_key.as_ref(), &[ctx.accounts.stake.bump]];
+
+    //     let cpi_accounts = adapters::SetGovernanceDelegate {
+    //         realm: ctx.accounts.governance_realm.to_account_info(),
+    //         governance_authority: ctx.accounts.stake.to_account_info(),
+    //         governing_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+    //         governing_token_owner: ctx.accounts.stake.to_account_info(),
+    //         governing_token_owner_record: ctx
+    //             .accounts
+    //             .governance_governing_token_owner_record
+    //             .to_account_info(),
+    //     };
+
+    //     let cpi_program = ctx.accounts.governance_program.to_account_info();
+
+    //     let mut cpi_context = CpiContext::new(cpi_program, cpi_accounts);
+
+    //     let new_governance_delegate = ctx.accounts.owner.to_account_info();
+
+    //     cpi_context
+    //         .remaining_accounts
+    //         .append(&mut Vec::from([new_governance_delegate]));
+
+    //     adapters::set_governance_delegate(cpi_context.with_signer(&[stake_signer_seeds]))?;
+    // }
+
     // update Stake and Cortex data
     {
         let perpetuals = ctx.accounts.perpetuals.as_mut();
@@ -179,28 +260,12 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
             stake.stake_time = perpetuals.get_time()?;
         }
 
-        // TODO add voting power on governance like it's done in vest
-
         // apply delta to user stake
         stake.amount = math::checked_add(stake.amount, params.amount)?;
 
         // apply delta to next round
         cortex.next_staking_round.total_stake =
             math::checked_add(cortex.next_staking_round.total_stake, params.amount)?;
-
-        msg!(
-            "Cortex.resolved_staking_rounds after add stake {:?}",
-            cortex.resolved_staking_rounds
-        );
-        msg!(
-            "Cortex.current_staking_round after add stake {:?}",
-            cortex.current_staking_round
-        );
-        msg!(
-            "Cortex.next_staking_round after add stake {:?}",
-            cortex.next_staking_round
-        );
-        msg!("STATE after add stake {:?}", stake);
     }
 
     Ok(())

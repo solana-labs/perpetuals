@@ -202,6 +202,8 @@ pub async fn warp_forward(ctx: &mut ProgramTestContext, seconds: i64) {
         "New Time: epoch = {}, timestamp = {}",
         clock_sysvar.epoch, clock_sysvar.unix_timestamp
     );
+
+    ctx.last_blockhash = ctx.banks_client.get_latest_blockhash().await.unwrap();
 }
 
 pub async fn add_spl_governance_program(
@@ -416,6 +418,7 @@ pub async fn setup_pool_with_custodies_and_liquidity(
     admin: &Keypair,
     pool_name: &str,
     payer: &Keypair,
+    stake_reward_mint: &Pubkey,
     multisig_signers: &[&Keypair],
     custodies_params: Vec<SetupCustodyWithLiquidityParams>,
 ) -> (
@@ -447,13 +450,24 @@ pub async fn setup_pool_with_custodies_and_liquidity(
         )
         .await;
 
+    println!(
+        "custody params 0 {}",
+        custodies_params[0].setup_custody_params.mint
+    );
+    println!(
+        "custody params 1 {}",
+        custodies_params[1].setup_custody_params.mint
+    );
     // Add liquidity
     for params in custodies_params.as_slice() {
+        println!(
+            "adding liquidity for mint {}",
+            params.setup_custody_params.mint
+        );
         initialize_token_account(program_test_ctx, &lp_token_mint_pda, &params.payer.pubkey())
             .await;
         let lm_token_mint = get_lm_token_mint_pda().0;
         initialize_token_account(program_test_ctx, &lm_token_mint, &params.payer.pubkey()).await;
-
         if params.liquidity_amount > 0 {
             instructions::test_add_liquidity(
                 program_test_ctx,
@@ -461,6 +475,7 @@ pub async fn setup_pool_with_custodies_and_liquidity(
                 payer,
                 &pool_pda,
                 &params.setup_custody_params.mint,
+                stake_reward_mint,
                 AddLiquidityParams {
                     amount_in: params.liquidity_amount,
                     min_lp_amount_out: 1,
@@ -636,6 +651,44 @@ pub async fn setup_pool_with_custodies(
         lp_token_mint_bump,
         custodies_info,
     )
+}
+
+pub async fn refresh_test_oracle_initial_prices(
+    program_test_ctx: &mut ProgramTestContext,
+    admin: &Keypair,
+    pool_pda: &Pubkey,
+    payer: &Keypair,
+    multisig_signers: &[&Keypair],
+    custodies_params: &Vec<SetupCustodyParams>,
+    custodies_infos: &Vec<SetupCustodyInfo>,
+) -> Result<()> {
+    let publish_time = get_current_unix_timestamp(program_test_ctx).await;
+
+    for i in 0..custodies_params.len() {
+        let params = custodies_params[i];
+        let info = custodies_infos[i];
+        let test_oracle_pda = info.test_oracle_pda;
+        let custody_pda = info.custody_pda;
+
+        instructions::test_set_test_oracle_price(
+            program_test_ctx,
+            admin,
+            payer,
+            &pool_pda,
+            &custody_pda,
+            &test_oracle_pda,
+            SetTestOraclePriceParams {
+                price: params.initial_price,
+                expo: -(params.decimals as i32),
+                conf: scale(0, params.decimals),
+                publish_time,
+            },
+            multisig_signers,
+        )
+        .await
+        .unwrap();
+    }
+    Ok(())
 }
 
 pub fn scale(amount: u64, decimals: u8) -> u64 {

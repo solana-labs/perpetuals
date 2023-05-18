@@ -6,6 +6,7 @@ use {
     },
     bonfida_test_utils::ProgramTestContextExt,
     perpetuals::{
+        adapters::spl_governance_program_adapter,
         instructions::AddStakeParams,
         state::{cortex::Cortex, stake::Stake},
     },
@@ -19,6 +20,7 @@ pub async fn test_add_stake(
     payer: &Keypair,
     params: AddStakeParams,
     stake_reward_token_mint: &Pubkey,
+    governance_realm_pda: &Pubkey,
 ) -> std::result::Result<(), BanksClientError> {
     // ==== GIVEN =============================================================
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
@@ -34,6 +36,18 @@ pub async fn test_add_stake(
     let stake_reward_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), &stake_reward_token_mint).0;
 
+    let governance_governing_token_holding_pda =
+        pda::get_governance_governing_token_holding_pda(governance_realm_pda, &lm_token_mint_pda);
+
+    let governance_realm_config_pda = pda::get_governance_realm_config_pda(governance_realm_pda);
+
+    let governance_governing_token_owner_record_pda =
+        pda::get_governance_governing_token_owner_record_pda(
+            governance_realm_pda,
+            &lm_token_mint_pda,
+            &stake_pda,
+        );
+
     // // ==== WHEN ==============================================================
     // save account state before tx execution
     let cortex_account_before = utils::get_account::<Cortex>(program_test_ctx, cortex_pda).await;
@@ -42,10 +56,11 @@ pub async fn test_add_stake(
         .get_token_account(lm_token_account_address)
         .await
         .unwrap();
-    // let owner_stake_reward_token_account_before = program_test_ctx
-    //     .get_token_account(stake_reward_token_account_address)
-    //     .await
-    //     .unwrap();
+
+    // Before state
+    let governance_governing_token_holding_balance_before =
+        utils::get_token_account_balance(program_test_ctx, governance_governing_token_holding_pda)
+            .await;
 
     utils::create_and_execute_perpetuals_ix(
         program_test_ctx,
@@ -61,6 +76,11 @@ pub async fn test_add_stake(
             perpetuals: perpetuals_pda,
             lm_token_mint: lm_token_mint_pda,
             stake_reward_token_mint: *stake_reward_token_mint,
+            governance_realm: *governance_realm_pda,
+            governance_realm_config: governance_realm_config_pda,
+            governance_governing_token_holding: governance_governing_token_holding_pda,
+            governance_governing_token_owner_record: governance_governing_token_owner_record_pda,
+            governance_program: spl_governance_program_adapter::ID,
             perpetuals_program: perpetuals::ID,
             system_program: anchor_lang::system_program::ID,
             token_program: anchor_spl::token::ID,
@@ -130,6 +150,20 @@ pub async fn test_add_stake(
 
         let clock = program_test_ctx.banks_client.get_sysvar::<Clock>().await?;
         assert_eq!(stake_account_after.stake_time, clock.unix_timestamp);
+    }
+
+    // Check governance accounts
+    {
+        let governance_governing_token_holding_balance_after = utils::get_token_account_balance(
+            program_test_ctx,
+            governance_governing_token_holding_pda,
+        )
+        .await;
+
+        assert_eq!(
+            governance_governing_token_holding_balance_before + params.amount,
+            governance_governing_token_holding_balance_after
+        );
     }
 
     Ok(())
