@@ -98,6 +98,7 @@ pub async fn max_user_profit() {
                 mint: eth_mint,
                 decimals: ETH_DECIMALS,
                 is_stable: false,
+                is_virtual: false,
                 target_ratio: utils::ratio_from_percentage(100.0),
                 min_ratio: utils::ratio_from_percentage(0.0),
                 max_ratio: utils::ratio_from_percentage(100.0),

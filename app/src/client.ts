@@ -390,6 +390,7 @@ export class PerpetualsClient {
     poolName: string,
     tokenMint: PublicKey,
     isStable: boolean,
+    isVirtual: boolean,
     oracleConfig,
     pricingConfig,
     permissions,
@@ -400,6 +401,7 @@ export class PerpetualsClient {
     await this.program.methods
       .addCustody({
         isStable,
+        isVirtual,
         oracle: oracleConfig,
         pricing: pricingConfig,
         permissions,

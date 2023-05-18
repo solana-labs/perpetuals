@@ -5,8 +5,8 @@ use {
     perpetuals::{
         instructions::InitParams,
         state::{
-            custody::{BorrowRateParams, Fees, FeesMode, OracleParams, PricingParams},
-            oracle::OracleType,
+            custody::{BorrowRateParams, Fees, FeesMode, PricingParams},
+            oracle::{OracleParams, OracleType},
             perpetuals::Permissions,
         },
     },

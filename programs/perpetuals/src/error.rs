@@ -28,6 +28,8 @@ pub enum PerpetualsError {
     InvalidPoolState,
     #[msg("Invalid custody state")]
     InvalidCustodyState,
+    #[msg("Invalid collateral custody")]
+    InvalidCollateralCustody,
     #[msg("Invalid position state")]
     InvalidPositionState,
     #[msg("Invalid perpetuals config")]

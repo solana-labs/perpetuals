@@ -61,7 +61,8 @@ async function addCustody(
   poolName: string,
   tokenMint: PublicKey,
   tokenOracle: PublicKey,
-  isStable: boolean
+  isStable: boolean,
+  isVirtual: boolean
 ) {
   // to be loaded from config file
   let oracleConfig = {
@@ -128,6 +129,7 @@ async function addCustody(
     poolName,
     tokenMint,
     isStable,
+    isVirtual,
     oracleConfig,
     pricingConfig,
     permissions,

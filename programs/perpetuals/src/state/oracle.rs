@@ -29,6 +29,14 @@ pub struct OraclePrice {
     pub exponent: i32,
 }
 
+#[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
+pub struct OracleParams {
+    pub oracle_account: Pubkey,
+    pub oracle_type: OracleType,
+    pub max_price_error: u64,
+    pub max_price_age_sec: u32,
+}
+
 #[account]
 #[derive(Default, Debug)]
 pub struct TestOracle {
@@ -75,24 +83,22 @@ impl OraclePrice {
     }
 
     pub fn new_from_oracle(
-        oracle_type: OracleType,
         oracle_account: &AccountInfo,
-        max_price_error: u64,
-        max_price_age_sec: u32,
+        oracle_params: &OracleParams,
         current_time: i64,
         use_ema: bool,
     ) -> Result<Self> {
-        match oracle_type {
+        match oracle_params.oracle_type {
             OracleType::Test => Self::get_test_price(
                 oracle_account,
-                max_price_error,
-                max_price_age_sec,
+                oracle_params.max_price_error,
+                oracle_params.max_price_age_sec,
                 current_time,
             ),
             OracleType::Pyth => Self::get_pyth_price(
                 oracle_account,
-                max_price_error,
-                max_price_age_sec,
+                oracle_params.max_price_error,
+                oracle_params.max_price_age_sec,
                 current_time,
                 use_ema,
             ),

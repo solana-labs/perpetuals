@@ -3,7 +3,7 @@ use {
         error::PerpetualsError,
         math,
         state::{
-            oracle::{OraclePrice, OracleType},
+            oracle::{OracleParams, OraclePrice, OracleType},
             perpetuals::{Permissions, Perpetuals},
             position::{Position, Side},
         },
@@ -77,14 +77,6 @@ pub struct Assets {
 }
 
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
-pub struct OracleParams {
-    pub oracle_account: Pubkey,
-    pub oracle_type: OracleType,
-    pub max_price_error: u64,
-    pub max_price_age_sec: u32,
-}
-
-#[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
 pub struct PricingParams {
     pub use_ema: bool,
     // whether to account for unrealized pnl in assets under management calculations
@@ -134,7 +126,7 @@ pub struct PositionStats {
 }
 
 #[account]
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq)]
 pub struct Custody {
     // static parameters
     pub pool: Pubkey,
@@ -142,6 +134,7 @@ pub struct Custody {
     pub token_account: Pubkey,
     pub decimals: u8,
     pub is_stable: bool,
+    pub is_virtual: bool,
     pub oracle: OracleParams,
     pub pricing: PricingParams,
     pub permissions: Permissions,
@@ -187,7 +180,7 @@ pub struct DeprecatedCustody {
     pub decimals: u8,
     pub is_stable: bool,
     pub oracle: OracleParams,
-    pub pricing: DeprecatedPricingParams,
+    pub pricing: PricingParams,
     pub permissions: Permissions,
     pub fees: Fees,
     pub borrow_rate: BorrowRateParams,
@@ -256,7 +249,8 @@ impl Custody {
     pub const LEN: usize = 8 + std::mem::size_of::<Custody>();
 
     pub fn validate(&self) -> bool {
-        self.token_account != Pubkey::default()
+        (!self.is_virtual || !self.is_stable)
+            && self.token_account != Pubkey::default()
             && self.mint != Pubkey::default()
             && self.oracle.validate()
             && self.pricing.validate()
@@ -265,6 +259,9 @@ impl Custody {
     }
 
     pub fn lock_funds(&mut self, amount: u64) -> Result<()> {
+        if self.is_virtual {
+            return Ok(());
+        }
         self.assets.locked = math::checked_add(self.assets.locked, amount)?;
 
         // check for max utilization
@@ -290,6 +287,9 @@ impl Custody {
     }
 
     pub fn unlock_funds(&mut self, amount: u64) -> Result<()> {
+        if self.is_virtual {
+            return Ok(());
+        }
         if amount > self.assets.locked {
             self.assets.locked = 0;
         } else {
@@ -300,7 +300,7 @@ impl Custody {
     }
 
     pub fn get_interest_amount_usd(&self, position: &Position, curtime: i64) -> Result<u64> {
-        if position.size_usd == 0 {
+        if position.size_usd == 0 || self.is_virtual {
             return Ok(0);
         }
 

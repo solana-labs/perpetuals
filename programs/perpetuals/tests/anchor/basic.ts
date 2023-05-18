@@ -15,6 +15,7 @@ describe("perpetuals", () => {
   let borrowRate;
   let ratios;
   let isStable;
+  let isVirtual;
   let perpetualsExpected;
   let multisigExpected;
   let tokenExpected;
@@ -200,9 +201,11 @@ describe("perpetuals", () => {
       },
     ];
     isStable = false;
+    isVirtual = false;
     await tc.addCustody(
       tc.custodies[0],
       isStable,
+      isVirtual,
       oracleConfig,
       pricing,
       permissions,
@@ -218,6 +221,7 @@ describe("perpetuals", () => {
       tokenAccount: tc.custodies[0].tokenAccount,
       decimals: 9,
       isStable,
+      isVirtual,
       oracle: {
         oracleAccount: tc.custodies[0].oracleAccount,
         oracleType: { test: {} },
@@ -332,6 +336,7 @@ describe("perpetuals", () => {
     await tc.addCustody(
       tc.custodies[1],
       isStable,
+      isVirtual,
       oracleConfig2,
       pricing,
       permissions,
@@ -346,6 +351,7 @@ describe("perpetuals", () => {
     await tc.addCustody(
       tc.custodies[1],
       isStable,
+      isVirtual,
       oracleConfig2,
       pricing,
       permissions,
@@ -363,6 +369,7 @@ describe("perpetuals", () => {
     await tc.setCustodyConfig(
       tc.custodies[0],
       isStable,
+      isVirtual,
       oracleConfig,
       pricing,
       permissions,

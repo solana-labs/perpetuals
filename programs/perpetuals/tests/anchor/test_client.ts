@@ -483,6 +483,7 @@ export class TestClient {
   addCustody = async (
     custody,
     isStable,
+    isVirtual,
     oracleConfig,
     pricing,
     permissions,
@@ -498,6 +499,7 @@ export class TestClient {
         await this.program.methods
           .addCustody({
             isStable,
+            isVirtual,
             oracle: oracleConfig,
             pricing,
             permissions,
@@ -562,6 +564,7 @@ export class TestClient {
   setCustodyConfig = async (
     custody,
     isStable,
+    isVirtual,
     oracleConfig,
     pricing,
     permissions,
@@ -577,6 +580,7 @@ export class TestClient {
         await this.program.methods
           .setCustodyConfig({
             isStable,
+            isVirtual,
             oracle: oracleConfig,
             pricing,
             permissions,
