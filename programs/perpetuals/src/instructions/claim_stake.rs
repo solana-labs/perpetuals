@@ -178,8 +178,6 @@ pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
             // so that the user stay eligible for current round rewards
             stake.stake_time = math::checked_sub(cortex.current_staking_round.start_time, 1)?;
 
-            // note: here can possibly check if user was already staked and prevent him to loose one round of rewards
-
             // remove stake from current staking round
             cortex.current_staking_round.total_stake =
                 math::checked_sub(cortex.current_staking_round.total_stake, stake.amount)?;
