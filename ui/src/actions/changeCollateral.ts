@@ -16,7 +16,7 @@ import {
   unwrapSolIfNeeded,
   wrapSolIfNeeded,
 } from "@/utils/transactionHelpers";
-import { BN } from "@project-serum/anchor";
+import { BN } from "@coral-xyz/anchor";
 import {
   getAssociatedTokenAddress,
   NATIVE_MINT,

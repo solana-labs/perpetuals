@@ -1,4 +1,4 @@
-import * as anchor from "@project-serum/anchor";
+import * as anchor from "@coral-xyz/anchor";
 import { TestClient } from "./test_client";
 import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import * as spl from "@solana/spl-token";

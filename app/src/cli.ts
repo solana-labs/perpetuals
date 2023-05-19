@@ -1,6 +1,6 @@
 /// Command-line interface for basic admin functions
 
-import { BN } from "@project-serum/anchor";
+import { BN } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 import { PerpetualsClient, PositionSide } from "./client";
 import { Command } from "commander";

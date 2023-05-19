@@ -3,7 +3,7 @@ import { PoolAccount } from "@/lib/PoolAccount";
 import { Pool } from "@/lib/types";
 import { getPerpetualProgramAndProvider } from "@/utils/constants";
 import { ViewHelper } from "@/utils/viewHelpers";
-import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pubkey";
+import { findProgramAddressSync } from "@coral-xyz/anchor/dist/cjs/utils/pubkey";
 import { getMint } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
 

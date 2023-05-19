@@ -6,7 +6,7 @@ import {
   workspace,
   utils,
   BN,
-} from "@project-serum/anchor";
+} from "@coral-xyz/anchor";
 import { Perpetuals } from "../../target/types/perpetuals";
 import {
   PublicKey,

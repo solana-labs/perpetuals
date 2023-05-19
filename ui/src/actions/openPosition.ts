@@ -17,8 +17,8 @@ import {
   wrapSolIfNeeded,
 } from "@/utils/transactionHelpers";
 import { ViewHelper } from "@/utils/viewHelpers";
-import { BN } from "@project-serum/anchor";
-import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pubkey";
+import { BN } from "@coral-xyz/anchor";
+import { findProgramAddressSync } from "@coral-xyz/anchor/dist/cjs/utils/pubkey";
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from "@solana/spl-token";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import {

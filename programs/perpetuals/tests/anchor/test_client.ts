@@ -1,4 +1,4 @@
-import * as anchor from "@project-serum/anchor";
+import * as anchor from "@coral-xyz/anchor";
 import { Perpetuals } from "../target/types/perpetuals";
 import {
   PublicKey,
