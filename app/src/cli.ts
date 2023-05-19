@@ -205,6 +205,7 @@ async function getRemoveLiquidityAmountAndFee(
 async function getEntryPriceAndFee(
   poolName: string,
   tokenMint: PublicKey,
+  collateralMint: PublicKey,
   collateral: BN,
   size: BN,
   side: PositionSide
@@ -213,6 +214,7 @@ async function getEntryPriceAndFee(
     await client.getEntryPriceAndFee(
       poolName,
       tokenMint,
+      collateralMint,
       collateral,
       size,
       side
@@ -252,6 +254,7 @@ async function getLiquidationPrice(
       wallet,
       poolName,
       tokenMint,
+      client.getCollateralCustodyMint(wallet, poolName, tokenMint, side),
       side,
       addCollateral,
       removeCollateral
@@ -266,7 +269,13 @@ async function getLiquidationState(
   side: PositionSide
 ) {
   client.prettyPrint(
-    await client.getLiquidationState(wallet, poolName, tokenMint, side)
+    await client.getLiquidationState(
+      wallet,
+      poolName,
+      tokenMint,
+      client.getCollateralCustodyMint(wallet, poolName, tokenMint, side),
+      side
+    )
   );
 }
 
@@ -276,7 +285,15 @@ async function getPnl(
   tokenMint: PublicKey,
   side: PositionSide
 ) {
-  client.prettyPrint(await client.getPnl(wallet, poolName, tokenMint, side));
+  client.prettyPrint(
+    await client.getPnl(
+      wallet,
+      poolName,
+      tokenMint,
+      client.getCollateralCustodyMint(wallet, poolName, tokenMint, side),
+      side
+    )
+  );
 }
 
 async function getSwapAmountAndFees(
@@ -397,13 +414,15 @@ async function getAum(poolName: string) {
     .argument("<string>", "Pool name")
     .argument("<pubkey>", "Token mint")
     .argument("<pubkey>", "Token oracle account")
-    .option("-s, --stablecoin", "Custody is for a stablecoin")
+    .option("-s, --stablecoin", "Stablecoin custody")
+    .option("-v, --virtual", "Virtual asset custody")
     .action(async (poolName, tokenMint, tokenOracle, options) => {
       await addCustody(
         poolName,
         new PublicKey(tokenMint),
         new PublicKey(tokenOracle),
-        options.stablecoin
+        options.stablecoin,
+        options.virtual
       );
     });
 
@@ -515,13 +534,15 @@ async function getAum(poolName: string) {
     .description("Compute price and fee to open a position")
     .argument("<string>", "Pool name")
     .argument("<pubkey>", "Token mint")
+    .argument("<pubkey>", "Collateral mint")
     .argument("<string>", "Position side (long / short)")
     .requiredOption("-c, --collateral <bigint>", "Collateral")
     .requiredOption("-s, --size <bigint>", "Size")
-    .action(async (poolName, tokenMint, side, options) => {
+    .action(async (poolName, tokenMint, collateralMint, side, options) => {
       await getEntryPriceAndFee(
         poolName,
         new PublicKey(tokenMint),
+        new PublicKey(collateralMint),
         new BN(options.collateral),
         new BN(options.size),
         side

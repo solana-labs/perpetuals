@@ -3,7 +3,7 @@ import { TestClient } from "./test_client";
 import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import * as spl from "@solana/spl-token";
 import { expect, assert } from "chai";
-import { BN } from "bn.js";
+import BN from "bn.js";
 
 describe("perpetuals", () => {
   let tc = new TestClient();
