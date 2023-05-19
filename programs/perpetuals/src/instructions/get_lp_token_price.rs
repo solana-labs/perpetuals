@@ -46,15 +46,15 @@ pub fn get_lp_token_price(
     ctx: Context<GetLpTokenPrice>,
     _params: &GetLpTokenPriceParams,
 ) -> Result<u64> {
-    let aum_usd = checked_as_f64(ctx.accounts.pool.get_assets_under_management_usd(
+    let aum_usd = ctx.accounts.pool.get_assets_under_management_usd(
         AumCalcMode::EMA,
         ctx.remaining_accounts,
         ctx.accounts.perpetuals.get_time()?,
-    )?)?;
+    )?;
 
     msg!("aum_usd: {}", aum_usd);
 
-    let lp_supply = checked_as_f64(ctx.accounts.lp_token_mint.supply)?;
+    let lp_supply = ctx.accounts.lp_token_mint.supply;
 
     msg!("lp_supply: {}", lp_supply);
 
@@ -62,7 +62,7 @@ pub fn get_lp_token_price(
         return Ok(0);
     }
 
-    let ui_price_usd = checked_float_div(aum_usd, lp_supply)?;
+    let ui_price_usd = checked_float_div(checked_as_f64(aum_usd)?, checked_as_f64(lp_supply)?)?;
 
     msg!("ui_price_usd: {}", ui_price_usd);
 
