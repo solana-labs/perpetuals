@@ -231,4 +231,11 @@ pub mod perpetuals {
     ) -> Result<u128> {
         instructions::get_assets_under_management(ctx, &params)
     }
+
+    pub fn get_lp_token_price(
+        ctx: Context<GetLpTokenPrice>,
+        params: GetLpTokenPriceParams,
+    ) -> Result<u64> {
+        instructions::get_lp_token_price(ctx, &params)
+    }
 }
