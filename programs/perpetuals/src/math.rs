@@ -353,6 +353,19 @@ where
     }
 }
 
+pub fn checked_as_f64<T>(arg: T) -> Result<f64>
+where
+    T: Display + num_traits::ToPrimitive + Clone,
+{
+    let option: Option<f64> = num_traits::NumCast::from(arg.clone());
+    if let Some(res) = option {
+        Ok(res)
+    } else {
+        msg!("Error: Overflow in {} as f64", arg);
+        err!(PerpetualsError::MathOverflow)
+    }
+}
+
 pub fn scale_to_exponent(arg: u64, exponent: i32, target_exponent: i32) -> Result<u64> {
     if target_exponent == exponent {
         return Ok(arg);
