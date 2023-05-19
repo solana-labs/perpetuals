@@ -419,6 +419,7 @@ impl Pool {
         Ok(available_amount >= amount)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn get_leverage(
         &self,
         position: &Position,
@@ -636,10 +637,11 @@ impl Pool {
 
             if potential_profit_usd >= unrealized_loss_usd {
                 let cur_profit_usd = math::checked_sub(potential_profit_usd, unrealized_loss_usd)?;
-                let max_profit_usd = if collateral_custody.is_virtual {
+                let max_profit_usd = if !collateral_custody.is_virtual {
                     min_collateral_price
                         .get_asset_amount_usd(position.locked_amount, collateral_custody.decimals)?
                 } else {
+                    // workaround for when called from get_assets_under_management_usd()
                     cur_profit_usd
                 };
                 Ok((
@@ -671,10 +673,11 @@ impl Pool {
             } else {
                 let cur_profit_usd =
                     math::checked_sub(position.unrealized_profit_usd, potential_loss_usd)?;
-                let max_profit_usd = if collateral_custody.is_virtual {
+                let max_profit_usd = if !collateral_custody.is_virtual {
                     min_collateral_price
                         .get_asset_amount_usd(position.locked_amount, collateral_custody.decimals)?
                 } else {
+                    // workaround for when called from get_assets_under_management_usd()
                     cur_profit_usd
                 };
                 Ok((
@@ -1225,48 +1228,201 @@ mod test {
         custody.assets.owned = 200_000;
         custody.borrow_rate.optimal_utilization = 500_000_000;
 
-        assert_eq!(0, pool.get_entry_fee(0, &custody).unwrap());
+        assert_eq!(
+            0,
+            pool.get_entry_fee(
+                custody.fees.open_position,
+                0,
+                custody.get_locked_amount(0).unwrap(),
+                &custody
+            )
+            .unwrap()
+        );
 
-        assert_eq!(1_000, pool.get_entry_fee(100_000, &custody).unwrap());
+        assert_eq!(
+            1_000,
+            pool.get_entry_fee(
+                custody.fees.open_position,
+                100_000,
+                custody.get_locked_amount(100_000).unwrap(),
+                &custody
+            )
+            .unwrap()
+        );
 
-        assert_eq!(3_000, pool.get_entry_fee(150_000, &custody).unwrap());
+        assert_eq!(
+            3_000,
+            pool.get_entry_fee(
+                custody.fees.open_position,
+                150_000,
+                custody.get_locked_amount(150_000).unwrap(),
+                &custody
+            )
+            .unwrap()
+        );
 
-        assert_eq!(6_000, pool.get_entry_fee(200_000, &custody).unwrap());
+        assert_eq!(
+            6_000,
+            pool.get_entry_fee(
+                custody.fees.open_position,
+                200_000,
+                custody.get_locked_amount(200_000).unwrap(),
+                &custody
+            )
+            .unwrap()
+        );
 
-        assert_eq!(9_000, pool.get_entry_fee(300_000, &custody).unwrap());
+        assert_eq!(
+            9_000,
+            pool.get_entry_fee(
+                custody.fees.open_position,
+                300_000,
+                custody.get_locked_amount(300_000).unwrap(),
+                &custody
+            )
+            .unwrap()
+        );
 
         custody.fees.utilization_mult = 10_000;
         custody.assets.owned = 200_000;
         custody.borrow_rate.optimal_utilization = 500_000_000;
 
-        assert_eq!(1_000, pool.get_entry_fee(100_000, &custody).unwrap());
+        assert_eq!(
+            1_000,
+            pool.get_entry_fee(
+                custody.fees.open_position,
+                100_000,
+                custody.get_locked_amount(100_000).unwrap(),
+                &custody
+            )
+            .unwrap()
+        );
 
-        assert_eq!(2_250, pool.get_entry_fee(150_000, &custody).unwrap());
+        assert_eq!(
+            2_250,
+            pool.get_entry_fee(
+                custody.fees.open_position,
+                150_000,
+                custody.get_locked_amount(150_000).unwrap(),
+                &custody
+            )
+            .unwrap()
+        );
 
-        assert_eq!(4_000, pool.get_entry_fee(200_000, &custody).unwrap());
+        assert_eq!(
+            4_000,
+            pool.get_entry_fee(
+                custody.fees.open_position,
+                200_000,
+                custody.get_locked_amount(200_000).unwrap(),
+                &custody
+            )
+            .unwrap()
+        );
 
-        assert_eq!(6_000, pool.get_entry_fee(300_000, &custody).unwrap());
+        assert_eq!(
+            6_000,
+            pool.get_entry_fee(
+                custody.fees.open_position,
+                300_000,
+                custody.get_locked_amount(300_000).unwrap(),
+                &custody
+            )
+            .unwrap()
+        );
 
         custody.fees.utilization_mult = 5_000;
 
-        assert_eq!(1_000, pool.get_entry_fee(100_000, &custody).unwrap());
+        assert_eq!(
+            1_000,
+            pool.get_entry_fee(
+                custody.fees.open_position,
+                100_000,
+                custody.get_locked_amount(100_000).unwrap(),
+                &custody
+            )
+            .unwrap()
+        );
 
-        assert_eq!(1_875, pool.get_entry_fee(150_000, &custody).unwrap());
+        assert_eq!(
+            1_875,
+            pool.get_entry_fee(
+                custody.fees.open_position,
+                150_000,
+                custody.get_locked_amount(150_000).unwrap(),
+                &custody
+            )
+            .unwrap()
+        );
 
-        assert_eq!(3_000, pool.get_entry_fee(200_000, &custody).unwrap());
+        assert_eq!(
+            3_000,
+            pool.get_entry_fee(
+                custody.fees.open_position,
+                200_000,
+                custody.get_locked_amount(200_000).unwrap(),
+                &custody
+            )
+            .unwrap()
+        );
 
-        assert_eq!(4_500, pool.get_entry_fee(300_000, &custody).unwrap());
+        assert_eq!(
+            4_500,
+            pool.get_entry_fee(
+                custody.fees.open_position,
+                300_000,
+                custody.get_locked_amount(300_000).unwrap(),
+                &custody
+            )
+            .unwrap()
+        );
 
         custody.fees.utilization_mult = 20_000;
         custody.borrow_rate.optimal_utilization = 1_000_000_000;
 
-        assert_eq!(1_000, pool.get_entry_fee(100_000, &custody).unwrap());
+        assert_eq!(
+            1_000,
+            pool.get_entry_fee(
+                custody.fees.open_position,
+                100_000,
+                custody.get_locked_amount(100_000).unwrap(),
+                &custody
+            )
+            .unwrap()
+        );
 
-        assert_eq!(1_500, pool.get_entry_fee(150_000, &custody).unwrap());
+        assert_eq!(
+            1_500,
+            pool.get_entry_fee(
+                custody.fees.open_position,
+                150_000,
+                custody.get_locked_amount(150_000).unwrap(),
+                &custody
+            )
+            .unwrap()
+        );
 
-        assert_eq!(2_000, pool.get_entry_fee(200_000, &custody).unwrap());
+        assert_eq!(
+            2_000,
+            pool.get_entry_fee(
+                custody.fees.open_position,
+                200_000,
+                custody.get_locked_amount(200_000).unwrap(),
+                &custody
+            )
+            .unwrap()
+        );
 
-        assert_eq!(3_000, pool.get_entry_fee(300_000, &custody).unwrap());
+        assert_eq!(
+            3_000,
+            pool.get_entry_fee(
+                custody.fees.open_position,
+                300_000,
+                custody.get_locked_amount(300_000).unwrap(),
+                &custody
+            )
+            .unwrap()
+        );
     }
 
     #[test]
@@ -1397,6 +1553,9 @@ mod test {
                 &token_price,
                 &token_ema_price,
                 &custody,
+                &token_price,
+                &token_ema_price,
+                &custody,
                 0,
                 false
             )
@@ -1409,6 +1568,9 @@ mod test {
             (0, scale_f64(2_559.055119, Perpetuals::USD_DECIMALS), 0),
             pool.get_pnl_usd(
                 &position,
+                &token_price,
+                &token_ema_price,
+                &custody,
                 &token_price,
                 &token_ema_price,
                 &custody,
@@ -1427,6 +1589,9 @@ mod test {
                 &token_price,
                 &token_ema_price,
                 &custody,
+                &token_price,
+                &token_ema_price,
+                &custody,
                 0,
                 false
             )
@@ -1436,59 +1601,122 @@ mod test {
 
     #[test]
     fn test_get_leverage() {
-        let (pool, custody, mut position, _token_price, token_ema_price) = get_fixture();
+        let (pool, custody, mut position, token_price, token_ema_price) = get_fixture();
 
         // default leverage
         assert_eq!(
-            scale_f64(3.9701, Perpetuals::BPS_DECIMALS),
-            pool.get_leverage(&position, &token_ema_price, &custody, 0)
-                .unwrap()
+            scale_f64(4.1666, Perpetuals::BPS_DECIMALS),
+            pool.get_leverage(
+                &position,
+                &token_price,
+                &token_ema_price,
+                &custody,
+                &token_price,
+                &token_ema_price,
+                &custody,
+                0
+            )
+            .unwrap()
         );
 
         // lower price should lower leverage for long position
         position.price = scale(20_000, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
-            scale_f64(1.9906, Perpetuals::BPS_DECIMALS),
-            pool.get_leverage(&position, &token_ema_price, &custody, 0)
-                .unwrap()
+            scale_f64(2.0512, Perpetuals::BPS_DECIMALS),
+            pool.get_leverage(
+                &position,
+                &token_price,
+                &token_ema_price,
+                &custody,
+                &token_price,
+                &token_ema_price,
+                &custody,
+                0
+            )
+            .unwrap()
         );
 
         position.price = scale(15_000, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
-            scale_f64(1.0871, Perpetuals::BPS_DECIMALS),
-            pool.get_leverage(&position, &token_ema_price, &custody, 0)
-                .unwrap()
+            scale_f64(1.1111, Perpetuals::BPS_DECIMALS),
+            pool.get_leverage(
+                &position,
+                &token_price,
+                &token_ema_price,
+                &custody,
+                &token_price,
+                &token_ema_price,
+                &custody,
+                0
+            )
+            .unwrap()
         );
 
         // higher price should increase leverage for long position
         position.price = scale(27_000, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
-            scale_f64(5.6285, Perpetuals::BPS_DECIMALS),
-            pool.get_leverage(&position, &token_ema_price, &custody, 0)
-                .unwrap()
+            scale_f64(6.0000, Perpetuals::BPS_DECIMALS),
+            pool.get_leverage(
+                &position,
+                &token_price,
+                &token_ema_price,
+                &custody,
+                &token_price,
+                &token_ema_price,
+                &custody,
+                0
+            )
+            .unwrap()
         );
 
         position.price = scale(32_000, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
-            scale_f64(30.5635, Perpetuals::BPS_DECIMALS),
-            pool.get_leverage(&position, &token_ema_price, &custody, 0)
-                .unwrap()
+            scale_f64(42.6666, Perpetuals::BPS_DECIMALS),
+            pool.get_leverage(
+                &position,
+                &token_price,
+                &token_ema_price,
+                &custody,
+                &token_price,
+                &token_ema_price,
+                &custody,
+                0
+            )
+            .unwrap()
         );
 
         // no price should return raw leverage
         position.price = scale(0, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale(4, Perpetuals::BPS_DECIMALS),
-            pool.get_leverage(&position, &token_ema_price, &custody, 0)
-                .unwrap()
+            pool.get_leverage(
+                &position,
+                &token_price,
+                &token_ema_price,
+                &custody,
+                &token_price,
+                &token_ema_price,
+                &custody,
+                0
+            )
+            .unwrap()
         );
 
         // leverage out of limit
         position.price = scale(40_000, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             u64::MAX,
-            pool.get_leverage(&position, &token_ema_price, &custody, 0)
-                .unwrap()
+            pool.get_leverage(
+                &position,
+                &token_price,
+                &token_ema_price,
+                &custody,
+                &token_price,
+                &token_ema_price,
+                &custody,
+                0
+            )
+            .unwrap()
         );
     }
 
@@ -1498,7 +1726,7 @@ mod test {
 
         assert_eq!(
             scale(21_250, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 0)
                 .unwrap()
         );
 
@@ -1506,14 +1734,14 @@ mod test {
         position.price = scale(24_500, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale(20_825, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 0)
                 .unwrap()
         );
 
         position.price = scale(20_000, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale(17_000, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 0)
                 .unwrap()
         );
 
@@ -1521,14 +1749,14 @@ mod test {
         position.price = scale(26_000, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale(22_100, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 0)
                 .unwrap()
         );
 
         position.price = scale(35_000, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale(29_750, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 0)
                 .unwrap()
         );
 
@@ -1536,7 +1764,7 @@ mod test {
         position.price = scale(0, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale_f64(0.0, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 0)
                 .unwrap()
         );
     }
@@ -1554,6 +1782,9 @@ mod test {
             ),
             pool.get_close_amount(
                 &position,
+                &token_price,
+                &token_ema_price,
+                &custody,
                 &token_price,
                 &token_ema_price,
                 &custody,

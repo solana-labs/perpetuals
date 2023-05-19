@@ -5,8 +5,11 @@ use {
         error::PerpetualsError,
         math,
         state::{
-            custody::Custody, oracle::OraclePrice, perpetuals::Perpetuals, pool::Pool,
-            position::Position,
+            custody::Custody,
+            oracle::OraclePrice,
+            perpetuals::Perpetuals,
+            pool::Pool,
+            position::{Position, Side},
         },
     },
     anchor_lang::prelude::*,
@@ -223,7 +226,10 @@ pub fn add_collateral(ctx: Context<AddCollateral>, params: &AddCollateralParams)
     collateral_custody.assets.protocol_fees =
         math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
 
-    custody.add_collateral(position.side, collateral_usd)?;
+    // if custody and collateral_custody accounts are the same, ensure that data is in sync
+    if position.side == Side::Long && !custody.is_virtual {
+        *custody = collateral_custody.clone();
+    }
 
     Ok(())
 }

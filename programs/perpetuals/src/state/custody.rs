@@ -299,6 +299,13 @@ impl Custody {
         Ok(())
     }
 
+    pub fn get_locked_amount(&self, size: u64) -> Result<u64> {
+        math::checked_as_u64(math::checked_div(
+            math::checked_mul(size as u128, self.pricing.max_payoff_mult as u128)?,
+            Perpetuals::BPS_POWER,
+        )?)
+    }
+
     pub fn get_interest_amount_usd(&self, position: &Position, curtime: i64) -> Result<u64> {
         if position.size_usd == 0 || self.is_virtual {
             return Ok(0);
@@ -408,7 +415,6 @@ impl Custody {
                     stats.total_quantity,
                 )?)?,
                 size_usd: stats.size_usd,
-                collateral_usd: stats.collateral_usd,
                 unrealized_loss_usd: stats.cumulative_interest_usd,
                 cumulative_interest_snapshot: stats.cumulative_interest_snapshot,
                 locked_amount: stats.locked_amount,
@@ -441,7 +447,6 @@ impl Custody {
         stats.cumulative_interest_snapshot = position.cumulative_interest_snapshot;
 
         stats.open_positions = math::checked_add(stats.open_positions, 1)?;
-        stats.collateral_usd = math::checked_add(stats.collateral_usd, position.collateral_usd)?;
         stats.size_usd = math::checked_add(stats.size_usd, position.size_usd)?;
         stats.locked_amount = math::checked_add(stats.locked_amount, position.locked_amount)?;
 
@@ -508,7 +513,6 @@ impl Custody {
         stats.cumulative_interest_snapshot = cumulative_interest_snapshot;
 
         stats.open_positions = math::checked_sub(stats.open_positions, 1)?;
-        stats.collateral_usd = math::checked_sub(stats.collateral_usd, position.collateral_usd)?;
         stats.size_usd = math::checked_sub(stats.size_usd, position.size_usd)?;
         stats.locked_amount = math::checked_sub(stats.locked_amount, position.locked_amount)?;
 
@@ -526,30 +530,6 @@ impl Custody {
             math::checked_mul(position.price as u128, quantity)?,
         )?;
         stats.total_quantity = math::checked_sub(stats.total_quantity, quantity)?;
-
-        Ok(())
-    }
-
-    pub fn add_collateral(&mut self, side: Side, collateral_usd: u64) -> Result<()> {
-        let stats = if side == Side::Long {
-            &mut self.long_positions
-        } else {
-            &mut self.short_positions
-        };
-
-        stats.collateral_usd = math::checked_add(stats.collateral_usd, collateral_usd)?;
-
-        Ok(())
-    }
-
-    pub fn remove_collateral(&mut self, side: Side, collateral_usd: u64) -> Result<()> {
-        let stats = if side == Side::Long {
-            &mut self.long_positions
-        } else {
-            &mut self.short_positions
-        };
-
-        stats.collateral_usd = math::checked_sub(stats.collateral_usd, collateral_usd)?;
 
         Ok(())
     }

@@ -217,11 +217,6 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
                 .get_asset_amount_usd(fee_amount, collateral_custody.decimals)?,
         );
 
-    custody.volume_stats.close_position_usd = custody
-        .volume_stats
-        .close_position_usd
-        .wrapping_add(position.size_usd);
-
     if transfer_amount > position.collateral_amount {
         let amount_lost = transfer_amount.saturating_sub(position.collateral_amount);
         collateral_custody.assets.owned =
@@ -238,23 +233,61 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     collateral_custody.assets.protocol_fees =
         math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
 
-    if position.side == Side::Long {
-        custody.trade_stats.oi_long_usd = custody
+    // if custody and collateral_custody accounts are the same, ensure that data is in sync
+    if position.side == Side::Long && !custody.is_virtual {
+        collateral_custody.volume_stats.close_position_usd = collateral_custody
+            .volume_stats
+            .close_position_usd
+            .wrapping_add(position.size_usd);
+
+        if position.side == Side::Long {
+            collateral_custody.trade_stats.oi_long_usd = collateral_custody
+                .trade_stats
+                .oi_long_usd
+                .saturating_sub(position.size_usd);
+        } else {
+            collateral_custody.trade_stats.oi_short_usd = collateral_custody
+                .trade_stats
+                .oi_short_usd
+                .saturating_sub(position.size_usd);
+        }
+
+        collateral_custody.trade_stats.profit_usd = collateral_custody
             .trade_stats
-            .oi_long_usd
-            .saturating_sub(position.size_usd);
+            .profit_usd
+            .wrapping_add(profit_usd);
+        collateral_custody.trade_stats.loss_usd = collateral_custody
+            .trade_stats
+            .loss_usd
+            .wrapping_add(loss_usd);
+
+        collateral_custody.remove_position(position, curtime)?;
+        collateral_custody.update_borrow_rate(curtime)?;
+        *custody = collateral_custody.clone();
     } else {
-        custody.trade_stats.oi_short_usd = custody
-            .trade_stats
-            .oi_short_usd
-            .saturating_sub(position.size_usd);
+        custody.volume_stats.close_position_usd = custody
+            .volume_stats
+            .close_position_usd
+            .wrapping_add(position.size_usd);
+
+        if position.side == Side::Long {
+            custody.trade_stats.oi_long_usd = custody
+                .trade_stats
+                .oi_long_usd
+                .saturating_sub(position.size_usd);
+        } else {
+            custody.trade_stats.oi_short_usd = custody
+                .trade_stats
+                .oi_short_usd
+                .saturating_sub(position.size_usd);
+        }
+
+        custody.trade_stats.profit_usd = custody.trade_stats.profit_usd.wrapping_add(profit_usd);
+        custody.trade_stats.loss_usd = custody.trade_stats.loss_usd.wrapping_add(loss_usd);
+
+        custody.remove_position(position, curtime)?;
+        collateral_custody.update_borrow_rate(curtime)?;
     }
-
-    custody.trade_stats.profit_usd = custody.trade_stats.profit_usd.wrapping_add(profit_usd);
-    custody.trade_stats.loss_usd = custody.trade_stats.loss_usd.wrapping_add(loss_usd);
-
-    custody.remove_position(position, curtime)?;
-    custody.update_borrow_rate(curtime)?;
 
     Ok(())
 }

@@ -134,6 +134,15 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     {
         return Err(ProgramError::InvalidArgument.into());
     }
+    if params.side == Side::Short || custody.is_virtual {
+        require_keys_neq!(custody.key(), collateral_custody.key());
+        require!(
+            collateral_custody.is_stable && !collateral_custody.is_virtual,
+            PerpetualsError::InvalidCollateralCustody
+        );
+    } else {
+        require_keys_eq!(custody.key(), collateral_custody.key());
+    };
     let position = ctx.accounts.position.as_mut();
     let pool = ctx.accounts.pool.as_mut();
 
@@ -208,26 +217,11 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         .get_asset_amount_usd(params.collateral, collateral_custody.decimals)?;
 
     let locked_amount = if params.side == Side::Short || custody.is_virtual {
-        require!(
-            collateral_custody.is_stable,
-            PerpetualsError::InvalidCollateralCustody
-        );
-
-        math::checked_as_u64(math::checked_div(
-            math::checked_mul(
-                min_collateral_price.get_token_amount(size_usd, collateral_custody.decimals)?
-                    as u128,
-                custody.pricing.max_payoff_mult as u128,
-            )?,
-            Perpetuals::BPS_POWER,
-        )?)?
+        custody.get_locked_amount(
+            min_collateral_price.get_token_amount(size_usd, collateral_custody.decimals)?,
+        )?
     } else {
-        require_keys_eq!(custody.key(), collateral_custody.key());
-
-        math::checked_as_u64(math::checked_div(
-            math::checked_mul(params.size as u128, custody.pricing.max_payoff_mult as u128)?,
-            Perpetuals::BPS_POWER,
-        )?)?
+        custody.get_locked_amount(params.size)?
     };
 
     // compute fee
@@ -311,11 +305,6 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
                 .get_asset_amount_usd(fee_amount, collateral_custody.decimals)?,
         );
 
-    custody.volume_stats.open_position_usd = custody
-        .volume_stats
-        .open_position_usd
-        .wrapping_add(size_usd);
-
     collateral_custody.assets.collateral =
         math::checked_add(collateral_custody.assets.collateral, params.collateral)?;
 
@@ -323,18 +312,41 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     collateral_custody.assets.protocol_fees =
         math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
 
-    if params.side == Side::Long {
-        custody.trade_stats.oi_long_usd =
-            math::checked_add(custody.trade_stats.oi_long_usd, size_usd)?;
+    // if custody and collateral_custody accounts are the same, ensure that data is in sync
+    if position.side == Side::Long && !custody.is_virtual {
+        collateral_custody.volume_stats.open_position_usd = collateral_custody
+            .volume_stats
+            .open_position_usd
+            .wrapping_add(size_usd);
+
+        if params.side == Side::Long {
+            collateral_custody.trade_stats.oi_long_usd =
+                math::checked_add(collateral_custody.trade_stats.oi_long_usd, size_usd)?;
+        } else {
+            collateral_custody.trade_stats.oi_short_usd =
+                math::checked_add(collateral_custody.trade_stats.oi_short_usd, size_usd)?;
+        }
+
+        collateral_custody.add_position(position, &token_ema_price, curtime)?;
+        collateral_custody.update_borrow_rate(curtime)?;
+        *custody = collateral_custody.clone();
     } else {
-        custody.trade_stats.oi_short_usd =
-            math::checked_add(custody.trade_stats.oi_short_usd, size_usd)?;
+        custody.volume_stats.open_position_usd = custody
+            .volume_stats
+            .open_position_usd
+            .wrapping_add(size_usd);
+
+        if params.side == Side::Long {
+            custody.trade_stats.oi_long_usd =
+                math::checked_add(custody.trade_stats.oi_long_usd, size_usd)?;
+        } else {
+            custody.trade_stats.oi_short_usd =
+                math::checked_add(custody.trade_stats.oi_short_usd, size_usd)?;
+        }
+
+        custody.add_position(position, &token_ema_price, curtime)?;
+        collateral_custody.update_borrow_rate(curtime)?;
     }
-
-    custody.add_position(position, &token_ema_price, curtime)?;
-    custody.update_borrow_rate(curtime)?;
-
-    assert!(custody.clone().into_inner() == collateral_custody.clone().into_inner());
 
     Ok(())
 }

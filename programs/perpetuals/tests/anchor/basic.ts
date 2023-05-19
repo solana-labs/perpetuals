@@ -477,6 +477,7 @@ describe("perpetuals", () => {
       owner: tc.users[0].wallet.publicKey.toBase58(),
       pool: tc.pool.publicKey.toBase58(),
       custody: tc.custodies[0].custody.toBase58(),
+      collateralCustody: tc.custodies[0].custody.toBase58(),
       openTime: "111",
       updateTime: "0",
       side: { long: {} },
