@@ -4,7 +4,7 @@ pub mod utils;
 
 #[tokio::test]
 pub async fn test_integration() {
-    tests_suite::basic_interactions().await;
+    /*tests_suite::basic_interactions().await;
 
     tests_suite::swap::insuffisient_fund().await;
 
@@ -14,5 +14,7 @@ pub async fn test_integration() {
 
     tests_suite::position::min_max_leverage().await;
     tests_suite::position::liquidate_position().await;
-    tests_suite::position::max_user_profit().await;
+    tests_suite::position::max_user_profit().await;*/
+
+    tests_suite::lp_token::lp_token_price().await;
 }

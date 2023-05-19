@@ -4,6 +4,7 @@ use {
     anchor_lang::{prelude::*, InstructionData},
     anchor_spl::token::spl_token,
     bonfida_test_utils::ProgramTestContextExt,
+    borsh::BorshDeserialize,
     perpetuals::{
         instructions::{
             AddCustodyParams, AddLiquidityParams, SetCustodyConfigParams, SetTestOraclePriceParams,
@@ -199,6 +200,52 @@ pub async fn create_and_fund_multiple_accounts(
         .for_each(|k| create_and_fund_account(&k.pubkey(), program_test));
 
     keypairs
+}
+
+pub async fn create_and_simulate_perpetuals_view_ix<T: InstructionData, U: BorshDeserialize>(
+    program_test_ctx: &mut ProgramTestContext,
+    accounts_meta: Vec<AccountMeta>,
+    args: T,
+    payer: &Keypair,
+) -> std::result::Result<U, BanksClientError> {
+    let ix = solana_sdk::instruction::Instruction {
+        program_id: perpetuals::id(),
+        accounts: accounts_meta,
+        data: args.data(),
+    };
+
+    let payer_pubkey = payer.pubkey();
+
+    let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&payer_pubkey),
+        &[payer],
+        program_test_ctx.last_blockhash,
+    );
+
+    let result = program_test_ctx.banks_client.simulate_transaction(tx).await;
+
+    if result.is_err() {
+        return Err(result.err().unwrap());
+    }
+
+    // Extract the returned data
+    let mut return_data: Vec<u8> = result
+        .unwrap()
+        .simulation_details
+        .unwrap()
+        .return_data
+        .unwrap()
+        .data;
+
+    let result_expected_len = std::mem::size_of::<U>();
+
+    // Returned data doesn't contains leading zeros, need to re-add them before deserialization
+    while return_data.len() < result_expected_len {
+        return_data.push(0u8);
+    }
+
+    Ok(U::try_from_slice(&mut return_data.as_slice()).unwrap())
 }
 
 pub async fn create_and_execute_perpetuals_ix<T: InstructionData, U: Signers>(

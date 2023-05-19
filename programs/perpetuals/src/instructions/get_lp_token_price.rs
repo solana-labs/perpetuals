@@ -1,8 +1,8 @@
-//! GetAssetsUnderManagement instruction handler
+//! GetLpTokenPrice instruction handler
 
 use {
     crate::{
-        math::{checked_as_f64, checked_as_u64, checked_div, checked_float_div, checked_powf},
+        math::{checked_as_f64, checked_float_div, to_token_amount},
         state::{
             perpetuals::Perpetuals,
             pool::{AumCalcMode, Pool},
@@ -10,6 +10,7 @@ use {
     },
     anchor_lang::prelude::*,
     anchor_spl::token::Mint,
+    num_traits::Zero,
 };
 
 #[derive(Accounts)]
@@ -51,17 +52,23 @@ pub fn get_lp_token_price(
         ctx.accounts.perpetuals.get_time()?,
     )?)?;
 
+    msg!("aum_usd: {}", aum_usd);
+
     let lp_supply = checked_as_f64(ctx.accounts.lp_token_mint.supply)?;
 
-    msg!("aum_usd: {}", aum_usd);
     msg!("lp_supply: {}", lp_supply);
+
+    if lp_supply.is_zero() {
+        return Ok(0);
+    }
 
     let ui_price_usd = checked_float_div(aum_usd, lp_supply)?;
 
     msg!("ui_price_usd: {}", ui_price_usd);
 
-    let price_usd =
-        checked_as_u64(checked_powf(ui_price_usd, Perpetuals::USD_DECIMALS.into())?.floor())?;
+    let price_usd = to_token_amount(ui_price_usd, Perpetuals::USD_DECIMALS.into())?;
+
+    msg!("price_usd: {}", price_usd);
 
     Ok(price_usd)
 }
