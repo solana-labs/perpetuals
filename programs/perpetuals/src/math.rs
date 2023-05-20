@@ -379,7 +379,10 @@ pub fn scale_to_exponent(arg: u64, exponent: i32, target_exponent: i32) -> Resul
 }
 
 pub fn to_ui_amount(amount: u64, decimals: u8) -> Result<f64> {
-    checked_float_div(amount as f64, checked_powi(10.0, decimals as i32)?)
+    checked_float_div(
+        checked_as_f64(amount)?,
+        checked_powi(10.0, decimals as i32)?,
+    )
 }
 
 pub fn to_token_amount(ui_amount: f64, decimals: u8) -> Result<u64> {

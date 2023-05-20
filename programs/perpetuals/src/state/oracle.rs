@@ -186,7 +186,10 @@ impl OraclePrice {
     }
 
     pub fn checked_as_f64(&self) -> Result<f64> {
-        math::checked_float_mul(self.price as f64, math::checked_powi(10.0, self.exponent)?)
+        math::checked_float_mul(
+            math::checked_as_f64(self.price)?,
+            math::checked_powi(10.0, self.exponent)?,
+        )
     }
 
     // private helpers
