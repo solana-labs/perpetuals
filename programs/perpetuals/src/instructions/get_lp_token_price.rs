@@ -66,7 +66,7 @@ pub fn get_lp_token_price(
 
     msg!("ui_price_usd: {}", ui_price_usd);
 
-    let price_usd = to_token_amount(ui_price_usd, Perpetuals::USD_DECIMALS.into())?;
+    let price_usd = to_token_amount(ui_price_usd, Perpetuals::USD_DECIMALS)?;
 
     msg!("price_usd: {}", price_usd);
 

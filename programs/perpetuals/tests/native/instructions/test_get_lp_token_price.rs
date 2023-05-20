@@ -60,7 +60,7 @@ pub async fn test_get_lp_token_price(
         perpetuals::instruction::GetLpTokenPrice {
             params: GetLpTokenPriceParams {},
         },
-        &payer,
+        payer,
     )
     .await?;
 

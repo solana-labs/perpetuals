@@ -245,7 +245,7 @@ pub async fn create_and_simulate_perpetuals_view_ix<T: InstructionData, U: Borsh
         return_data.push(0u8);
     }
 
-    Ok(U::try_from_slice(&mut return_data.as_slice()).unwrap())
+    Ok(U::try_from_slice(return_data.as_slice()).unwrap())
 }
 
 pub async fn create_and_execute_perpetuals_ix<T: InstructionData, U: Signers>(
