@@ -81,6 +81,13 @@ pub struct ClaimStake<'info> {
     )]
     pub lm_token_mint: Box<Account<'info, Mint>>,
 
+    #[account(
+        mut,
+        seeds = [b"governance_token_mint"],
+        bump = cortex.governance_token_bump
+    )]
+    pub governance_token_mint: Box<Account<'info, Mint>>,
+
     #[account()]
     pub stake_reward_token_mint: Box<Account<'info, Mint>>,
 
@@ -200,6 +207,7 @@ pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
             did_claim = false;
         }
     }
+
     msg!(
         "Cortex.resolved_staking_rounds after claim stake {:?}",
         cortex.resolved_staking_rounds

@@ -4,6 +4,7 @@
 
 pub mod adapters;
 pub mod error;
+pub mod governance;
 pub mod instructions;
 pub mod math;
 pub mod state;

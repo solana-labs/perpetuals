@@ -156,6 +156,29 @@ pub fn relinquish_vote<'a, 'b, 'c, 'info>(
     .map_err(Into::into)
 }
 
+pub fn revoke_governing_token<'a, 'b, 'c, 'info>(
+    ctx: CpiContext<'a, 'b, 'c, 'info, RevokeGoverningTokens<'info>>,
+    amount: u64,
+) -> Result<()> {
+    assert_governance_program_account(ctx.program.key)?;
+
+    let ix = spl_governance::instruction::revoke_governing_tokens(
+        &spl_governance_program_adapter::ID,
+        ctx.accounts.realm.key,
+        ctx.accounts.governing_token_owner.key,
+        ctx.accounts.governing_token_mint.key,
+        ctx.accounts.governing_token_mint_authority.key,
+        amount,
+    );
+
+    solana_program::program::invoke_signed(
+        &ix,
+        &ToAccountInfos::to_account_infos(&ctx),
+        ctx.signer_seeds,
+    )
+    .map_err(Into::into)
+}
+
 #[derive(Accounts)]
 pub struct SetGovernanceDelegate<'info> {
     /// CHECK: Handled by spl governance program
@@ -250,4 +273,25 @@ pub struct RelinquishVote<'info> {
     pub voter_token_owner_record: AccountInfo<'info>,
     /// CHECK: Handled by spl governance program
     pub governing_token_mint: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct RevokeGoverningTokens<'info> {
+    /// CHECK: Handled by spl governance program
+    pub realm: AccountInfo<'info>,
+    /// CHECK: Handled by spl governance program
+    pub governing_token_holding: AccountInfo<'info>,
+    /// CHECK: Handled by spl governance program
+    pub governing_token_owner_record: AccountInfo<'info>,
+    /// CHECK: Handled by spl governance program
+    pub governing_token_mint: AccountInfo<'info>,
+    /// CHECK: Handled by spl governance program - Can be either the mint or the owner
+    pub governing_token_revoke_authority: AccountInfo<'info>,
+    /// CHECK: Handled by spl governance program
+    pub realm_config: AccountInfo<'info>,
+
+    /// CHECK: Handled by spl governance program
+    pub governing_token_owner: AccountInfo<'info>,
+    /// CHECK: Handled by spl governance program
+    pub governing_token_mint_authority: AccountInfo<'info>,
 }

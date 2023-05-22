@@ -16,6 +16,7 @@ pub struct Cortex {
     pub vests: Vec<Pubkey>,
     pub bump: u8,
     pub lm_token_bump: u8,
+    pub governance_token_bump: u8,
     pub stake_token_account_bump: u8,
     pub stake_reward_token_account_bump: u8,
     pub inception_epoch: u64,
@@ -72,6 +73,7 @@ impl Cortex {
     const INCEPTION_EMISSION_RATE: u64 = Perpetuals::RATE_POWER as u64; // 100%
     pub const FEE_TO_REWARD_RATIO_BPS: u8 = 10; //  0.10% of fees paid become rewards
     pub const LM_DECIMALS: u8 = Perpetuals::USD_DECIMALS;
+    pub const GOVERNANCE_DECIMALS: u8 = Perpetuals::USD_DECIMALS;
     // a limit is needed to keep the Cortex size deterministic
     pub const MAX_ONGOING_VESTS: usize = 64;
     // lenght of our epoch relative to Solana epochs (1 Solana epoch is ~2-3 days)
@@ -155,9 +157,10 @@ mod test {
             vests: Vec::new(),
             bump: 255,
             lm_token_bump: 255,
-            inception_epoch: 0,
+            governance_token_bump: 255,
             stake_token_account_bump: 255,
             stake_reward_token_account_bump: 255,
+            inception_epoch: 0,
             governance_program: Pubkey::default(),
             governance_realm: Pubkey::default(),
             stake_reward_token_mint: Pubkey::default(),

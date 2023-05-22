@@ -1,7 +1,8 @@
 use {
     crate::{
-        adapters::{self, SplGovernanceV3Adapter},
+        adapters::SplGovernanceV3Adapter,
         error::PerpetualsError,
+        governance::remove_governing_power,
         state::{cortex::Cortex, perpetuals::Perpetuals, vest::Vest},
     },
     anchor_lang::prelude::*,
@@ -57,9 +58,28 @@ pub struct ClaimVest<'info> {
     #[account(
         mut,
         seeds = [b"lm_token_mint"],
-        bump
+        bump = cortex.lm_token_bump
     )]
     pub lm_token_mint: Box<Account<'info, Mint>>,
+
+    #[account(
+        mut,
+        seeds = [b"governance_token_mint"],
+        bump = cortex.governance_token_bump
+    )]
+    pub governance_token_mint: Box<Account<'info, Mint>>,
+
+    #[account(
+        mut,
+        seeds = [
+            b"vest_token_account",
+            vest.key().as_ref(),
+        ],
+        token::authority = transfer_authority,
+        token::mint = lm_token_mint,
+        bump = vest.vest_token_account_bump
+    )]
+    pub vest_token_account: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: checked by spl governance v3 program
     /// A realm represent one project (ADRENA, MANGO etc.) within the governance program
@@ -102,54 +122,55 @@ pub fn claim_vest<'info>(ctx: Context<'_, '_, '_, 'info, ClaimVest<'info>>) -> R
         );
     }
 
-    // Revoke vote delegation
+    // Transfer vested token to user account
     {
-        let owner_key = ctx.accounts.owner.key();
-        let vest_signer_seeds: &[&[u8]] = &[b"vest", owner_key.as_ref(), &[ctx.accounts.vest.bump]];
+        let perpetuals = ctx.accounts.perpetuals.as_ref();
 
-        let cpi_accounts = adapters::SetGovernanceDelegate {
-            realm: ctx.accounts.governance_realm.to_account_info(),
-            governance_authority: ctx.accounts.vest.to_account_info(),
-            governing_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
-            governing_token_owner: ctx.accounts.vest.to_account_info(),
-            governing_token_owner_record: ctx
-                .accounts
-                .governance_governing_token_owner_record
-                .to_account_info(),
-        };
-
-        let cpi_program = ctx.accounts.governance_program.to_account_info();
-
-        adapters::set_governance_delegate(
-            CpiContext::new(cpi_program, cpi_accounts).with_signer(&[vest_signer_seeds]),
+        perpetuals.transfer_tokens(
+            ctx.accounts.vest_token_account.to_account_info(),
+            ctx.accounts.receiving_account.to_account_info(),
+            ctx.accounts.transfer_authority.to_account_info(),
+            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.vest.amount,
         )?;
     }
 
-    // Withdraw tokens from governance directly to the vest owner token account
+    // Remove governing power from Vest account (and revoke delegation to owner)
     {
-        let owner_key = ctx.accounts.owner.key();
-        let vest_signer_seeds: &[&[u8]] = &[b"vest", owner_key.as_ref(), &[ctx.accounts.vest.bump]];
+        let authority_seeds: &[&[u8]] = &[
+            b"transfer_authority",
+            &[ctx.accounts.perpetuals.transfer_authority_bump],
+        ];
+        let vest_seeds: &[&[u8]] = &[
+            b"vest",
+            ctx.accounts.owner.key.as_ref(),
+            &[ctx.accounts.vest.bump],
+        ];
 
-        let cpi_accounts = adapters::WithdrawGoverningTokens {
-            realm: ctx.accounts.governance_realm.to_account_info(),
-            realm_config: ctx.accounts.governance_realm_config.to_account_info(),
-            governing_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
-            governing_token_destination: ctx.accounts.receiving_account.to_account_info(),
-            governing_token_owner: ctx.accounts.vest.to_account_info(),
-            governing_token_holding: ctx
-                .accounts
-                .governance_governing_token_holding
-                .to_account_info(),
-            governing_token_owner_record: ctx
-                .accounts
+        let amount = ctx.accounts.vest.amount;
+        let owner = &ctx.accounts.owner;
+        msg!(
+            "Governance - Burn {} governing token to Vest account, and revoke them from the owner: {}",
+            amount,
+            owner.key
+        );
+        remove_governing_power(
+            ctx.accounts.transfer_authority.to_account_info(),
+            ctx.accounts.vest.to_account_info(),
+            ctx.accounts
                 .governance_governing_token_owner_record
                 .to_account_info(),
-        };
-
-        let cpi_program = ctx.accounts.governance_program.to_account_info();
-
-        adapters::withdraw_governing_tokens(
-            CpiContext::new(cpi_program, cpi_accounts).with_signer(&[vest_signer_seeds]),
+            ctx.accounts.governance_token_mint.to_account_info(),
+            ctx.accounts.governance_realm.to_account_info(),
+            ctx.accounts.governance_realm_config.to_account_info(),
+            ctx.accounts
+                .governance_governing_token_holding
+                .to_account_info(),
+            ctx.accounts.governance_program.to_account_info(),
+            authority_seeds,
+            vest_seeds,
+            amount,
+            owner.to_account_info(),
         )?;
     }
 

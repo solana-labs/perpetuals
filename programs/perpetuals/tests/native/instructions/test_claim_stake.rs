@@ -12,6 +12,7 @@ pub async fn test_claim_stake(
     caller: &Keypair,
     owner: &Keypair,
     payer: &Keypair,
+    governance_realm_pda: &Pubkey,
     stake_reward_token_mint: &Pubkey,
 ) -> std::result::Result<(), BanksClientError> {
     // ==== GIVEN =============================================================
@@ -21,6 +22,7 @@ pub async fn test_claim_stake(
     let cortex_pda = pda::get_cortex_pda().0;
     let stake_reward_token_account_pda = pda::get_stake_reward_token_account_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+    let governance_token_mint_pda = pda::get_governance_token_mint_pda().0;
 
     let owner_lm_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), &lm_token_mint_pda).0;
@@ -29,11 +31,23 @@ pub async fn test_claim_stake(
     let caller_stake_reward_token_account_address =
         utils::find_associated_token_account(&caller.pubkey(), &stake_reward_token_mint).0;
 
+    let governance_governing_token_holding_pda = pda::get_governance_governing_token_holding_pda(
+        governance_realm_pda,
+        &governance_token_mint_pda,
+    );
+
     // // ==== WHEN ==============================================================
     // Note: skip the test if there is no stake account
     if let Some(stake_account_before) =
         utils::try_get_account::<Stake>(program_test_ctx, stake_pda).await
     {
+        // Before state
+        let governance_governing_token_holding_balance_before = utils::get_token_account_balance(
+            program_test_ctx,
+            governance_governing_token_holding_pda,
+        )
+        .await;
+
         let owner_lm_token_account_before = program_test_ctx
             .get_token_account(owner_lm_token_account_address)
             .await
@@ -52,6 +66,7 @@ pub async fn test_claim_stake(
                 cortex: cortex_pda,
                 perpetuals: perpetuals_pda,
                 lm_token_mint: lm_token_mint_pda,
+                governance_token_mint: governance_token_mint_pda,
                 stake_reward_token_mint: *stake_reward_token_mint,
                 system_program: anchor_lang::system_program::ID,
                 token_program: anchor_spl::token::ID,
@@ -83,6 +98,21 @@ pub async fn test_claim_stake(
                 utils::get_account::<Stake>(program_test_ctx, stake_pda).await;
             assert_eq!(stake_account_after.amount, stake_account_before.amount);
             assert_eq!(stake_account_after.bump, stake_bump);
+        }
+
+        // Check governance accounts (didn't change)
+        {
+            let governance_governing_token_holding_balance_after =
+                utils::get_token_account_balance(
+                    program_test_ctx,
+                    governance_governing_token_holding_pda,
+                )
+                .await;
+
+            assert_eq!(
+                governance_governing_token_holding_balance_before,
+                governance_governing_token_holding_balance_after
+            );
         }
     }
     Ok(())
