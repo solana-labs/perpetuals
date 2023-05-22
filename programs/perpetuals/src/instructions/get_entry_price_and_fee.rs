@@ -1,15 +1,12 @@
 //! GetEntryPriceAndFee instruction handler
 
 use {
-    crate::{
-        math,
-        state::{
-            custody::Custody,
-            oracle::OraclePrice,
-            perpetuals::{NewPositionPricesAndFee, Perpetuals},
-            pool::Pool,
-            position::{Position, Side},
-        },
+    crate::state::{
+        custody::Custody,
+        oracle::OraclePrice,
+        perpetuals::{NewPositionPricesAndFee, Perpetuals},
+        pool::Pool,
+        position::{Position, Side},
     },
     anchor_lang::prelude::*,
     solana_program::program_error::ProgramError,
@@ -119,11 +116,8 @@ pub fn get_entry_price_and_fee(
         collateral_custody.pricing.use_ema,
     )?;
 
-    let min_collateral_price = if collateral_token_price < collateral_token_ema_price {
-        collateral_token_price
-    } else {
-        collateral_token_ema_price
-    };
+    let min_collateral_price = collateral_token_price
+        .get_min_price(&collateral_token_ema_price, collateral_custody.is_stable)?;
 
     let entry_price = pool.get_entry_price(&token_price, &token_ema_price, params.side, custody)?;
 
@@ -132,19 +126,11 @@ pub fn get_entry_price_and_fee(
         .get_asset_amount_usd(params.collateral, collateral_custody.decimals)?;
 
     let locked_amount = if params.side == Side::Short || custody.is_virtual {
-        math::checked_as_u64(math::checked_div(
-            math::checked_mul(
-                min_collateral_price.get_token_amount(size_usd, collateral_custody.decimals)?
-                    as u128,
-                custody.pricing.max_payoff_mult as u128,
-            )?,
-            Perpetuals::BPS_POWER,
-        )?)?
+        custody.get_locked_amount(
+            min_collateral_price.get_token_amount(size_usd, collateral_custody.decimals)?,
+        )?
     } else {
-        math::checked_as_u64(math::checked_div(
-            math::checked_mul(params.size as u128, custody.pricing.max_payoff_mult as u128)?,
-            Perpetuals::BPS_POWER,
-        )?)?
+        custody.get_locked_amount(params.size)?
     };
 
     let position = Position {

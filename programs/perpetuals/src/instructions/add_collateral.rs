@@ -152,11 +152,8 @@ pub fn add_collateral(ctx: Context<AddCollateral>, params: &AddCollateralParams)
         collateral_custody.pricing.use_ema,
     )?;
 
-    let min_collateral_price = if collateral_token_price < collateral_token_ema_price {
-        collateral_token_price
-    } else {
-        collateral_token_ema_price
-    };
+    let min_collateral_price = collateral_token_price
+        .get_min_price(&collateral_token_ema_price, collateral_custody.is_stable)?;
 
     // compute fee
     let fee_amount = pool.get_add_liquidity_fee(

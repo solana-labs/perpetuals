@@ -195,6 +195,33 @@ impl OraclePrice {
         math::checked_float_mul(self.price as f64, math::checked_powi(10.0, self.exponent)?)
     }
 
+    pub fn get_min_price(&self, other: &OraclePrice, is_stable: bool) -> Result<OraclePrice> {
+        let min_price = if self < other { self } else { other };
+        if is_stable {
+            if min_price.exponent > 0 {
+                if min_price.price == 0 {
+                    return Ok(*min_price);
+                } else {
+                    return Ok(OraclePrice {
+                        price: 1000000u64,
+                        exponent: -6,
+                    });
+                }
+            }
+            let one_usd = math::checked_pow(10u64, (-min_price.exponent) as usize)?;
+            if min_price.price > one_usd {
+                Ok(OraclePrice {
+                    price: one_usd,
+                    exponent: min_price.exponent,
+                })
+            } else {
+                Ok(*min_price)
+            }
+        } else {
+            Ok(*min_price)
+        }
+    }
+
     // private helpers
     fn get_test_price(
         test_price_info: &AccountInfo,

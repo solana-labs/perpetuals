@@ -187,11 +187,8 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         collateral_custody.pricing.use_ema,
     )?;
 
-    let min_collateral_price = if collateral_token_price < collateral_token_ema_price {
-        collateral_token_price
-    } else {
-        collateral_token_ema_price
-    };
+    let min_collateral_price = collateral_token_price
+        .get_min_price(&collateral_token_ema_price, collateral_custody.is_stable)?;
 
     let position_price =
         pool.get_entry_price(&token_price, &token_ema_price, params.side, custody)?;
@@ -327,7 +324,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
                 math::checked_add(collateral_custody.trade_stats.oi_short_usd, size_usd)?;
         }
 
-        collateral_custody.add_position(position, &token_ema_price, curtime)?;
+        collateral_custody.add_position(position, &token_ema_price, curtime, None)?;
         collateral_custody.update_borrow_rate(curtime)?;
         *custody = collateral_custody.clone();
     } else {
@@ -344,7 +341,12 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
                 math::checked_add(custody.trade_stats.oi_short_usd, size_usd)?;
         }
 
-        custody.add_position(position, &token_ema_price, curtime)?;
+        custody.add_position(
+            position,
+            &token_ema_price,
+            curtime,
+            Some(collateral_custody),
+        )?;
         collateral_custody.update_borrow_rate(curtime)?;
     }
 

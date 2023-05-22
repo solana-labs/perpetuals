@@ -259,9 +259,8 @@ impl Custody {
     }
 
     pub fn lock_funds(&mut self, amount: u64) -> Result<()> {
-        if self.is_virtual {
-            return Ok(());
-        }
+        require!(!self.is_virtual, PerpetualsError::InvalidCollateralCustody);
+
         self.assets.locked = math::checked_add(self.assets.locked, amount)?;
 
         // check for max utilization
@@ -287,9 +286,8 @@ impl Custody {
     }
 
     pub fn unlock_funds(&mut self, amount: u64) -> Result<()> {
-        if self.is_virtual {
-            return Ok(());
-        }
+        require!(!self.is_virtual, PerpetualsError::InvalidCollateralCustody);
+
         if amount > self.assets.locked {
             self.assets.locked = 0;
         } else {
@@ -430,6 +428,7 @@ impl Custody {
         position: &Position,
         token_price: &OraclePrice,
         curtime: i64,
+        collateral_custody: Option<&mut Custody>,
     ) -> Result<()> {
         // compute accumulated interest
         let collective_position = self.get_collective_position(position.side)?;
@@ -483,10 +482,31 @@ impl Custody {
             );
         }
 
+        // update collateral custody for interest tracking
+        if let Some(custody) = collateral_custody {
+            let stats = if position.side == Side::Long {
+                &mut custody.long_positions
+            } else {
+                &mut custody.short_positions
+            };
+
+            stats.cumulative_interest_usd =
+                math::checked_add(stats.cumulative_interest_usd, interest_usd)?;
+            stats.cumulative_interest_snapshot = position.cumulative_interest_snapshot;
+
+            stats.open_positions = math::checked_add(stats.open_positions, 1)?;
+            stats.size_usd = math::checked_add(stats.size_usd, position.size_usd)?;
+        }
+
         Ok(())
     }
 
-    pub fn remove_position(&mut self, position: &Position, curtime: i64) -> Result<()> {
+    pub fn remove_position(
+        &mut self,
+        position: &Position,
+        curtime: i64,
+        collateral_custody: Option<&mut Custody>,
+    ) -> Result<()> {
         // compute accumulated interest
         let collective_position = self.get_collective_position(position.side)?;
         let interest_usd = self.get_interest_amount_usd(&collective_position, curtime)?;
@@ -530,6 +550,30 @@ impl Custody {
             math::checked_mul(position.price as u128, quantity)?,
         )?;
         stats.total_quantity = math::checked_sub(stats.total_quantity, quantity)?;
+
+        // update collateral custody for interest tracking
+        if let Some(custody) = collateral_custody {
+            let stats = if position.side == Side::Long {
+                &mut custody.long_positions
+            } else {
+                &mut custody.short_positions
+            };
+
+            if stats.open_positions == 1 {
+                *stats = PositionStats::default();
+                return Ok(());
+            }
+
+            stats.cumulative_interest_usd =
+                math::checked_add(stats.cumulative_interest_usd, interest_usd)?;
+            stats.cumulative_interest_usd = stats
+                .cumulative_interest_usd
+                .saturating_sub(position_interest_usd);
+            stats.cumulative_interest_snapshot = cumulative_interest_snapshot;
+
+            stats.open_positions = math::checked_sub(stats.open_positions, 1)?;
+            stats.size_usd = math::checked_sub(stats.size_usd, position.size_usd)?;
+        }
 
         Ok(())
     }
