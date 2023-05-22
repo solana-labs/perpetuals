@@ -48,7 +48,7 @@ pub async fn test_add_stake(
         pda::get_governance_governing_token_owner_record_pda(
             governance_realm_pda,
             &governance_token_mint_pda,
-            &stake_pda,
+            &owner.pubkey(),
         );
 
     // // ==== WHEN ==============================================================

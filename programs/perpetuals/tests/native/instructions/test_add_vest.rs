@@ -45,7 +45,7 @@ pub async fn test_add_vest(
         pda::get_governance_governing_token_owner_record_pda(
             governance_realm_pda,
             &governance_token_mint_pda,
-            &vest_pda,
+            &owner.pubkey(),
         );
 
     let multisig_account = utils::get_account::<Multisig>(program_test_ctx, multisig_pda).await;

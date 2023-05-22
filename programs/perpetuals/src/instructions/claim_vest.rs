@@ -2,7 +2,6 @@ use {
     crate::{
         adapters::SplGovernanceV3Adapter,
         error::PerpetualsError,
-        governance::remove_governing_power,
         state::{cortex::Cortex, perpetuals::Perpetuals, vest::Vest},
     },
     anchor_lang::prelude::*,
@@ -135,28 +134,12 @@ pub fn claim_vest<'info>(ctx: Context<'_, '_, '_, 'info, ClaimVest<'info>>) -> R
         )?;
     }
 
-    // Remove governing power from Vest account (and revoke delegation to owner)
+    // Revoke 1:1 governing power to the Vest owner
     {
-        let authority_seeds: &[&[u8]] = &[
-            b"transfer_authority",
-            &[ctx.accounts.perpetuals.transfer_authority_bump],
-        ];
-        let vest_seeds: &[&[u8]] = &[
-            b"vest",
-            ctx.accounts.owner.key.as_ref(),
-            &[ctx.accounts.vest.bump],
-        ];
-
-        let amount = ctx.accounts.vest.amount;
-        let owner = &ctx.accounts.owner;
-        msg!(
-            "Governance - Burn {} governing token to Vest account, and revoke them from the owner: {}",
-            amount,
-            owner.key
-        );
-        remove_governing_power(
+        let perpetuals = ctx.accounts.perpetuals.as_mut();
+        perpetuals.remove_governing_power(
             ctx.accounts.transfer_authority.to_account_info(),
-            ctx.accounts.vest.to_account_info(),
+            ctx.accounts.owner.to_account_info(),
             ctx.accounts
                 .governance_governing_token_owner_record
                 .to_account_info(),
@@ -167,10 +150,7 @@ pub fn claim_vest<'info>(ctx: Context<'_, '_, '_, 'info, ClaimVest<'info>>) -> R
                 .governance_governing_token_holding
                 .to_account_info(),
             ctx.accounts.governance_program.to_account_info(),
-            authority_seeds,
-            vest_seeds,
-            amount,
-            owner.to_account_info(),
+            ctx.accounts.vest.amount,
         )?;
     }
 

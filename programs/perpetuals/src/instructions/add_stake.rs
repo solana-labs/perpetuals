@@ -3,7 +3,6 @@
 use {
     crate::{
         adapters::SplGovernanceV3Adapter,
-        governance::add_governing_power,
         math, program,
         state::{cortex::Cortex, perpetuals::Perpetuals, stake::Stake},
     },
@@ -189,29 +188,13 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
         )?;
     }
 
-    // Add governing power to Stakes account and delegate to Owner
+    // Give 1:1 (until multipliers TODO) governing power to the Stake owner
     {
-        let authority_seeds: &[&[u8]] = &[
-            b"transfer_authority",
-            &[ctx.accounts.perpetuals.transfer_authority_bump],
-        ];
-        let stake_seeds: &[&[u8]] = &[
-            b"stake",
-            ctx.accounts.owner.key.as_ref(),
-            &[ctx.accounts.stake.bump],
-        ];
-
-        let amount = params.amount;
-        let owner = &ctx.accounts.owner;
-        msg!(
-            "Governance - Mint {} governing token to Stake account, and delegate them to the owner: {}",
-            amount,
-            owner.key
-        );
-        add_governing_power(
+        let perpetuals = ctx.accounts.perpetuals.as_mut();
+        perpetuals.add_governing_power(
             ctx.accounts.transfer_authority.to_account_info(),
             ctx.accounts.owner.to_account_info(),
-            ctx.accounts.stake.to_account_info(),
+            ctx.accounts.owner.to_account_info(),
             ctx.accounts
                 .governance_governing_token_owner_record
                 .to_account_info(),
@@ -222,10 +205,7 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
                 .governance_governing_token_holding
                 .to_account_info(),
             ctx.accounts.governance_program.to_account_info(),
-            authority_seeds,
-            stake_seeds,
-            amount, // Todo - change this when multipliers are implemented
-            owner.to_account_info(),
+            params.amount,
         )?;
     }
 

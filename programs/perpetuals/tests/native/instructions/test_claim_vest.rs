@@ -38,7 +38,7 @@ pub async fn test_claim_vest(
         pda::get_governance_governing_token_owner_record_pda(
             governance_realm_pda,
             &governance_token_mint_pda,
-            &vest_pda,
+            &owner.pubkey(),
         );
 
     // Save account state before tx execution

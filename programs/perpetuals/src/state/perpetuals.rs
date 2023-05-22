@@ -1,7 +1,10 @@
 use {
-    crate::instructions::SwapParams,
+    crate::{adapters, instructions::SwapParams},
     anchor_lang::prelude::*,
     anchor_spl::token::{Burn, MintTo, Transfer},
+    solana_program::account_info::AccountInfo,
+    spl_governance::state::token_owner_record::get_token_owner_record_data_for_realm_and_governing_mint,
+    std::cmp::min,
 };
 
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
@@ -316,5 +319,126 @@ impl Perpetuals {
             .with_signer(authority_seeds);
 
         crate::cpi::swap(cpi_context, params)
+    }
+
+    /// The governance is managed through the program only.
+    /// On behalf of users, the program manages their voting power (through Vest and Stake they own).
+    /// Depending of the lm_token contained in these accounts and of their voting multiplier, if any, the
+    /// program mint new governance token that are own by said Stake/Vest accounts and their voting power are
+    /// delegated to the owner (the end user).
+    /// This allow flexible voting power with multiplier, decorrelated from the actual lm_token amount held in these
+    /// accounts.
+    /// Furthermore, this enforces that the governance token is soulbound to a user, non tradable.
+    ///
+    /// Updated: Governance is setup with Membership, which allow us to set the owner as the final owner and
+    /// avoid delegation of vote (simplify things).
+    /// Owner can auto revoke at worse, and to hedge against this we always revoke the min amount between
+    /// user voting power and our initial revoke target.
+    pub fn remove_governing_power<'a>(
+        &self,
+        transfer_authority: AccountInfo<'a>,
+        // the owner of the voting power that will be delegated. (a PDA like Vest or Stake)
+        governing_token_owner: AccountInfo<'a>,
+        governing_token_owner_record: AccountInfo<'a>,
+        // mint of the shadow governance token (will burn)
+        governance_token_mint: AccountInfo<'a>,
+        realm: AccountInfo<'a>,
+        realm_config: AccountInfo<'a>,
+        governing_token_holding: AccountInfo<'a>,
+        governance_program: AccountInfo<'a>,
+        amount: u64,
+    ) -> Result<()> {
+        let token_owner_record_data = get_token_owner_record_data_for_realm_and_governing_mint(
+            governance_program.key,
+            governing_token_owner_record.to_account_info().as_ref(),
+            realm.key,
+            governance_token_mint.key,
+        )?;
+
+        // Calculate the min amount between target revocation and the amount held by user. This is to prevent issues
+        // in the scenario where the user self revoke some token (which is possible through the gov)
+        let revoke_amount = min(
+            amount,
+            token_owner_record_data.governing_token_deposit_amount,
+        );
+        msg!(
+            "Governance - Revoke {} (target: {}) governing power from the owner: {}",
+            revoke_amount,
+            amount,
+            governing_token_owner.key
+        );
+
+        // Revoke tokens (the owner (vest or stake) get burnt the revoked amount of token)
+        {
+            let authority_seeds: &[&[&[u8]]] =
+                &[&[b"transfer_authority", &[self.transfer_authority_bump]]];
+
+            let cpi_accounts = adapters::RevokeGoverningTokens {
+                realm: realm.to_account_info(),
+                governing_token_holding,
+                governing_token_owner_record: governing_token_owner_record.to_account_info(),
+                governing_token_mint: governance_token_mint.to_account_info(),
+                governing_token_revoke_authority: transfer_authority.to_account_info(),
+                realm_config,
+                governing_token_owner: governing_token_owner.to_account_info(),
+                governing_token_mint_authority: transfer_authority.to_account_info(),
+            };
+
+            let cpi_program = governance_program.to_account_info();
+
+            adapters::revoke_governing_token(
+                CpiContext::new(cpi_program, cpi_accounts).with_signer(authority_seeds),
+                revoke_amount,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    pub fn add_governing_power<'a>(
+        &self,
+        transfer_authority: AccountInfo<'a>,
+        payer: AccountInfo<'a>,
+        governing_token_owner: AccountInfo<'a>,
+        governing_token_owner_record: AccountInfo<'a>,
+        // mint of the shadow governance token (will mint)
+        governance_token_mint: AccountInfo<'a>,
+        realm: AccountInfo<'a>,
+        realm_config: AccountInfo<'a>,
+        governing_token_holding: AccountInfo<'a>,
+        governance_program: AccountInfo<'a>,
+        amount: u64,
+    ) -> Result<()> {
+        msg!(
+            "Governance - Mint {} governing power to the owner: {}",
+            amount,
+            governing_token_owner.key
+        );
+        // Mint tokens in governance for the owner
+        {
+            let authority_seeds: &[&[&[u8]]] =
+                &[&[b"transfer_authority", &[self.transfer_authority_bump]]];
+
+            let cpi_accounts = adapters::DepositGoverningTokens {
+                realm: realm.to_account_info(),
+                governing_token_mint: governance_token_mint.to_account_info(),
+                governing_token_source: governance_token_mint.to_account_info(),
+                governing_token_owner: governing_token_owner.to_account_info(),
+                governing_token_transfer_authority: transfer_authority,
+                payer,
+                realm_config,
+                governing_token_holding,
+                governing_token_owner_record: governing_token_owner_record.to_account_info(),
+            };
+
+            let cpi_program = governance_program.to_account_info();
+
+            adapters::deposit_governing_tokens(
+                CpiContext::new(cpi_program, cpi_accounts).with_signer(authority_seeds),
+                amount,
+            )?;
+        }
+
+        Ok(())
     }
 }

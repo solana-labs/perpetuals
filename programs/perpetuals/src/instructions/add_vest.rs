@@ -4,7 +4,6 @@ use {
     crate::{
         adapters::SplGovernanceV3Adapter,
         error::PerpetualsError,
-        governance::add_governing_power,
         state::{
             cortex::Cortex,
             multisig::{AdminInstruction, Multisig},
@@ -203,29 +202,13 @@ pub fn add_vest<'info>(
         cortex.vests.push(ctx.accounts.vest.key());
     }
 
-    // Add governing power to Vest account and delegate to Owner
+    // Give 1:1 governing power to the Vest owner
     {
-        let authority_seeds: &[&[u8]] = &[
-            b"transfer_authority",
-            &[ctx.accounts.perpetuals.transfer_authority_bump],
-        ];
-        let vest_seeds: &[&[u8]] = &[
-            b"vest",
-            ctx.accounts.owner.key.as_ref(),
-            &[ctx.accounts.vest.bump],
-        ];
-
-        let amount = ctx.accounts.vest.amount;
-        let owner = &ctx.accounts.owner;
-        msg!(
-            "Governance - Mint {} governing token to Vest account, and delegate them to the owner: {}",
-            amount,
-            owner.key
-        );
-        add_governing_power(
+        let perpetuals = ctx.accounts.perpetuals.as_mut();
+        perpetuals.add_governing_power(
             ctx.accounts.transfer_authority.to_account_info(),
             ctx.accounts.payer.to_account_info(),
-            ctx.accounts.vest.to_account_info(),
+            ctx.accounts.owner.to_account_info(),
             ctx.accounts
                 .governance_governing_token_owner_record
                 .to_account_info(),
@@ -236,10 +219,7 @@ pub fn add_vest<'info>(
                 .governance_governing_token_holding
                 .to_account_info(),
             ctx.accounts.governance_program.to_account_info(),
-            authority_seeds,
-            vest_seeds,
-            amount,
-            owner.to_account_info(),
+            ctx.accounts.vest.amount,
         )?;
     }
 

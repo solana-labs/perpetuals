@@ -4,7 +4,6 @@ use {
     crate::{
         adapters::SplGovernanceV3Adapter,
         error::PerpetualsError,
-        governance::remove_governing_power,
         math, program,
         state::{cortex::Cortex, perpetuals::Perpetuals, stake::Stake},
     },
@@ -180,28 +179,13 @@ pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Re
         )?;
     }
 
-    // Remove governing power from Stake account (and revoke delegation to owner)
+    // Revoke 1:1 (until multipliers TODO) governing power to the Stake owner
     {
-        let authority_seeds: &[&[u8]] = &[
-            b"transfer_authority",
-            &[ctx.accounts.perpetuals.transfer_authority_bump],
-        ];
-        let stake_seeds: &[&[u8]] = &[
-            b"stake",
-            ctx.accounts.owner.key.as_ref(),
-            &[ctx.accounts.stake.bump],
-        ];
+        let perpetuals = ctx.accounts.perpetuals.as_mut();
 
-        let amount = params.amount;
-        let owner = &ctx.accounts.owner;
-        msg!(
-            "Governance - Revoke {} governing power from the owner: {}",
-            amount,
-            owner.key
-        );
-        remove_governing_power(
+        perpetuals.remove_governing_power(
             ctx.accounts.transfer_authority.to_account_info(),
-            ctx.accounts.stake.to_account_info(),
+            ctx.accounts.owner.to_account_info(),
             ctx.accounts
                 .governance_governing_token_owner_record
                 .to_account_info(),
@@ -212,10 +196,7 @@ pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Re
                 .governance_governing_token_holding
                 .to_account_info(),
             ctx.accounts.governance_program.to_account_info(),
-            authority_seeds,
-            stake_seeds,
             params.amount,
-            owner.to_account_info(),
         )?;
     }
 
