@@ -340,22 +340,24 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
         no_fee_amount,
     )?;
 
-    // compute amount of lm token to mint
-    let cortex = ctx.accounts.cortex.as_mut();
-    let lm_rewards_amounts = cortex.get_swap_lm_rewards_amounts(fees)?;
+    // LM rewards
+    let lm_rewards_amount = {
+        // compute amount of lm token to mint
+        let cortex = ctx.accounts.cortex.as_mut();
+        let amount = cortex.get_swap_lm_rewards_amounts(fees)?;
+        let total_amount = math::checked_add(amount.0, amount.1)?;
 
-    let lm_rewards_amount = math::checked_add(lm_rewards_amounts.0, lm_rewards_amounts.1)?;
-    // mint lm tokens
-    perpetuals.mint_tokens(
-        ctx.accounts.lm_token_mint.to_account_info(),
-        ctx.accounts.lm_token_account.to_account_info(),
-        ctx.accounts.transfer_authority.to_account_info(),
-        ctx.accounts.token_program.to_account_info(),
-        lm_rewards_amount,
-    )?;
-    msg!("Amount LM rewards out: {}", lm_rewards_amount);
-
-    // Note -  the factoring of this is not trivial due to the sheer amount of accounts, currently leaving it as is
+        // mint lm tokens
+        perpetuals.mint_tokens(
+            ctx.accounts.lm_token_mint.to_account_info(),
+            ctx.accounts.lm_token_account.to_account_info(),
+            ctx.accounts.transfer_authority.to_account_info(),
+            ctx.accounts.token_program.to_account_info(),
+            total_amount,
+        )?;
+        msg!("Amount LM rewards out: {}", total_amount);
+        amount
+    };
 
     // swap the collected fee_amount to stable and send to staking rewards
     // when it's an internal swap, no fees swap is done
@@ -507,7 +509,7 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
     receiving_custody.distributed_rewards.swap_lm = receiving_custody
         .distributed_rewards
         .swap_lm
-        .wrapping_add(lm_rewards_amounts.0);
+        .wrapping_add(lm_rewards_amount.0);
 
     receiving_custody.assets.owned =
         math::checked_add(receiving_custody.assets.owned, deposit_amount)?;
@@ -528,7 +530,7 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
     dispensing_custody.distributed_rewards.swap_lm = dispensing_custody
         .distributed_rewards
         .swap_lm
-        .wrapping_add(lm_rewards_amounts.0);
+        .wrapping_add(lm_rewards_amount.1);
 
     dispensing_custody.assets.protocol_fees =
         math::checked_add(dispensing_custody.assets.protocol_fees, protocol_fee_out)?;
