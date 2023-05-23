@@ -391,3 +391,65 @@ pub fn to_token_amount(ui_amount: f64, decimals: u8) -> Result<u64> {
         checked_powi(10.0, decimals as i32)?,
     )?)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_checked_decimal_div_ok() {
+        // Nominal test
+        assert_eq!(
+            2_000_000,
+            checked_decimal_div(1_000, -6, 500, -6, -6).unwrap()
+        );
+
+        // Different exponents
+        assert_eq!(
+            2_000_000_000,
+            checked_decimal_div(1_000, -6, 500, -9, -6).unwrap()
+        );
+
+        // Different exponents
+        assert_eq!(2_000, checked_decimal_div(1_000, -9, 500, -6, -6).unwrap());
+
+        // MAX coefficient values
+        assert_eq!(
+            1_000_000,
+            checked_decimal_div(u64::MAX, -6, u64::MAX, -6, -6).unwrap()
+        );
+
+        assert_eq!(0, checked_decimal_div(0, -6, u64::MAX, -6, -6).unwrap());
+
+        // Maximum coefficients delta depends on target exponent
+        assert_eq!(
+            18_446_744_073_709_000_000,
+            checked_decimal_div(
+                checked_div(u64::MAX, checked_pow(10u64, 6).unwrap()).unwrap(),
+                -6,
+                1,
+                -6,
+                -6,
+            )
+            .unwrap()
+        );
+
+        // Maximum coefficients delta depends on target exponent
+        assert_eq!(
+            18_446_744_073_000_000_000,
+            checked_decimal_div(
+                checked_div(u64::MAX, checked_pow(10u64, 9).unwrap()).unwrap(),
+                -6,
+                1,
+                -6,
+                -9,
+            )
+            .unwrap()
+        );
+    }
+
+    fn test_checked_decimal_div_ko() {
+        // Division by zero
+        assert!(checked_decimal_div(1_000_000, -6, 0, -6, -6).is_err());
+    }
+}

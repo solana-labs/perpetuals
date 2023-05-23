@@ -2,7 +2,7 @@
 
 use {
     crate::{
-        math::{checked_as_f64, checked_float_div, to_token_amount},
+        math,
         state::{
             perpetuals::Perpetuals,
             pool::{AumCalcMode, Pool},
@@ -46,11 +46,11 @@ pub fn get_lp_token_price(
     ctx: Context<GetLpTokenPrice>,
     _params: &GetLpTokenPriceParams,
 ) -> Result<u64> {
-    let aum_usd = ctx.accounts.pool.get_assets_under_management_usd(
+    let aum_usd = math::checked_as_u64(ctx.accounts.pool.get_assets_under_management_usd(
         AumCalcMode::EMA,
         ctx.remaining_accounts,
         ctx.accounts.perpetuals.get_time()?,
-    )?;
+    )?)?;
 
     msg!("aum_usd: {}", aum_usd);
 
@@ -62,11 +62,13 @@ pub fn get_lp_token_price(
         return Ok(0);
     }
 
-    let ui_price_usd = checked_float_div(checked_as_f64(aum_usd)?, checked_as_f64(lp_supply)?)?;
-
-    msg!("ui_price_usd: {}", ui_price_usd);
-
-    let price_usd = to_token_amount(ui_price_usd, Perpetuals::USD_DECIMALS)?;
+    let price_usd = math::checked_decimal_div(
+        aum_usd,
+        -(Perpetuals::USD_DECIMALS as i32),
+        lp_supply,
+        -(Perpetuals::LP_DECIMALS as i32),
+        -(Perpetuals::USD_DECIMALS as i32),
+    )?;
 
     msg!("price_usd: {}", price_usd);
 
