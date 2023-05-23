@@ -288,10 +288,6 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
 
     // Convert fees and transfer them to staking vault for redistribution
     {
-        // force state persistence before CPI call
-        custody.exit(&crate::ID)?;
-        custody.reload()?;
-
         // if there is no collected fees, skip transfer to staking vault
         if !protocol_fee.is_zero() {
             // if the collected fees are in the right denomination, skip swap
@@ -311,6 +307,10 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
                 srt_custody.exit(&crate::ID)?;
                 srt_custody.reload()?;
             } else {
+                // force state persistence before CPI call
+                custody.exit(&crate::ID)?;
+                custody.reload()?;
+
                 // swap the collected fee_amount to stable and send to staking rewards
                 msg!("Swap collected fees to stake reward mint internally");
                 perpetuals.internal_swap(
