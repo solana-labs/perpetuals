@@ -16,7 +16,7 @@ pub struct ClaimStake<'info> {
     #[account(mut)]
     pub caller: Signer<'info>,
 
-    /// CHECK: verify through the `stake` account seed derivation
+    /// CHECK: verified through the `stake` account seed derivation
     #[account(mut)]
     pub owner: AccountInfo<'info>,
 
@@ -98,7 +98,6 @@ pub struct ClaimStake<'info> {
 pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
     let stake = ctx.accounts.stake.as_mut();
     let cortex = ctx.accounts.cortex.as_mut();
-    let did_claim: bool;
 
     // rewards = rate_sum * token_staked -- Done this way as any stake/unstake claim all previous rewards
     let mut rate_sum = 0;
@@ -140,7 +139,7 @@ pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
     }
 
     msg!("Rewards distribution");
-    {
+    let did_claim: bool = {
         let reward_token_amount = math::checked_decimal_mul(
             stake.amount,
             -(cortex.stake_token_decimals as i32),
@@ -148,65 +147,64 @@ pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
             -(Perpetuals::RATE_DECIMALS as i32),
             -(cortex.stake_reward_token_decimals as i32),
         )?;
-        if !reward_token_amount.is_zero() {
-            msg!("Transfer reward_token_amount: {}", reward_token_amount);
-            let perpetuals = ctx.accounts.perpetuals.as_mut();
+        if reward_token_amount.is_zero() {
+            msg!("No reward tokens to claim at this time");
+            return Ok(false);
+        }
+        msg!("Transfer reward_token_amount: {}", reward_token_amount);
+        let perpetuals = ctx.accounts.perpetuals.as_mut();
 
-            let caller_reward_token_amount = stake.get_claim_stake_caller_reward_token_amounts(
-                reward_token_amount,
-                perpetuals.get_time()?,
-            )?;
+        let caller_reward_token_amount = stake.get_claim_stake_caller_reward_token_amounts(
+            reward_token_amount,
+            perpetuals.get_time()?,
+        )?;
 
-            let owner_reward_token_amount =
-                math::checked_sub(reward_token_amount, caller_reward_token_amount)?;
+        let owner_reward_token_amount =
+            math::checked_sub(reward_token_amount, caller_reward_token_amount)?;
 
-            msg!("owner_reward_token_amount: {}", owner_reward_token_amount);
-            msg!("caller_reward_token_amount: {}", caller_reward_token_amount);
+        msg!("owner_reward_token_amount: {}", owner_reward_token_amount);
+        msg!("caller_reward_token_amount: {}", caller_reward_token_amount);
 
+        perpetuals.transfer_tokens(
+            ctx.accounts.stake_reward_token_account.to_account_info(),
+            ctx.accounts.owner_reward_token_account.to_account_info(),
+            ctx.accounts.transfer_authority.to_account_info(),
+            ctx.accounts.token_program.to_account_info(),
+            owner_reward_token_amount,
+        )?;
+
+        if !caller_reward_token_amount.is_zero() {
             perpetuals.transfer_tokens(
                 ctx.accounts.stake_reward_token_account.to_account_info(),
-                ctx.accounts.owner_reward_token_account.to_account_info(),
+                ctx.accounts.caller_reward_token_account.to_account_info(),
                 ctx.accounts.transfer_authority.to_account_info(),
                 ctx.accounts.token_program.to_account_info(),
-                owner_reward_token_amount,
+                caller_reward_token_amount,
             )?;
-
-            if !caller_reward_token_amount.is_zero() {
-                perpetuals.transfer_tokens(
-                    ctx.accounts.stake_reward_token_account.to_account_info(),
-                    ctx.accounts.caller_reward_token_account.to_account_info(),
-                    ctx.accounts.transfer_authority.to_account_info(),
-                    ctx.accounts.token_program.to_account_info(),
-                    caller_reward_token_amount,
-                )?;
-            }
-
-            // refresh stake time while keeping the stake time out of the current round
-            // so that the user stay eligible for current round rewards
-            stake.stake_time = math::checked_sub(cortex.current_staking_round.start_time, 1)?;
-
-            // remove stake from current staking round
-            cortex.current_staking_round.total_stake =
-                math::checked_sub(cortex.current_staking_round.total_stake, stake.amount)?;
-
-            // update resolved stake token amount left, by removing the previously staked amount
-            cortex.resolved_stake_token_amount =
-                math::checked_sub(cortex.resolved_stake_token_amount, stake.amount)?;
-
-            // update resolved reward token amount left
-            cortex.resolved_reward_token_amount =
-                math::checked_sub(cortex.resolved_reward_token_amount, reward_token_amount)?;
-
-            // add stake to next staking round
-            cortex.next_staking_round.total_stake =
-                math::checked_add(cortex.next_staking_round.total_stake, stake.amount)?;
-
-            did_claim = true;
-        } else {
-            msg!("No reward tokens to claim at this time");
-            did_claim = false;
         }
-    }
+
+        // refresh stake time while keeping the stake time out of the current round
+        // so that the user stay eligible for current round rewards
+        stake.stake_time = math::checked_sub(cortex.current_staking_round.start_time, 1)?;
+
+        // remove stake from current staking round
+        cortex.current_staking_round.total_stake =
+            math::checked_sub(cortex.current_staking_round.total_stake, stake.amount)?;
+
+        // update resolved stake token amount left, by removing the previously staked amount
+        cortex.resolved_stake_token_amount =
+            math::checked_sub(cortex.resolved_stake_token_amount, stake.amount)?;
+
+        // update resolved reward token amount left
+        cortex.resolved_reward_token_amount =
+            math::checked_sub(cortex.resolved_reward_token_amount, reward_token_amount)?;
+
+        // add stake to next staking round
+        cortex.next_staking_round.total_stake =
+            math::checked_add(cortex.next_staking_round.total_stake, stake.amount)?;
+
+        true
+    };
 
     msg!(
         "Cortex.resolved_staking_rounds after claim stake {:?}",
