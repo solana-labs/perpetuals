@@ -121,7 +121,7 @@ pub struct AddLiquidity<'info> {
     )]
     pub stake_reward_token_custody_token_account: Box<Account<'info, TokenAccount>>,
 
-    // staking reward token vault (receiving fees swapped to `stake_reward_token_mint`)
+    // Note: will be credited with its share of fees swapped from native denomination to `stake_reward_token_mint`
     #[account(
         mut,
         token::mint = cortex.stake_reward_token_mint,
