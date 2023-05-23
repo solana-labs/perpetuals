@@ -145,7 +145,6 @@ pub struct AddLiquidity<'info> {
     )]
     pub lm_token_mint: Box<Account<'info, Mint>>,
 
-    #[account()]
     pub stake_reward_token_mint: Box<Account<'info, Mint>>,
 
     token_program: Program<'info, Token>,
