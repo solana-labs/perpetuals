@@ -448,8 +448,12 @@ mod tests {
         );
     }
 
+    #[test]
     fn test_checked_decimal_div_ko() {
         // Division by zero
         assert!(checked_decimal_div(1_000_000, -6, 0, -6, -6).is_err());
+
+        // Overflowing result
+        assert!(checked_decimal_div(u64::MAX, -6, 1, -6, -6).is_err());
     }
 }
