@@ -286,66 +286,69 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
     // Note: must be done before the swap
     custody.assets.owned = math::checked_add(custody.assets.owned, deposit_amount)?;
 
-    // force state persistence before CPI call
-    custody.exit(&crate::ID)?;
-    custody.reload()?;
+    // Format fees and transfer them to staking vault for redistribution
+    {
+        // force state persistence before CPI call
+        custody.exit(&crate::ID)?;
+        custody.reload()?;
 
-    // if there is no collected fees, skip transfer to staking vault
-    if !protocol_fee.is_zero() {
-        // if the collected fees are in the right denomination, skip swap
-        if custody.mint == ctx.accounts.stake_reward_token_custody.mint {
-            msg!("Transfer collected fees to stake vault (no swap)");
-            perpetuals.transfer_tokens(
-                ctx.accounts.custody_token_account.to_account_info(),
-                ctx.accounts.stake_reward_token_account.to_account_info(),
-                ctx.accounts.transfer_authority.to_account_info(),
-                ctx.accounts.token_program.to_account_info(),
-                fee_amount,
-            )?;
-            // Force sync between two account that are the same in that specific case, and that can have race condition at IX end
-            // when accounts state is saved (A is modified not B, A is saved, B is saved and overwrite)
-            let srt_custody = ctx.accounts.stake_reward_token_custody.as_mut();
-            srt_custody.assets.owned = custody.assets.owned;
-            srt_custody.exit(&crate::ID)?;
-            srt_custody.reload()?;
-        } else {
-            // swap the collected fee_amount to stable and send to staking rewards
-            msg!("Swap collected fees to stake reward mint internally");
-            perpetuals.internal_swap(
-                ctx.accounts.transfer_authority.to_account_info(),
-                ctx.accounts.custody_token_account.to_account_info(),
-                ctx.accounts.stake_reward_token_account.to_account_info(),
-                ctx.accounts.lm_token_account.to_account_info(),
-                ctx.accounts.cortex.to_account_info(),
-                perpetuals.to_account_info(),
-                pool.to_account_info(),
-                custody.to_account_info(),
-                ctx.accounts.custody_oracle_account.to_account_info(),
-                ctx.accounts.custody_token_account.to_account_info(),
-                ctx.accounts.stake_reward_token_custody.to_account_info(),
-                ctx.accounts
-                    .stake_reward_token_custody_oracle_account
-                    .to_account_info(),
-                ctx.accounts
-                    .stake_reward_token_custody_token_account
-                    .to_account_info(),
-                ctx.accounts.stake_reward_token_custody.to_account_info(),
-                ctx.accounts
-                    .stake_reward_token_custody_oracle_account
-                    .to_account_info(),
-                ctx.accounts
-                    .stake_reward_token_custody_token_account
-                    .to_account_info(),
-                ctx.accounts.stake_reward_token_account.to_account_info(),
-                ctx.accounts.stake_reward_token_mint.to_account_info(),
-                ctx.accounts.lm_token_mint.to_account_info(),
-                ctx.accounts.token_program.to_account_info(),
-                ctx.accounts.perpetuals_program.to_account_info(),
-                SwapParams {
-                    amount_in: protocol_fee,
-                    min_amount_out: protocol_fee,
-                },
-            )?;
+        // if there is no collected fees, skip transfer to staking vault
+        if !protocol_fee.is_zero() {
+            // if the collected fees are in the right denomination, skip swap
+            if custody.mint == ctx.accounts.stake_reward_token_custody.mint {
+                msg!("Transfer collected fees to stake vault (no swap)");
+                perpetuals.transfer_tokens(
+                    ctx.accounts.custody_token_account.to_account_info(),
+                    ctx.accounts.stake_reward_token_account.to_account_info(),
+                    ctx.accounts.transfer_authority.to_account_info(),
+                    ctx.accounts.token_program.to_account_info(),
+                    fee_amount,
+                )?;
+                // Force sync between two account that are the same in that specific case, and that can have race condition at IX end
+                // when accounts state is saved (A is modified not B, A is saved, B is saved and overwrite)
+                let srt_custody = ctx.accounts.stake_reward_token_custody.as_mut();
+                srt_custody.assets.owned = custody.assets.owned;
+                srt_custody.exit(&crate::ID)?;
+                srt_custody.reload()?;
+            } else {
+                // swap the collected fee_amount to stable and send to staking rewards
+                msg!("Swap collected fees to stake reward mint internally");
+                perpetuals.internal_swap(
+                    ctx.accounts.transfer_authority.to_account_info(),
+                    ctx.accounts.custody_token_account.to_account_info(),
+                    ctx.accounts.stake_reward_token_account.to_account_info(),
+                    ctx.accounts.lm_token_account.to_account_info(),
+                    ctx.accounts.cortex.to_account_info(),
+                    perpetuals.to_account_info(),
+                    pool.to_account_info(),
+                    custody.to_account_info(),
+                    ctx.accounts.custody_oracle_account.to_account_info(),
+                    ctx.accounts.custody_token_account.to_account_info(),
+                    ctx.accounts.stake_reward_token_custody.to_account_info(),
+                    ctx.accounts
+                        .stake_reward_token_custody_oracle_account
+                        .to_account_info(),
+                    ctx.accounts
+                        .stake_reward_token_custody_token_account
+                        .to_account_info(),
+                    ctx.accounts.stake_reward_token_custody.to_account_info(),
+                    ctx.accounts
+                        .stake_reward_token_custody_oracle_account
+                        .to_account_info(),
+                    ctx.accounts
+                        .stake_reward_token_custody_token_account
+                        .to_account_info(),
+                    ctx.accounts.stake_reward_token_account.to_account_info(),
+                    ctx.accounts.stake_reward_token_mint.to_account_info(),
+                    ctx.accounts.lm_token_mint.to_account_info(),
+                    ctx.accounts.token_program.to_account_info(),
+                    ctx.accounts.perpetuals_program.to_account_info(),
+                    SwapParams {
+                        amount_in: protocol_fee,
+                        min_amount_out: protocol_fee,
+                    },
+                )?;
+            }
         }
     }
 
