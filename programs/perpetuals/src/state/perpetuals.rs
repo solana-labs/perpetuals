@@ -408,6 +408,7 @@ impl Perpetuals {
         governing_token_holding: AccountInfo<'a>,
         governance_program: AccountInfo<'a>,
         amount: u64,
+        additional_signer_seeds: Option<&[&[u8]]>,
     ) -> Result<()> {
         msg!(
             "Governance - Mint {} governing power to the owner: {}",
@@ -416,8 +417,8 @@ impl Perpetuals {
         );
         // Mint tokens in governance for the owner
         {
-            let authority_seeds: &[&[&[u8]]] =
-                &[&[b"transfer_authority", &[self.transfer_authority_bump]]];
+            let authority_seeds: &[&[u8]] =
+                &[b"transfer_authority", &[self.transfer_authority_bump]];
 
             let cpi_accounts = adapters::DepositGoverningTokens {
                 realm: realm.to_account_info(),
@@ -431,10 +432,15 @@ impl Perpetuals {
                 governing_token_owner_record: governing_token_owner_record.to_account_info(),
             };
 
-            let cpi_program = governance_program.to_account_info();
+            // In case the owner is not signer in involved TX (addVest for instance)
+            let signers_seeds = match additional_signer_seeds {
+                Some(additional_signer_seeds) => vec![authority_seeds, additional_signer_seeds],
+                None => vec![authority_seeds],
+            };
 
+            let cpi_program = governance_program.to_account_info();
             adapters::deposit_governing_tokens(
-                CpiContext::new(cpi_program, cpi_accounts).with_signer(authority_seeds),
+                CpiContext::new(cpi_program, cpi_accounts).with_signer(&signers_seeds),
                 amount,
             )?;
         }

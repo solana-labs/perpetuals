@@ -202,9 +202,13 @@ pub fn add_vest<'info>(
         cortex.vests.push(ctx.accounts.vest.key());
     }
 
-    // Give 1:1 governing power to the Vest owner
+    // Give 1:1 governing power to the Vest owner (signed by the mint)
     {
         let perpetuals = ctx.accounts.perpetuals.as_mut();
+        let mint_seeds: &[&[u8]] = &[
+            b"governance_token_mint",
+            &[ctx.accounts.cortex.governance_token_bump],
+        ];
         perpetuals.add_governing_power(
             ctx.accounts.transfer_authority.to_account_info(),
             ctx.accounts.payer.to_account_info(),
@@ -220,6 +224,7 @@ pub fn add_vest<'info>(
                 .to_account_info(),
             ctx.accounts.governance_program.to_account_info(),
             ctx.accounts.vest.amount,
+            Some(mint_seeds),
         )?;
     }
 

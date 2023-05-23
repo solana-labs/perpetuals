@@ -206,6 +206,7 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
                 .to_account_info(),
             ctx.accounts.governance_program.to_account_info(),
             params.amount,
+            None,
         )?;
     }
 
