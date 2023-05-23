@@ -29,7 +29,7 @@ const KEYPAIRS_COUNT: usize = 9;
 
 const USDC_DECIMALS: u8 = 6;
 const ETH_DECIMALS: u8 = 9;
-const LM_TOKEN_DECIMALS: u8 = 6;
+const GOV_TOKEN_DECIMALS: u8 = 6;
 
 pub async fn test_staking_rewards_from_open_and_close_position() {
     let mut program_test = ProgramTest::default();
@@ -78,15 +78,15 @@ pub async fn test_staking_rewards_from_open_and_close_position() {
     .await
     .unwrap();
 
-    let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+    let gov_token_mint_pda = pda::get_governance_token_mint_pda().0;
 
     adapters::spl_governance::create_realm(
         &mut program_test_ctx,
         &keypairs[ROOT_AUTHORITY],
         &keypairs[PAYER],
         "ADRENA".to_string(),
-        utils::scale(10_000, LM_TOKEN_DECIMALS),
-        &lm_token_mint_pda,
+        utils::scale(10_000, GOV_TOKEN_DECIMALS),
+        &gov_token_mint_pda,
     )
     .await
     .unwrap();
@@ -324,6 +324,7 @@ pub async fn test_staking_rewards_from_open_and_close_position() {
             &keypairs[USER_ALICE],
             &keypairs[USER_ALICE],
             &keypairs[PAYER],
+            &governance_realm_pda,
             &cortex_stake_reward_mint,
         )
         .await
@@ -368,6 +369,7 @@ pub async fn test_staking_rewards_from_open_and_close_position() {
             &keypairs[USER_ALICE],
             &keypairs[USER_ALICE],
             &keypairs[PAYER],
+            &governance_realm_pda,
             &cortex_stake_reward_mint,
         )
         .await
@@ -452,6 +454,7 @@ pub async fn test_staking_rewards_from_open_and_close_position() {
             &keypairs[USER_ALICE],
             &keypairs[USER_ALICE],
             &keypairs[PAYER],
+            &governance_realm_pda,
             &cortex_stake_reward_mint,
         )
         .await
@@ -496,6 +499,7 @@ pub async fn test_staking_rewards_from_open_and_close_position() {
             &keypairs[USER_ALICE],
             &keypairs[USER_ALICE],
             &keypairs[PAYER],
+            &governance_realm_pda,
             &cortex_stake_reward_mint,
         )
         .await

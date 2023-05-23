@@ -29,7 +29,7 @@ pub async fn create_realm(
             &payer.pubkey(),
             None,
             Some(GoverningTokenConfigAccountArgs {
-                token_type: GoverningTokenType::Liquid,
+                token_type: GoverningTokenType::Membership,
                 voter_weight_addin: None,
                 max_voter_weight_addin: None,
             }),

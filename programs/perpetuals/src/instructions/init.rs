@@ -59,6 +59,18 @@ pub struct Init<'info> {
     )]
     pub lm_token_mint: Box<Account<'info, Mint>>,
 
+    // the shadow governance token transparently managed by the program (and only the program)
+    #[account(
+        init,
+        payer = upgrade_authority,
+        mint::authority = transfer_authority,
+        mint::freeze_authority = transfer_authority,
+        mint::decimals = Cortex::GOVERNANCE_DECIMALS,
+        seeds = [b"governance_token_mint"],
+        bump
+    )]
+    pub governance_token_mint: Box<Account<'info, Mint>>,
+
     // staked token vault
     #[account(
         init,
@@ -168,6 +180,10 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
     cortex.lm_token_bump = *ctx
         .bumps
         .get("lm_token_mint")
+        .ok_or(ProgramError::InvalidSeeds)?;
+    cortex.governance_token_bump = *ctx
+        .bumps
+        .get("governance_token_mint")
         .ok_or(ProgramError::InvalidSeeds)?;
     cortex.bump = *ctx.bumps.get("cortex").ok_or(ProgramError::InvalidSeeds)?;
     cortex.stake_token_account_bump = *ctx

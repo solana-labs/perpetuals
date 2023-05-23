@@ -30,21 +30,24 @@ pub async fn test_remove_stake(
     let stake_token_account_pda = pda::get_stake_token_account_pda().0;
     let stake_reward_token_account_pda = pda::get_stake_reward_token_account_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+    let governance_token_mint_pda = pda::get_governance_token_mint_pda().0;
 
     let lm_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), &lm_token_mint_pda).0;
     let stake_reward_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), &stake_reward_token_mint).0;
 
-    let governance_governing_token_holding_pda =
-        pda::get_governance_governing_token_holding_pda(governance_realm_pda, &lm_token_mint_pda);
+    let governance_governing_token_holding_pda = pda::get_governance_governing_token_holding_pda(
+        governance_realm_pda,
+        &governance_token_mint_pda,
+    );
 
     let governance_realm_config_pda = pda::get_governance_realm_config_pda(governance_realm_pda);
 
     let governance_governing_token_owner_record_pda =
         pda::get_governance_governing_token_owner_record_pda(
             governance_realm_pda,
-            &lm_token_mint_pda,
+            &governance_token_mint_pda,
             &stake_pda,
         );
 
@@ -84,6 +87,7 @@ pub async fn test_remove_stake(
             perpetuals_program: perpetuals::ID,
             system_program: anchor_lang::system_program::ID,
             token_program: anchor_spl::token::ID,
+            governance_token_mint: governance_token_mint_pda,
         }
         .to_account_metas(None),
         perpetuals::instruction::RemoveStake {

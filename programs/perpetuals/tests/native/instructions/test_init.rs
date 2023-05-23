@@ -32,6 +32,8 @@ pub async fn test_init(
     let (perpetuals_pda, perpetuals_bump) = pda::get_perpetuals_pda();
     let (cortex_pda, cortex_bump) = pda::get_cortex_pda();
     let (lm_token_mint_pda, lm_token_mint_bump) = pda::get_lm_token_mint_pda();
+    let (governance_token_mint_pda, governance_token_mint_bump) =
+        pda::get_governance_token_mint_pda();
     let (stake_token_account_pda, stake_token_account_bump) = pda::get_stake_token_account_pda();
     let (stake_reward_token_account_pda, stake_reward_token_account_bump) =
         pda::get_stake_reward_token_account_pda();
@@ -43,6 +45,7 @@ pub async fn test_init(
             transfer_authority: transfer_authority_pda,
             cortex: cortex_pda,
             lm_token_mint: lm_token_mint_pda,
+            governance_token_mint: governance_token_mint_pda,
             stake_token_account: stake_token_account_pda,
             stake_reward_token_account: stake_reward_token_account_pda,
             perpetuals: perpetuals_pda,
@@ -110,6 +113,10 @@ pub async fn test_init(
         let clock = program_test_ctx.banks_client.get_sysvar::<Clock>().await?;
         assert_eq!(cortex_account.bump, cortex_bump);
         assert_eq!(cortex_account.lm_token_bump, lm_token_mint_bump);
+        assert_eq!(
+            cortex_account.governance_token_bump,
+            governance_token_mint_bump
+        );
         assert_eq!(cortex_account.inception_epoch, 0);
         assert_eq!(
             cortex_account.stake_token_account_bump,

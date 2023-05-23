@@ -29,20 +29,23 @@ pub async fn test_add_vest(
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
     let (vest_pda, vest_bump) = pda::get_vest_pda(&owner.pubkey());
-    let (lm_token_mint_pda, _) = pda::get_lm_token_mint_pda();
+    let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+    let governance_token_mint_pda = pda::get_governance_token_mint_pda().0;
     let (vest_token_account_pda, vest_token_account_bump) =
         pda::get_vest_token_account_pda(vest_pda);
 
-    let governance_governing_token_holding_pda =
-        pda::get_governance_governing_token_holding_pda(governance_realm_pda, &lm_token_mint_pda);
+    let governance_governing_token_holding_pda = pda::get_governance_governing_token_holding_pda(
+        governance_realm_pda,
+        &governance_token_mint_pda,
+    );
 
     let governance_realm_config_pda = pda::get_governance_realm_config_pda(governance_realm_pda);
 
     let governance_governing_token_owner_record_pda =
         pda::get_governance_governing_token_owner_record_pda(
             governance_realm_pda,
-            &lm_token_mint_pda,
-            &vest_pda,
+            &governance_token_mint_pda,
+            &owner.pubkey(),
         );
 
     let multisig_account = utils::get_account::<Multisig>(program_test_ctx, multisig_pda).await;
@@ -67,6 +70,7 @@ pub async fn test_add_vest(
                 perpetuals: perpetuals_pda,
                 vest: vest_pda,
                 lm_token_mint: lm_token_mint_pda,
+                governance_token_mint: governance_token_mint_pda,
                 vest_token_account: vest_token_account_pda,
                 governance_realm: *governance_realm_pda,
                 governance_realm_config: governance_realm_config_pda,
@@ -129,12 +133,12 @@ pub async fn test_add_vest(
         assert_eq!(*cortex_account.vests.last().unwrap(), vest_pda);
     }
 
-    // Check vest_token_account to stay untouhed
+    // Check vest_token_account contains the vest
     {
         let vest_token_account_balance =
             utils::get_token_account_balance(program_test_ctx, vest_token_account_pda).await;
 
-        assert_eq!(vest_token_account_balance, 0);
+        assert_eq!(vest_token_account_balance, params.amount);
     }
 
     // Check governance accounts

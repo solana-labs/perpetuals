@@ -81,6 +81,13 @@ pub struct ClaimStake<'info> {
     )]
     pub lm_token_mint: Box<Account<'info, Mint>>,
 
+    #[account(
+        mut,
+        seeds = [b"governance_token_mint"],
+        bump = cortex.governance_token_bump
+    )]
+    pub governance_token_mint: Box<Account<'info, Mint>>,
+
     #[account()]
     pub stake_reward_token_mint: Box<Account<'info, Mint>>,
 
@@ -178,8 +185,6 @@ pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
             // so that the user stay eligible for current round rewards
             stake.stake_time = math::checked_sub(cortex.current_staking_round.start_time, 1)?;
 
-            // note: here can possibly check if user was already staked and prevent him to loose one round of rewards
-
             // remove stake from current staking round
             cortex.current_staking_round.total_stake =
                 math::checked_sub(cortex.current_staking_round.total_stake, stake.amount)?;
@@ -202,6 +207,7 @@ pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
             did_claim = false;
         }
     }
+
     msg!(
         "Cortex.resolved_staking_rounds after claim stake {:?}",
         cortex.resolved_staking_rounds
