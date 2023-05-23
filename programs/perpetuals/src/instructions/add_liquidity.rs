@@ -286,7 +286,7 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
     // Note: must be done before the swap
     custody.assets.owned = math::checked_add(custody.assets.owned, deposit_amount)?;
 
-    // Format fees and transfer them to staking vault for redistribution
+    // Convert fees and transfer them to staking vault for redistribution
     {
         // force state persistence before CPI call
         custody.exit(&crate::ID)?;
