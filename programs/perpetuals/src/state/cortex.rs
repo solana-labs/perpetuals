@@ -116,10 +116,9 @@ impl Cortex {
 
     // returns the current size of the Cortex
     pub fn size(&self) -> usize {
-        let size = Cortex::LEN
+        return Cortex::LEN
             + self.vests.len() * Vest::LEN
             + self.resolved_staking_rounds.len() * StakingRound::LEN;
-        return size;
     }
 
     // returns the new size of the structure after adding/removing some staking rounds
