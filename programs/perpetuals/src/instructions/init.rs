@@ -141,69 +141,77 @@ pub struct InitParams {
 
 pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
     // initialize multisig, this will fail if account is already initialized
-    let mut multisig = ctx.accounts.multisig.load_init()?;
+    {
+        let mut multisig = ctx.accounts.multisig.load_init()?;
 
-    multisig.set_signers(ctx.remaining_accounts, params.min_signatures)?;
+        multisig.set_signers(ctx.remaining_accounts, params.min_signatures)?;
 
-    // record multisig PDA bump
-    multisig.bump = *ctx
-        .bumps
-        .get("multisig")
-        .ok_or(ProgramError::InvalidSeeds)?;
-
-    // record perpetuals
-    let perpetuals = ctx.accounts.perpetuals.as_mut();
-    perpetuals.permissions.allow_swap = params.allow_swap;
-    perpetuals.permissions.allow_add_liquidity = params.allow_add_liquidity;
-    perpetuals.permissions.allow_remove_liquidity = params.allow_remove_liquidity;
-    perpetuals.permissions.allow_open_position = params.allow_open_position;
-    perpetuals.permissions.allow_close_position = params.allow_close_position;
-    perpetuals.permissions.allow_pnl_withdrawal = params.allow_pnl_withdrawal;
-    perpetuals.permissions.allow_collateral_withdrawal = params.allow_collateral_withdrawal;
-    perpetuals.permissions.allow_size_change = params.allow_size_change;
-    perpetuals.transfer_authority_bump = *ctx
-        .bumps
-        .get("transfer_authority")
-        .ok_or(ProgramError::InvalidSeeds)?;
-    perpetuals.perpetuals_bump = *ctx
-        .bumps
-        .get("perpetuals")
-        .ok_or(ProgramError::InvalidSeeds)?;
-    perpetuals.inception_time = perpetuals.get_time()?;
-
-    if !perpetuals.validate() {
-        return err!(PerpetualsError::InvalidPerpetualsConfig);
+        // record multisig PDA bump
+        multisig.bump = *ctx
+            .bumps
+            .get("multisig")
+            .ok_or(ProgramError::InvalidSeeds)?;
     }
 
+    // record perpetuals
+    let perpetuals = {
+        let perpetuals = ctx.accounts.perpetuals.as_mut();
+        perpetuals.permissions.allow_swap = params.allow_swap;
+        perpetuals.permissions.allow_add_liquidity = params.allow_add_liquidity;
+        perpetuals.permissions.allow_remove_liquidity = params.allow_remove_liquidity;
+        perpetuals.permissions.allow_open_position = params.allow_open_position;
+        perpetuals.permissions.allow_close_position = params.allow_close_position;
+        perpetuals.permissions.allow_pnl_withdrawal = params.allow_pnl_withdrawal;
+        perpetuals.permissions.allow_collateral_withdrawal = params.allow_collateral_withdrawal;
+        perpetuals.permissions.allow_size_change = params.allow_size_change;
+        perpetuals.transfer_authority_bump = *ctx
+            .bumps
+            .get("transfer_authority")
+            .ok_or(ProgramError::InvalidSeeds)?;
+        perpetuals.perpetuals_bump = *ctx
+            .bumps
+            .get("perpetuals")
+            .ok_or(ProgramError::InvalidSeeds)?;
+        perpetuals.inception_time = perpetuals.get_time()?;
+
+        if !perpetuals.validate() {
+            return err!(PerpetualsError::InvalidPerpetualsConfig);
+        }
+        perpetuals
+    };
+
     // record cortex
-    let cortex = ctx.accounts.cortex.as_mut();
-    cortex.lm_token_bump = *ctx
-        .bumps
-        .get("lm_token_mint")
-        .ok_or(ProgramError::InvalidSeeds)?;
-    cortex.governance_token_bump = *ctx
-        .bumps
-        .get("governance_token_mint")
-        .ok_or(ProgramError::InvalidSeeds)?;
-    cortex.bump = *ctx.bumps.get("cortex").ok_or(ProgramError::InvalidSeeds)?;
-    cortex.stake_token_account_bump = *ctx
-        .bumps
-        .get("stake_token_account")
-        .ok_or(ProgramError::InvalidSeeds)?;
-    cortex.stake_reward_token_account_bump = *ctx
-        .bumps
-        .get("stake_reward_token_account")
-        .ok_or(ProgramError::InvalidSeeds)?;
-    cortex.inception_epoch = cortex.get_epoch()?;
-    cortex.governance_program = ctx.accounts.governance_program.key();
-    cortex.governance_realm = ctx.accounts.governance_realm.key();
-    cortex.stake_reward_token_mint = ctx.accounts.stake_reward_token_mint.key();
-    cortex.resolved_reward_token_amount = u64::MIN;
-    cortex.resolved_stake_token_amount = u64::MIN;
-    cortex.stake_token_decimals = ctx.accounts.lm_token_mint.decimals;
-    cortex.stake_reward_token_decimals = ctx.accounts.stake_reward_token_mint.decimals;
-    // initialize the first staking rounds
-    cortex.current_staking_round = StakingRound::new(perpetuals.get_time()?);
-    cortex.next_staking_round = StakingRound::new(0);
+    {
+        let cortex = ctx.accounts.cortex.as_mut();
+        cortex.lm_token_bump = *ctx
+            .bumps
+            .get("lm_token_mint")
+            .ok_or(ProgramError::InvalidSeeds)?;
+        cortex.governance_token_bump = *ctx
+            .bumps
+            .get("governance_token_mint")
+            .ok_or(ProgramError::InvalidSeeds)?;
+        cortex.bump = *ctx.bumps.get("cortex").ok_or(ProgramError::InvalidSeeds)?;
+        cortex.stake_token_account_bump = *ctx
+            .bumps
+            .get("stake_token_account")
+            .ok_or(ProgramError::InvalidSeeds)?;
+        cortex.stake_reward_token_account_bump = *ctx
+            .bumps
+            .get("stake_reward_token_account")
+            .ok_or(ProgramError::InvalidSeeds)?;
+        cortex.inception_epoch = cortex.get_epoch()?;
+        cortex.governance_program = ctx.accounts.governance_program.key();
+        cortex.governance_realm = ctx.accounts.governance_realm.key();
+        cortex.stake_reward_token_mint = ctx.accounts.stake_reward_token_mint.key();
+        cortex.resolved_reward_token_amount = u64::MIN;
+        cortex.resolved_stake_token_amount = u64::MIN;
+        cortex.stake_token_decimals = ctx.accounts.lm_token_mint.decimals;
+        cortex.stake_reward_token_decimals = ctx.accounts.stake_reward_token_mint.decimals;
+        // initialize the first staking rounds
+        cortex.current_staking_round = StakingRound::new(perpetuals.get_time()?);
+        cortex.next_staking_round = StakingRound::new(0);
+    }
+
     Ok(())
 }

@@ -268,11 +268,6 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         .close_position_lm
         .wrapping_add(lm_rewards_amount);
 
-    custody.distributed_rewards.close_position_lm = custody
-        .distributed_rewards
-        .close_position_lm
-        .wrapping_add(lm_rewards_amount);
-
     custody.volume_stats.close_position_usd = custody
         .volume_stats
         .close_position_usd

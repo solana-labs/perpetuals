@@ -369,11 +369,6 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
         .add_liquidity_lm
         .wrapping_add(lm_rewards_amount);
 
-    custody.distributed_rewards.add_liquidity_lm = custody
-        .distributed_rewards
-        .add_liquidity_lm
-        .wrapping_add(lm_rewards_amount);
-
     custody.volume_stats.add_liquidity_usd = custody
         .volume_stats
         .add_liquidity_usd
