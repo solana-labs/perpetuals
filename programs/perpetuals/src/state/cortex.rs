@@ -76,7 +76,7 @@ impl Cortex {
     pub const GOVERNANCE_DECIMALS: u8 = Perpetuals::USD_DECIMALS;
     // a limit is needed to keep the Cortex size deterministic
     pub const MAX_ONGOING_VESTS: usize = 64;
-    // lenght of our epoch relative to Solana epochs (1 Solana epoch is ~2-3 days)
+    // length of our epoch relative to Solana epochs (1 Solana epoch is ~2-3 days)
     const ADRENA_EPOCH: u8 = 10;
 
     pub fn get_swap_lm_rewards_amounts(&self, (fee_in, fee_out): (u64, u64)) -> Result<(u64, u64)> {
