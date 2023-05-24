@@ -144,7 +144,7 @@ mod test {
         let reward_token_amount = 100; // native units
 
         // out of the bounty period
-        let time = 69420;
+        let time = 69_420;
         let stake = get_fixture_stake(time);
         let current_time = time + 0;
         let bounty_amount = stake
@@ -153,18 +153,18 @@ mod test {
         assert_eq!(bounty_amount, 0);
 
         // in of the bounty period phase one
-        let time = 69420;
+        let time = 69_420;
         let stake = get_fixture_stake(time);
-        let current_time = time + 28386000; //90% of a year
+        let current_time = time + 28_386_000; //90% of a year
         let bounty_amount_phase_one = stake
             .get_claim_stake_caller_reward_token_amounts(reward_token_amount, current_time)
             .unwrap();
         assert_ne!(bounty_amount_phase_one, 0);
 
         // in of the bounty period phase two
-        let time = 69420;
+        let time = 69_420;
         let stake = get_fixture_stake(time);
-        let current_time = time + 29979079; // 95% of a year
+        let current_time = time + 29_979_079; // 95% of a year
         let bounty_amount_phase_two = stake
             .get_claim_stake_caller_reward_token_amounts(reward_token_amount, current_time)
             .unwrap();
