@@ -353,6 +353,19 @@ where
     }
 }
 
+pub fn checked_as_f64<T>(arg: T) -> Result<f64>
+where
+    T: Display + num_traits::ToPrimitive + Clone,
+{
+    let option: Option<f64> = num_traits::NumCast::from(arg.clone());
+    if let Some(res) = option {
+        Ok(res)
+    } else {
+        msg!("Error: Overflow in {} as f64", arg);
+        err!(PerpetualsError::MathOverflow)
+    }
+}
+
 pub fn scale_to_exponent(arg: u64, exponent: i32, target_exponent: i32) -> Result<u64> {
     if target_exponent == exponent {
         return Ok(arg);
@@ -366,7 +379,10 @@ pub fn scale_to_exponent(arg: u64, exponent: i32, target_exponent: i32) -> Resul
 }
 
 pub fn to_ui_amount(amount: u64, decimals: u8) -> Result<f64> {
-    checked_float_div(amount as f64, checked_powi(10.0, decimals as i32)?)
+    checked_float_div(
+        checked_as_f64(amount)?,
+        checked_powi(10.0, decimals as i32)?,
+    )
 }
 
 pub fn to_token_amount(ui_amount: f64, decimals: u8) -> Result<u64> {
@@ -374,4 +390,70 @@ pub fn to_token_amount(ui_amount: f64, decimals: u8) -> Result<u64> {
         ui_amount,
         checked_powi(10.0, decimals as i32)?,
     )?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_checked_decimal_div_ok() {
+        // Nominal test
+        assert_eq!(
+            2_000_000,
+            checked_decimal_div(1_000, -6, 500, -6, -6).unwrap()
+        );
+
+        // Different exponents
+        assert_eq!(
+            2_000_000_000,
+            checked_decimal_div(1_000, -6, 500, -9, -6).unwrap()
+        );
+
+        // Different exponents
+        assert_eq!(2_000, checked_decimal_div(1_000, -9, 500, -6, -6).unwrap());
+
+        // MAX coefficient values
+        assert_eq!(
+            1_000_000,
+            checked_decimal_div(u64::MAX, -6, u64::MAX, -6, -6).unwrap()
+        );
+
+        assert_eq!(0, checked_decimal_div(0, -6, u64::MAX, -6, -6).unwrap());
+
+        // Maximum coefficients delta depends on target exponent
+        assert_eq!(
+            18_446_744_073_709_000_000,
+            checked_decimal_div(
+                checked_div(u64::MAX, checked_pow(10u64, 6).unwrap()).unwrap(),
+                -6,
+                1,
+                -6,
+                -6,
+            )
+            .unwrap()
+        );
+
+        // Maximum coefficients delta depends on target exponent
+        assert_eq!(
+            18_446_744_073_000_000_000,
+            checked_decimal_div(
+                checked_div(u64::MAX, checked_pow(10u64, 9).unwrap()).unwrap(),
+                -6,
+                1,
+                -6,
+                -9,
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_checked_decimal_div_ko() {
+        // Division by zero
+        assert!(checked_decimal_div(1_000_000, -6, 0, -6, -6).is_err());
+
+        // Overflowing result
+        assert!(checked_decimal_div(u64::MAX, -6, 1, -6, -6).is_err());
+    }
 }

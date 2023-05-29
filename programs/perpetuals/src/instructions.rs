@@ -26,6 +26,7 @@ pub mod get_entry_price_and_fee;
 pub mod get_exit_price_and_fee;
 pub mod get_liquidation_price;
 pub mod get_liquidation_state;
+pub mod get_lp_token_price;
 pub mod get_oracle_price;
 pub mod get_pnl;
 pub mod get_remove_liquidity_amount_and_fee;
@@ -41,7 +42,7 @@ pub use {
     add_collateral::*, add_custody::*, add_liquidity::*, add_pool::*, close_position::*,
     get_add_liquidity_amount_and_fee::*, get_assets_under_management::*,
     get_entry_price_and_fee::*, get_exit_price_and_fee::*, get_liquidation_price::*,
-    get_liquidation_state::*, get_oracle_price::*, get_pnl::*,
+    get_liquidation_state::*, get_lp_token_price::*, get_oracle_price::*, get_pnl::*,
     get_remove_liquidity_amount_and_fee::*, get_swap_amount_and_fees::*, init::*, liquidate::*,
     open_position::*, remove_collateral::*, remove_custody::*, remove_liquidity::*, remove_pool::*,
     set_admin_signers::*, set_custody_config::*, set_permissions::*, set_test_oracle_price::*,
