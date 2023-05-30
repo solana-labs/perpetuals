@@ -2,7 +2,7 @@
 
 use {
     crate::{
-        adapters::SplGovernanceV3Adapter,
+        adapters::{self, CreateTokenOwnerRecord, SplGovernanceV3Adapter},
         error::PerpetualsError,
         state::{
             cortex::Cortex,
@@ -209,6 +209,27 @@ pub fn add_vest<'info>(
             b"governance_token_mint",
             &[ctx.accounts.cortex.governance_token_bump],
         ];
+
+        // due to some limitation in the governance code (a check that prevent depositing
+        // governance power when the owner is not signing the TX), we have to call
+        // create_token_owner_record first to bypass the signer check limitation on
+        // the token owner not signing this TX necesarily
+        {
+            let cpi_accounts = CreateTokenOwnerRecord {
+                realm: ctx.accounts.governance_realm.to_account_info(),
+                governing_token_owner: ctx.accounts.owner.to_account_info(),
+                governing_token_owner_record: ctx
+                    .accounts
+                    .governance_governing_token_owner_record
+                    .to_account_info(),
+                governing_token_mint: ctx.accounts.governance_token_mint.to_account_info(),
+                payer: ctx.accounts.payer.to_account_info(),
+            };
+
+            let cpi_program = ctx.accounts.governance_program.to_account_info();
+            adapters::create_token_owner_record(CpiContext::new(cpi_program, cpi_accounts))?;
+        }
+
         perpetuals.add_governing_power(
             ctx.accounts.transfer_authority.to_account_info(),
             ctx.accounts.payer.to_account_info(),
@@ -225,6 +246,7 @@ pub fn add_vest<'info>(
             ctx.accounts.governance_program.to_account_info(),
             ctx.accounts.vest.amount,
             Some(mint_seeds),
+            false,
         )?;
     }
 

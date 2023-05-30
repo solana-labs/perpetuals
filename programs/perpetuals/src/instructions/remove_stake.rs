@@ -36,6 +36,7 @@ pub struct RemoveStake<'info> {
     #[account(
         mut,
         token::mint = lm_token_mint,
+        token::authority = transfer_authority,
         seeds = [b"stake_token_account"],
         bump = cortex.stake_token_account_bump
     )]

@@ -1,4 +1,15 @@
-use {anchor_lang::prelude::*, spl_governance::state::vote_record::Vote};
+use {
+    anchor_lang::{prelude::*, system_program},
+    anchor_spl::token::spl_token,
+    solana_program::instruction::Instruction,
+    spl_governance::{
+        instruction::GovernanceInstruction,
+        state::{
+            realm::get_governing_token_holding_address, realm_config::get_realm_config_address,
+            token_owner_record::get_token_owner_record_address, vote_record::Vote,
+        },
+    },
+};
 
 #[derive(Clone, Copy)]
 pub struct SplGovernanceV3Adapter;
@@ -72,6 +83,66 @@ pub fn deposit_governing_tokens<'a, 'b, 'c, 'info>(
 
     solana_program::program::invoke_signed(
         &ix,
+        &ToAccountInfos::to_account_infos(&ctx),
+        ctx.signer_seeds,
+    )
+    .map_err(Into::into)
+}
+
+/// Creates DepositGoverningTokens instruction
+///
+/// This is a declination of the base version where the owner is not a signer
+/// There is a pesky check that serves no purpose in the deposit function verifying that the
+/// owner of the token_owner_record is signing when the token_owner_record data is empty.
+/// We bypass this by calling the `create_token_owner_record` ix first and using this altered version of the IX.
+#[allow(clippy::too_many_arguments)]
+pub fn deposit_governing_tokens_owner_not_signer<'a, 'b, 'c, 'info>(
+    ctx: CpiContext<'a, 'b, 'c, 'info, DepositGoverningTokens<'info>>,
+    amount: u64,
+) -> Result<()> {
+    let program_id = &spl_governance_program_adapter::ID;
+    let realm = ctx.accounts.realm.key;
+    let governing_token_source = ctx.accounts.governing_token_source.key;
+    let governing_token_owner = ctx.accounts.governing_token_owner.key;
+    let governing_token_source_authority = ctx.accounts.governing_token_transfer_authority.key;
+    let payer = ctx.accounts.payer.key;
+    let governing_token_mint = ctx.accounts.governing_token_mint.key;
+
+    let token_owner_record_address = get_token_owner_record_address(
+        program_id,
+        realm,
+        governing_token_mint,
+        governing_token_owner,
+    );
+
+    let governing_token_holding_address =
+        get_governing_token_holding_address(program_id, realm, governing_token_mint);
+
+    let realm_config_address = get_realm_config_address(program_id, realm);
+
+    let accounts = vec![
+        AccountMeta::new_readonly(*realm, false),
+        AccountMeta::new(governing_token_holding_address, false),
+        AccountMeta::new(*governing_token_source, false),
+        AccountMeta::new_readonly(*governing_token_owner, false), // FASLE, not signing
+        AccountMeta::new_readonly(*governing_token_source_authority, true),
+        AccountMeta::new(token_owner_record_address, false),
+        AccountMeta::new(*payer, true),
+        AccountMeta::new_readonly(system_program::ID, false),
+        AccountMeta::new_readonly(spl_token::id(), false),
+        AccountMeta::new_readonly(realm_config_address, false),
+    ];
+
+    let instruction = GovernanceInstruction::DepositGoverningTokens { amount };
+
+    let solana_instruction = Instruction {
+        program_id: *program_id,
+        accounts,
+        data: instruction.try_to_vec().unwrap(),
+    };
+
+    solana_program::program::invoke_signed(
+        &solana_instruction,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
     )
@@ -169,6 +240,27 @@ pub fn revoke_governing_token<'a, 'b, 'c, 'info>(
         ctx.accounts.governing_token_mint.key,
         ctx.accounts.governing_token_mint_authority.key,
         amount,
+    );
+
+    solana_program::program::invoke_signed(
+        &ix,
+        &ToAccountInfos::to_account_infos(&ctx),
+        ctx.signer_seeds,
+    )
+    .map_err(Into::into)
+}
+
+pub fn create_token_owner_record<'a, 'b, 'c, 'info>(
+    ctx: CpiContext<'a, 'b, 'c, 'info, CreateTokenOwnerRecord<'info>>,
+) -> Result<()> {
+    assert_governance_program_account(ctx.program.key)?;
+
+    let ix = spl_governance::instruction::create_token_owner_record(
+        &spl_governance_program_adapter::ID,
+        ctx.accounts.realm.key,
+        ctx.accounts.governing_token_owner.key,
+        ctx.accounts.governing_token_mint.key,
+        ctx.accounts.payer.key,
     );
 
     solana_program::program::invoke_signed(
@@ -294,4 +386,18 @@ pub struct RevokeGoverningTokens<'info> {
     pub governing_token_owner: AccountInfo<'info>,
     /// CHECK: Handled by spl governance program
     pub governing_token_mint_authority: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct CreateTokenOwnerRecord<'info> {
+    /// CHECK: Handled by spl governance program
+    pub realm: AccountInfo<'info>,
+    /// CHECK: Handled by spl governance program
+    pub governing_token_owner: AccountInfo<'info>,
+    /// CHECK: Handled by spl governance program
+    pub governing_token_owner_record: AccountInfo<'info>,
+    /// CHECK: Handled by spl governance program
+    pub governing_token_mint: AccountInfo<'info>,
+    /// CHECK: Handled by spl governance program
+    pub payer: AccountInfo<'info>,
 }

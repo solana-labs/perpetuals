@@ -3,7 +3,7 @@ use {
     anchor_lang::prelude::*,
     anchor_spl::token::{Burn, MintTo, Transfer},
     solana_program::account_info::AccountInfo,
-    spl_governance::state::token_owner_record::get_token_owner_record_data_for_realm_and_governing_mint,
+    spl_governance::state::token_owner_record::get_token_owner_record_data,
     std::cmp::min,
 };
 
@@ -348,12 +348,11 @@ impl Perpetuals {
         governance_program: AccountInfo<'a>,
         amount: u64,
     ) -> Result<()> {
-        let token_owner_record_data = get_token_owner_record_data_for_realm_and_governing_mint(
+        let token_owner_record_data = get_token_owner_record_data(
             governance_program.key,
             governing_token_owner_record.to_account_info().as_ref(),
-            realm.key,
-            governance_token_mint.key,
         )?;
+        msg!("ok");
 
         // Calculate the min amount between target revocation and the amount held by user. This is to prevent issues
         // in the scenario where the user self revoke some token (which is possible through the gov)
@@ -409,6 +408,7 @@ impl Perpetuals {
         governance_program: AccountInfo<'a>,
         amount: u64,
         additional_signer_seeds: Option<&[&[u8]]>,
+        owner_is_signer: bool,
     ) -> Result<()> {
         msg!(
             "Governance - Mint {} governing power to the owner: {}",
@@ -439,10 +439,16 @@ impl Perpetuals {
             };
 
             let cpi_program = governance_program.to_account_info();
-            adapters::deposit_governing_tokens(
-                CpiContext::new(cpi_program, cpi_accounts).with_signer(&signers_seeds),
-                amount,
-            )?;
+            match owner_is_signer {
+                true => adapters::deposit_governing_tokens(
+                    CpiContext::new(cpi_program, cpi_accounts).with_signer(&signers_seeds),
+                    amount,
+                )?,
+                false => adapters::deposit_governing_tokens_owner_not_signer(
+                    CpiContext::new(cpi_program, cpi_accounts).with_signer(&signers_seeds),
+                    amount,
+                )?,
+            }
         }
 
         Ok(())

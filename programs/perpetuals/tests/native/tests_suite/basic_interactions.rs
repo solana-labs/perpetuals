@@ -377,6 +377,9 @@ pub async fn basic_interactions() {
 
     // Stake
     {
+        // refresh blockhash after add vest
+        utils::warp_forward(&mut program_test_ctx, 1).await;
+
         // Alice: add stake LM token
         instructions::test_add_stake(
             &mut program_test_ctx,
