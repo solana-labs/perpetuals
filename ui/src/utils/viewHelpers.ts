@@ -10,8 +10,8 @@ import {
   PERPETUALS_PROGRAM_ID,
 } from "@/utils/constants";
 import { IdlCoder } from "@/utils/IdlCoder";
-import { AnchorProvider, BN, Program } from "@project-serum/anchor";
-import { decode } from "@project-serum/anchor/dist/cjs/utils/bytes/base64";
+import { AnchorProvider, BN, Program } from "@coral-xyz/anchor";
+import { decode } from "@coral-xyz/anchor/dist/cjs/utils/bytes/base64";
 import {
   Connection,
   PublicKey,

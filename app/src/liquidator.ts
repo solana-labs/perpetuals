@@ -30,11 +30,16 @@ async function processLiquidations(
         ? "long"
         : "short";
 
+    let collateralMint = (
+      await client.program.account.custody.fetch(position.custodyAccount)
+    ).mint;
+
     // check position state
     let state = await client.getLiquidationState(
       position.owner,
       poolName,
       tokenMint,
+      collateralMint,
       position_side
     );
 
@@ -56,6 +61,7 @@ async function processLiquidations(
           position.owner,
           poolName,
           tokenMint,
+          collateralMint,
           position_side,
           userTokenAccount,
           rewardReceivingAccount

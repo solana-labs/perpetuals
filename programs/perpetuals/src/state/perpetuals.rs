@@ -68,12 +68,12 @@ impl anchor_lang::Id for Perpetuals {
 impl Perpetuals {
     pub const LEN: usize = 8 + std::mem::size_of::<Perpetuals>();
     pub const BPS_DECIMALS: u8 = 4;
-    pub const BPS_POWER: u128 = 10i64.pow(Self::BPS_DECIMALS as u32) as u128;
+    pub const BPS_POWER: u128 = 10u64.pow(Self::BPS_DECIMALS as u32) as u128;
     pub const PRICE_DECIMALS: u8 = 6;
     pub const USD_DECIMALS: u8 = 6;
     pub const LP_DECIMALS: u8 = Self::USD_DECIMALS;
     pub const RATE_DECIMALS: u8 = 9;
-    pub const RATE_POWER: u128 = 10i64.pow(Self::RATE_DECIMALS as u32) as u128;
+    pub const RATE_POWER: u128 = 10u64.pow(Self::RATE_DECIMALS as u32) as u128;
 
     pub fn validate(&self) -> bool {
         true

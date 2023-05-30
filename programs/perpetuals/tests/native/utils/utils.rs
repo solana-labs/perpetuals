@@ -296,6 +296,7 @@ pub async fn set_custody_ratios(
         custody_pda,
         SetCustodyConfigParams {
             is_stable: custody_account.is_stable,
+            is_virtual: custody_account.is_virtual,
             oracle: custody_account.oracle,
             pricing: custody_account.pricing,
             permissions: custody_account.permissions,
@@ -414,6 +415,7 @@ pub struct SetupCustodyParams {
     pub mint: Pubkey,
     pub decimals: u8,
     pub is_stable: bool,
+    pub is_virtual: bool,
     pub target_ratio: u64,
     pub min_ratio: u64,
     pub max_ratio: u64,
@@ -473,6 +475,7 @@ pub async fn setup_pool_with_custodies(
         let custody_pda = {
             let add_custody_params = AddCustodyParams {
                 is_stable: custody_param.is_stable,
+                is_virtual: custody_param.is_virtual,
                 oracle: fixtures::oracle_params_regular(test_oracle_pda),
                 pricing: custody_param
                     .pricing_params

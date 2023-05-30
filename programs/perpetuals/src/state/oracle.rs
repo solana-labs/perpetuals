@@ -29,6 +29,14 @@ pub struct OraclePrice {
     pub exponent: i32,
 }
 
+#[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
+pub struct OracleParams {
+    pub oracle_account: Pubkey,
+    pub oracle_type: OracleType,
+    pub max_price_error: u64,
+    pub max_price_age_sec: u32,
+}
+
 #[account]
 #[derive(Default, Debug)]
 pub struct TestOracle {
@@ -75,24 +83,22 @@ impl OraclePrice {
     }
 
     pub fn new_from_oracle(
-        oracle_type: OracleType,
         oracle_account: &AccountInfo,
-        max_price_error: u64,
-        max_price_age_sec: u32,
+        oracle_params: &OracleParams,
         current_time: i64,
         use_ema: bool,
     ) -> Result<Self> {
-        match oracle_type {
+        match oracle_params.oracle_type {
             OracleType::Test => Self::get_test_price(
                 oracle_account,
-                max_price_error,
-                max_price_age_sec,
+                oracle_params.max_price_error,
+                oracle_params.max_price_age_sec,
                 current_time,
             ),
             OracleType::Pyth => Self::get_pyth_price(
                 oracle_account,
-                max_price_error,
-                max_price_age_sec,
+                oracle_params.max_price_error,
+                oracle_params.max_price_age_sec,
                 current_time,
                 use_ema,
             ),
@@ -190,6 +196,33 @@ impl OraclePrice {
             math::checked_as_f64(self.price)?,
             math::checked_powi(10.0, self.exponent)?,
         )
+    }
+
+    pub fn get_min_price(&self, other: &OraclePrice, is_stable: bool) -> Result<OraclePrice> {
+        let min_price = if self < other { self } else { other };
+        if is_stable {
+            if min_price.exponent > 0 {
+                if min_price.price == 0 {
+                    return Ok(*min_price);
+                } else {
+                    return Ok(OraclePrice {
+                        price: 1000000u64,
+                        exponent: -6,
+                    });
+                }
+            }
+            let one_usd = math::checked_pow(10u64, (-min_price.exponent) as usize)?;
+            if min_price.price > one_usd {
+                Ok(OraclePrice {
+                    price: one_usd,
+                    exponent: min_price.exponent,
+                })
+            } else {
+                Ok(*min_price)
+            }
+        } else {
+            Ok(*min_price)
+        }
     }
 
     // private helpers

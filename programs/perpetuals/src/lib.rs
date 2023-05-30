@@ -17,7 +17,7 @@ use {
 
 solana_security_txt::security_txt! {
     name: "Perpetuals",
-    project_url: "https://github.com/askibin/perpetuals",
+    project_url: "https://github.com/solana-labs/perpetuals",
     contacts: "email:solana.farms@protonmail.com",
     policy: "",
     preferred_languages: "en",

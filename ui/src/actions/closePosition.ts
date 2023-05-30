@@ -15,7 +15,7 @@ import {
   createAtaIfNeeded,
   unwrapSolIfNeeded,
 } from "@/utils/transactionHelpers";
-import { BN } from "@project-serum/anchor";
+import { BN } from "@coral-xyz/anchor";
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection, TransactionInstruction } from "@solana/web3.js";

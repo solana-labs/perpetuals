@@ -1,4 +1,4 @@
-import * as anchor from "@project-serum/anchor";
+import * as anchor from "@coral-xyz/anchor";
 import { Perpetuals } from "../target/types/perpetuals";
 import {
   PublicKey,
@@ -13,7 +13,7 @@ import {
   VersionedTransaction,
 } from "@solana/web3.js";
 import * as spl from "@solana/spl-token";
-import { BN } from "bn.js";
+import BN from "bn.js";
 
 export type PositionSide = "long" | "short";
 
@@ -53,7 +53,7 @@ export class TestClient {
   constructor() {
     this.provider = anchor.AnchorProvider.env();
     anchor.setProvider(this.provider);
-    this.program = anchor.workspace.Perpetuals as Program<Perpetuals>;
+    this.program = anchor.workspace.Perpetuals as anchor.Program<Perpetuals>;
     this.printErrors = true;
 
     anchor.BN.prototype.toJSON = function () {
@@ -483,6 +483,7 @@ export class TestClient {
   addCustody = async (
     custody,
     isStable,
+    isVirtual,
     oracleConfig,
     pricing,
     permissions,
@@ -498,6 +499,7 @@ export class TestClient {
         await this.program.methods
           .addCustody({
             isStable,
+            isVirtual,
             oracle: oracleConfig,
             pricing,
             permissions,
@@ -562,6 +564,7 @@ export class TestClient {
   setCustodyConfig = async (
     custody,
     isStable,
+    isVirtual,
     oracleConfig,
     pricing,
     permissions,
@@ -577,6 +580,7 @@ export class TestClient {
         await this.program.methods
           .setCustodyConfig({
             isStable,
+            isVirtual,
             oracle: oracleConfig,
             pricing,
             permissions,
@@ -601,7 +605,7 @@ export class TestClient {
     }
   };
 
-  withdrawFees = async (amount: typeof BN, custody, receivingTokenAccount) => {
+  withdrawFees = async (amount: BN, custody, receivingTokenAccount) => {
     let multisig = await this.program.account.multisig.fetch(
       this.multisig.publicKey
     );
@@ -633,7 +637,7 @@ export class TestClient {
     }
   };
 
-  withdrawSolFees = async (amount: typeof BN, custody, receivingAccount) => {
+  withdrawSolFees = async (amount: BN, custody, receivingAccount) => {
     let multisig = await this.program.account.multisig.fetch(
       this.multisig.publicKey
     );
@@ -721,8 +725,8 @@ export class TestClient {
   };
 
   swap = async (
-    amountIn: typeof BN,
-    minAmountOut: typeof BN,
+    amountIn: BN,
+    minAmountOut: BN,
     user,
     fundingAccount: PublicKey,
     receivingAccount: PublicKey,
@@ -761,8 +765,8 @@ export class TestClient {
   };
 
   addLiquidity = async (
-    amountIn: typeof BN,
-    minLpAmountOut: typeof BN,
+    amountIn: BN,
+    minLpAmountOut: BN,
     user,
     fundingAccount: PublicKey,
     custody
@@ -798,8 +802,8 @@ export class TestClient {
   };
 
   removeLiquidity = async (
-    lpAmountIn: typeof BN,
-    minAmountOut: typeof BN,
+    lpAmountIn: BN,
+    minAmountOut: BN,
     user,
     receivingAccount: PublicKey,
     custody
@@ -836,8 +840,8 @@ export class TestClient {
 
   openPosition = async (
     price: number,
-    collateral: typeof BN,
-    size: typeof BN,
+    collateral: BN,
+    size: BN,
     side: PositionSide,
     user,
     fundingAccount: PublicKey,
@@ -861,7 +865,9 @@ export class TestClient {
           position: positionAccount,
           custody: custody.custody,
           custodyOracleAccount: custody.oracleAccount,
-          custodyTokenAccount: custody.tokenAccount,
+          collateralCustody: custody.custody,
+          collateralCustodyOracleAccount: custody.oracleAccount,
+          collateralCustodyTokenAccount: custody.tokenAccount,
           systemProgram: SystemProgram.programId,
           tokenProgram: spl.TOKEN_PROGRAM_ID,
         })
@@ -876,7 +882,7 @@ export class TestClient {
   };
 
   addCollateral = async (
-    collateral: typeof BN,
+    collateral: BN,
     user,
     fundingAccount: PublicKey,
     positionAccount: PublicKey,
@@ -896,7 +902,9 @@ export class TestClient {
           position: positionAccount,
           custody: custody.custody,
           custodyOracleAccount: custody.oracleAccount,
-          custodyTokenAccount: custody.tokenAccount,
+          collateralCustody: custody.custody,
+          collateralCustodyOracleAccount: custody.oracleAccount,
+          collateralCustodyTokenAccount: custody.tokenAccount,
           tokenProgram: spl.TOKEN_PROGRAM_ID,
         })
         .signers([user.wallet])
@@ -910,7 +918,7 @@ export class TestClient {
   };
 
   removeCollateral = async (
-    collateralUsd: typeof BN,
+    collateralUsd: BN,
     user,
     receivingAccount: PublicKey,
     positionAccount: PublicKey,
@@ -930,7 +938,9 @@ export class TestClient {
           position: positionAccount,
           custody: custody.custody,
           custodyOracleAccount: custody.oracleAccount,
-          custodyTokenAccount: custody.tokenAccount,
+          collateralCustody: custody.custody,
+          collateralCustodyOracleAccount: custody.oracleAccount,
+          collateralCustodyTokenAccount: custody.tokenAccount,
           tokenProgram: spl.TOKEN_PROGRAM_ID,
         })
         .signers([user.wallet])
@@ -964,7 +974,9 @@ export class TestClient {
           position: positionAccount,
           custody: custody.custody,
           custodyOracleAccount: custody.oracleAccount,
-          custodyTokenAccount: custody.tokenAccount,
+          collateralCustody: custody.custody,
+          collateralCustodyOracleAccount: custody.oracleAccount,
+          collateralCustodyTokenAccount: custody.tokenAccount,
           tokenProgram: spl.TOKEN_PROGRAM_ID,
         })
         .signers([user.wallet])
@@ -996,7 +1008,9 @@ export class TestClient {
           position: positionAccount,
           custody: custody.custody,
           custodyOracleAccount: custody.oracleAccount,
-          custodyTokenAccount: custody.tokenAccount,
+          collateralCustody: custody.custody,
+          collateralCustodyOracleAccount: custody.oracleAccount,
+          collateralCustodyTokenAccount: custody.tokenAccount,
           tokenProgram: spl.TOKEN_PROGRAM_ID,
         })
         .signers([user.wallet])
@@ -1009,11 +1023,7 @@ export class TestClient {
     }
   };
 
-  getEntryPriceAndFee = async (
-    size: typeof BN,
-    side: PositionSide,
-    custody
-  ) => {
+  getEntryPriceAndFee = async (size: BN, side: PositionSide, custody) => {
     try {
       return await this.program.methods
         .getEntryPriceAndFee({
@@ -1021,11 +1031,12 @@ export class TestClient {
           side: side === "long" ? { long: {} } : { short: {} },
         })
         .accounts({
-          signer: this.provider.wallet.publicKey,
           perpetuals: this.perpetuals.publicKey,
           pool: this.pool.publicKey,
           custody: custody.custody,
           custodyOracleAccount: custody.oracleAccount,
+          collateralCustody: custody.custody,
+          collateralCustodyOracleAccount: custody.oracleAccount,
         })
         .view();
     } catch (err) {
@@ -1037,7 +1048,7 @@ export class TestClient {
   };
 
   getExitPriceAndFee = async (
-    size: typeof BN,
+    size: BN,
     positionAccount: PublicKey,
     custody
   ) => {
@@ -1047,7 +1058,6 @@ export class TestClient {
           size,
         })
         .accounts({
-          signer: this.provider.wallet.publicKey,
           perpetuals: this.perpetuals.publicKey,
           pool: this.pool.publicKey,
           position: positionAccount,
@@ -1068,12 +1078,13 @@ export class TestClient {
       return await this.program.methods
         .getLiquidationPrice({})
         .accounts({
-          signer: this.provider.wallet.publicKey,
           perpetuals: this.perpetuals.publicKey,
           pool: this.pool.publicKey,
           position: positionAccount,
           custody: custody.custody,
           custodyOracleAccount: custody.oracleAccount,
+          collateralCustody: custody.custody,
+          collateralCustodyOracleAccount: custody.oracleAccount,
         })
         .view();
     } catch (err) {
@@ -1084,22 +1095,19 @@ export class TestClient {
     }
   };
 
-  getSwapAmountAndFee = async (amountIn: number, custodyIn, custodyOut) => {
+  getSwapAmountAndFees = async (amountIn: number, custodyIn, custodyOut) => {
     try {
       return await this.program.methods
-        .getSwapAmountAndFee({
+        .getSwapAmountAndFees({
           amountIn: new BN(amountIn),
         })
         .accounts({
-          signer: this.provider.wallet.publicKey,
           perpetuals: this.perpetuals.publicKey,
           pool: this.pool.publicKey,
           receivingCustody: custodyIn.custody,
           receivingCustodyOracleAccount: custodyIn.oracleAccount,
-          receivingCustodyTokenAccount: custodyIn.tokenAccount,
           dispensingCustody: custodyOut.custody,
           dispensingCustodyOracleAccount: custodyOut.oracleAccount,
-          dispensingCustodyTokenAccount: custodyOut.tokenAccount,
         })
         .view();
     } catch (err) {

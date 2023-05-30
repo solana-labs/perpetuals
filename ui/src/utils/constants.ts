@@ -1,9 +1,9 @@
 import * as PerpetualsJson from "@/target/idl/perpetuals.json";
 import { IDL as PERPETUALS_IDL, Perpetuals } from "@/target/types/perpetuals";
 import { getProvider } from "@/utils/provider";
-import { AnchorProvider, Program, Wallet } from "@project-serum/anchor";
-import NodeWallet from "@project-serum/anchor/dist/cjs/nodewallet";
-import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pubkey";
+import { AnchorProvider, Program, Wallet } from "@coral-xyz/anchor";
+import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
+import { findProgramAddressSync } from "@coral-xyz/anchor/dist/cjs/utils/pubkey";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Keypair, PublicKey, Transaction } from "@solana/web3.js";
 

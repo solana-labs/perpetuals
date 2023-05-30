@@ -1,4 +1,4 @@
-import { MethodsBuilder } from "@project-serum/anchor/dist/cjs/program/namespace/methods";
+import { MethodsBuilder } from "@coral-xyz/anchor/dist/cjs/program/namespace/methods";
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { toast } from "react-toastify";
 
