@@ -450,14 +450,6 @@ pub async fn setup_pool_with_custodies_and_liquidity(
         )
         .await;
 
-    println!(
-        "custody params 0 {}",
-        custodies_params[0].setup_custody_params.mint
-    );
-    println!(
-        "custody params 1 {}",
-        custodies_params[1].setup_custody_params.mint
-    );
     // Add liquidity
     for params in custodies_params.as_slice() {
         println!(

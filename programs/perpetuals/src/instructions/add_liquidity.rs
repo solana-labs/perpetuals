@@ -77,30 +77,6 @@ pub struct AddLiquidity<'info> {
         mut,
         seeds = [b"custody",
                  pool.key().as_ref(),
-                 custody.mint.as_ref()],
-        bump = custody.bump
-    )]
-    pub custody: Box<Account<'info, Custody>>,
-
-    /// CHECK: oracle account for the receiving token
-    #[account(
-        constraint = custody_oracle_account.key() == custody.oracle.oracle_account
-    )]
-    pub custody_oracle_account: AccountInfo<'info>,
-
-    #[account(
-        mut,
-        seeds = [b"custody_token_account",
-                 pool.key().as_ref(),
-                 custody.mint.as_ref()],
-        bump = custody.token_account_bump
-    )]
-    pub custody_token_account: Box<Account<'info, TokenAccount>>,
-
-    #[account(
-        mut,
-        seeds = [b"custody",
-                 pool.key().as_ref(),
                  stake_reward_token_custody.mint.as_ref()],
         bump = stake_reward_token_custody.bump,
         constraint = stake_reward_token_custody.mint == stake_reward_token_mint.key(),
@@ -120,6 +96,30 @@ pub struct AddLiquidity<'info> {
         bump = stake_reward_token_custody.token_account_bump,
     )]
     pub stake_reward_token_custody_token_account: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        seeds = [b"custody",
+                 pool.key().as_ref(),
+                 custody.mint.as_ref()],
+        bump = custody.bump
+    )]
+    pub custody: Box<Account<'info, Custody>>,
+
+    /// CHECK: oracle account for the receiving token
+    #[account(
+        constraint = custody_oracle_account.key() == custody.oracle.oracle_account
+    )]
+    pub custody_oracle_account: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"custody_token_account",
+                 pool.key().as_ref(),
+                 custody.mint.as_ref()],
+        bump = custody.token_account_bump
+    )]
+    pub custody_token_account: Box<Account<'info, TokenAccount>>,
 
     // Note: will be credited with its share of fees swapped from native denomination to `stake_reward_token_mint`
     #[account(
@@ -288,13 +288,40 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
         amount
     };
 
-    // Note: must be done before the swap
+    // update custody stats
+    msg!("Update custody stats");
+    custody.collected_fees.add_liquidity_usd = custody
+        .collected_fees
+        .add_liquidity_usd
+        .wrapping_add(token_ema_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
+
+    custody.distributed_rewards.add_liquidity_lm = custody
+        .distributed_rewards
+        .add_liquidity_lm
+        .wrapping_add(lm_rewards_amount);
+
+    custody.volume_stats.add_liquidity_usd = custody
+        .volume_stats
+        .add_liquidity_usd
+        .wrapping_add(token_ema_price.get_asset_amount_usd(params.amount_in, custody.decimals)?);
+
+    custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
     custody.assets.owned = math::checked_add(custody.assets.owned, deposit_amount)?;
+    custody.update_borrow_rate(curtime)?;
+
+    // update pool stats
+    msg!("Update pool stats");
+    custody.exit(&crate::ID)?;
+    pool.aum_usd =
+        pool.get_assets_under_management_usd(AumCalcMode::EMA, ctx.remaining_accounts, curtime)?;
 
     // Convert fees and transfer them to staking vault for redistribution
     {
         // if there is no collected fees, skip transfer to staking vault
         if !protocol_fee.is_zero() {
+            // It is possible that the custody targeted by the function and the stake_reward one are the same, in that
+            // case we need to only use one else there are some complication when saving state at the end.
+            //
             // if the collected fees are in the right denomination, skip swap
             if custody.mint == ctx.accounts.stake_reward_token_custody.mint {
                 msg!("Transfer collected fees to stake vault (no swap)");
@@ -305,17 +332,7 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
                     ctx.accounts.token_program.to_account_info(),
                     fee_amount,
                 )?;
-                // Force sync between two account that are the same in that specific case, and that can have race condition at IX end
-                // when accounts state is saved (A is modified not B, A is saved, B is saved and overwrite)
-                let srt_custody = ctx.accounts.stake_reward_token_custody.as_mut();
-                srt_custody.assets.owned = custody.assets.owned;
-                srt_custody.exit(&crate::ID)?;
-                srt_custody.reload()?;
             } else {
-                // force state persistence before CPI call
-                custody.exit(&crate::ID)?;
-                custody.reload()?;
-
                 // swap the collected fee_amount to stable and send to staking rewards
                 msg!("Swap collected fees to stake reward mint internally");
                 perpetuals.internal_swap(
@@ -356,33 +373,6 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
             }
         }
     }
-
-    // update custody stats
-    msg!("Update custody stats");
-    custody.collected_fees.add_liquidity_usd = custody
-        .collected_fees
-        .add_liquidity_usd
-        .wrapping_add(token_ema_price.get_asset_amount_usd(fee_amount, custody.decimals)?);
-
-    custody.distributed_rewards.add_liquidity_lm = custody
-        .distributed_rewards
-        .add_liquidity_lm
-        .wrapping_add(lm_rewards_amount);
-
-    custody.volume_stats.add_liquidity_usd = custody
-        .volume_stats
-        .add_liquidity_usd
-        .wrapping_add(token_ema_price.get_asset_amount_usd(params.amount_in, custody.decimals)?);
-
-    custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
-
-    custody.update_borrow_rate(curtime)?;
-
-    // update pool stats
-    msg!("Update pool stats");
-    custody.exit(&crate::ID)?;
-    pool.aum_usd =
-        pool.get_assets_under_management_usd(AumCalcMode::EMA, ctx.remaining_accounts, curtime)?;
 
     Ok(())
 }

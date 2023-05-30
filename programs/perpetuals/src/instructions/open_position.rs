@@ -85,30 +85,6 @@ pub struct OpenPosition<'info> {
         mut,
         seeds = [b"custody",
                  pool.key().as_ref(),
-                 custody.mint.as_ref()],
-        bump = custody.bump
-    )]
-    pub custody: Box<Account<'info, Custody>>,
-
-    /// CHECK: oracle account for the collateral token
-    #[account(
-        constraint = custody_oracle_account.key() == custody.oracle.oracle_account
-    )]
-    pub custody_oracle_account: AccountInfo<'info>,
-
-    #[account(
-        mut,
-        seeds = [b"custody_token_account",
-                 pool.key().as_ref(),
-                 custody.mint.as_ref()],
-        bump = custody.token_account_bump
-    )]
-    pub custody_token_account: Box<Account<'info, TokenAccount>>,
-
-    #[account(
-        mut,
-        seeds = [b"custody",
-                 pool.key().as_ref(),
                  stake_reward_token_custody.mint.as_ref()],
         bump = stake_reward_token_custody.bump,
         constraint = stake_reward_token_custody.mint == stake_reward_token_mint.key(),
@@ -129,6 +105,30 @@ pub struct OpenPosition<'info> {
         bump = stake_reward_token_custody.token_account_bump,
     )]
     pub stake_reward_token_custody_token_account: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        seeds = [b"custody",
+                 pool.key().as_ref(),
+                 custody.mint.as_ref()],
+        bump = custody.bump
+    )]
+    pub custody: Box<Account<'info, Custody>>,
+
+    /// CHECK: oracle account for the collateral token
+    #[account(
+        constraint = custody_oracle_account.key() == custody.oracle.oracle_account
+    )]
+    pub custody_oracle_account: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"custody_token_account",
+                 pool.key().as_ref(),
+                 custody.mint.as_ref()],
+        bump = custody.token_account_bump
+    )]
+    pub custody_token_account: Box<Account<'info, TokenAccount>>,
 
     // staking reward token vault (receiving fees swapped to `stake_reward_token_mint`)
     #[account(
@@ -340,6 +340,9 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
 
     // if there is no collected fees, skip transfer to staking vault
     if !protocol_fee.is_zero() {
+        // It is possible that the custody targeted by the function and the stake_reward one are the same, in that
+        // case we need to only use one else there are some complication when saving state at the end.
+        //
         // if the collected fees are in the right denomination, skip swap
         if custody.mint == ctx.accounts.stake_reward_token_custody.mint {
             msg!("Transfer collected fees to stake vault (no swap)");
@@ -350,12 +353,6 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
                 ctx.accounts.token_program.to_account_info(),
                 fee_amount,
             )?;
-            // Force sync between two account that are the same in that specific case, and that can have race condition at IX end
-            // when accounts state is saved (A is modified not B, A is saved, B is saved and overwrite)
-            let srt_custody = ctx.accounts.stake_reward_token_custody.as_mut();
-            srt_custody.assets.owned = custody.assets.owned;
-            srt_custody.exit(&crate::ID)?;
-            srt_custody.reload()?;
         } else {
             // swap the collected fee_amount to stable and send to staking rewards
             msg!("Swap collected fees to stake reward mint internally");

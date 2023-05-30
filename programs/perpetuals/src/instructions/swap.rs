@@ -74,6 +74,31 @@ pub struct Swap<'info> {
         mut,
         seeds = [b"custody",
                  pool.key().as_ref(),
+                 stake_reward_token_custody.mint.as_ref()],
+        bump = stake_reward_token_custody.bump,
+        constraint = stake_reward_token_custody.mint == stake_reward_token_mint.key(),
+    )]
+    pub stake_reward_token_custody: Box<Account<'info, Custody>>,
+
+    /// CHECK: oracle account for the stake_reward token
+    #[account(
+        constraint = stake_reward_token_custody_oracle_account.key() == stake_reward_token_custody.oracle.oracle_account
+    )]
+    pub stake_reward_token_custody_oracle_account: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"custody_token_account",
+                 pool.key().as_ref(),
+                 stake_reward_token_custody.mint.as_ref()],
+        bump = stake_reward_token_custody.token_account_bump,
+    )]
+    pub stake_reward_token_custody_token_account: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        seeds = [b"custody",
+                 pool.key().as_ref(),
                  receiving_custody.mint.as_ref()],
         bump = receiving_custody.bump
     )]
@@ -117,31 +142,6 @@ pub struct Swap<'info> {
         bump = dispensing_custody.token_account_bump
     )]
     pub dispensing_custody_token_account: Box<Account<'info, TokenAccount>>,
-
-    #[account(
-        mut,
-        seeds = [b"custody",
-                 pool.key().as_ref(),
-                 stake_reward_token_custody.mint.as_ref()],
-        bump = stake_reward_token_custody.bump,
-        constraint = stake_reward_token_custody.mint == stake_reward_token_mint.key(),
-    )]
-    pub stake_reward_token_custody: Box<Account<'info, Custody>>,
-
-    /// CHECK: oracle account for the stake_reward token
-    #[account(
-        constraint = stake_reward_token_custody_oracle_account.key() == stake_reward_token_custody.oracle.oracle_account
-    )]
-    pub stake_reward_token_custody_oracle_account: AccountInfo<'info>,
-
-    #[account(
-        mut,
-        seeds = [b"custody_token_account",
-                 pool.key().as_ref(),
-                 stake_reward_token_custody.mint.as_ref()],
-        bump = stake_reward_token_custody.token_account_bump,
-    )]
-    pub stake_reward_token_custody_token_account: Box<Account<'info, TokenAccount>>,
 
     // staking reward token vault (receiving fees swapped to `stake_reward_token_mint`)
     #[account(
@@ -359,6 +359,52 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
         amount
     };
 
+    // update custody stats
+    msg!("Update custody stats");
+    receiving_custody.volume_stats.swap_usd = receiving_custody.volume_stats.swap_usd.wrapping_add(
+        received_token_price.get_asset_amount_usd(params.amount_in, receiving_custody.decimals)?,
+    );
+
+    receiving_custody.collected_fees.swap_usd =
+        receiving_custody.collected_fees.swap_usd.wrapping_add(
+            dispensed_token_price.get_asset_amount_usd(fees.0, dispensing_custody.decimals)?,
+        );
+
+    receiving_custody.distributed_rewards.swap_lm = receiving_custody
+        .distributed_rewards
+        .swap_lm
+        .wrapping_add(lm_rewards_amount.0);
+
+    receiving_custody.assets.owned =
+        math::checked_add(receiving_custody.assets.owned, deposit_amount)?;
+
+    receiving_custody.assets.protocol_fees =
+        math::checked_add(receiving_custody.assets.protocol_fees, protocol_fee_in)?;
+
+    dispensing_custody.collected_fees.swap_usd =
+        dispensing_custody.collected_fees.swap_usd.wrapping_add(
+            dispensed_token_price.get_asset_amount_usd(fees.1, dispensing_custody.decimals)?,
+        );
+
+    dispensing_custody.volume_stats.swap_usd =
+        dispensing_custody.volume_stats.swap_usd.wrapping_add(
+            dispensed_token_price.get_asset_amount_usd(amount_out, dispensing_custody.decimals)?,
+        );
+
+    dispensing_custody.distributed_rewards.swap_lm = dispensing_custody
+        .distributed_rewards
+        .swap_lm
+        .wrapping_add(lm_rewards_amount.1);
+
+    dispensing_custody.assets.protocol_fees =
+        math::checked_add(dispensing_custody.assets.protocol_fees, protocol_fee_out)?;
+
+    dispensing_custody.assets.owned =
+        math::checked_sub(dispensing_custody.assets.owned, withdrawal_amount)?;
+
+    receiving_custody.update_borrow_rate(curtime)?;
+    dispensing_custody.update_borrow_rate(curtime)?;
+
     // swap the collected fee_amount to stable and send to staking rewards
     // when it's an internal swap, no fees swap is done
     if !is_internal_swap {
@@ -376,12 +422,6 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
                     ctx.accounts.token_program.to_account_info(),
                     protocol_fee_in,
                 )?;
-                // Force sync between two account that are the same in that specific case, and that can have race condition at IX end
-                // when accounts state is saved (A is modified not B, A is saved, B is saved and overwrite)
-                let srt_custody = ctx.accounts.stake_reward_token_custody.as_mut();
-                srt_custody.assets.owned = receiving_custody.assets.owned;
-                srt_custody.exit(&crate::ID)?;
-                srt_custody.reload()?;
             } else {
                 msg!("Swapping protocol_fee_in");
                 perpetuals.internal_swap(
@@ -442,12 +482,6 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
                     ctx.accounts.token_program.to_account_info(),
                     protocol_fee_out,
                 )?;
-                // Force sync between two account that are the same in that specific case, and that can have race condition at IX end
-                // when accounts state is saved (A is modified not B, A is saved, B is saved and overwrite)
-                let srt_custody = ctx.accounts.stake_reward_token_custody.as_mut();
-                srt_custody.assets.owned = dispensing_custody.assets.owned;
-                srt_custody.exit(&crate::ID)?;
-                srt_custody.reload()?;
             } else {
                 msg!("Swapping protocol_fee_out");
                 perpetuals.internal_swap(
@@ -494,52 +528,6 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
             }
         }
     }
-
-    // update custody stats
-    msg!("Update custody stats");
-    receiving_custody.volume_stats.swap_usd = receiving_custody.volume_stats.swap_usd.wrapping_add(
-        received_token_price.get_asset_amount_usd(params.amount_in, receiving_custody.decimals)?,
-    );
-
-    receiving_custody.collected_fees.swap_usd =
-        receiving_custody.collected_fees.swap_usd.wrapping_add(
-            dispensed_token_price.get_asset_amount_usd(fees.0, dispensing_custody.decimals)?,
-        );
-
-    receiving_custody.distributed_rewards.swap_lm = receiving_custody
-        .distributed_rewards
-        .swap_lm
-        .wrapping_add(lm_rewards_amount.0);
-
-    receiving_custody.assets.owned =
-        math::checked_add(receiving_custody.assets.owned, deposit_amount)?;
-
-    receiving_custody.assets.protocol_fees =
-        math::checked_add(receiving_custody.assets.protocol_fees, protocol_fee_in)?;
-
-    dispensing_custody.collected_fees.swap_usd =
-        dispensing_custody.collected_fees.swap_usd.wrapping_add(
-            dispensed_token_price.get_asset_amount_usd(fees.1, dispensing_custody.decimals)?,
-        );
-
-    dispensing_custody.volume_stats.swap_usd =
-        dispensing_custody.volume_stats.swap_usd.wrapping_add(
-            dispensed_token_price.get_asset_amount_usd(amount_out, dispensing_custody.decimals)?,
-        );
-
-    dispensing_custody.distributed_rewards.swap_lm = dispensing_custody
-        .distributed_rewards
-        .swap_lm
-        .wrapping_add(lm_rewards_amount.1);
-
-    dispensing_custody.assets.protocol_fees =
-        math::checked_add(dispensing_custody.assets.protocol_fees, protocol_fee_out)?;
-
-    dispensing_custody.assets.owned =
-        math::checked_sub(dispensing_custody.assets.owned, withdrawal_amount)?;
-
-    receiving_custody.update_borrow_rate(curtime)?;
-    dispensing_custody.update_borrow_rate(curtime)?;
 
     Ok(())
 }
