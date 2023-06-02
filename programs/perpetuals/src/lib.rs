@@ -105,17 +105,17 @@ pub mod perpetuals {
         instructions::upgrade_custody(ctx, &params)
     }
 
+    pub fn set_custom_oracle_price<'info>(
+        ctx: Context<'_, '_, '_, 'info, SetCustomOraclePrice<'info>>,
+        params: SetCustomOraclePriceParams,
+    ) -> Result<u8> {
+        instructions::set_custom_oracle_price(ctx, &params)
+    }
+
     // test instructions
 
     pub fn test_init(ctx: Context<TestInit>, params: TestInitParams) -> Result<()> {
         instructions::test_init(ctx, &params)
-    }
-
-    pub fn set_test_oracle_price<'info>(
-        ctx: Context<'_, '_, '_, 'info, SetTestOraclePrice<'info>>,
-        params: SetTestOraclePriceParams,
-    ) -> Result<u8> {
-        instructions::set_test_oracle_price(ctx, &params)
     }
 
     pub fn set_test_time<'info>(

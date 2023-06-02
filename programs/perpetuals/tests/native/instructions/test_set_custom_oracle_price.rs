@@ -5,22 +5,22 @@ use {
         ToAccountMetas,
     },
     perpetuals::{
-        instructions::SetTestOraclePriceParams,
-        state::{multisig::Multisig, oracle::TestOracle},
+        instructions::SetCustomOraclePriceParams,
+        state::{multisig::Multisig, oracle::CustomOracle},
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 
 #[allow(clippy::too_many_arguments)]
-pub async fn test_set_test_oracle_price(
+pub async fn test_set_custom_oracle_price(
     program_test_ctx: &mut ProgramTestContext,
     admin: &Keypair,
     payer: &Keypair,
     pool_pda: &Pubkey,
     custody_pda: &Pubkey,
     oracle_pda: &Pubkey,
-    params: SetTestOraclePriceParams,
+    params: SetCustomOraclePriceParams,
     multisig_signers: &[&Keypair],
 ) -> std::result::Result<(), BanksClientError> {
     // ==== WHEN ==============================================================
@@ -34,7 +34,7 @@ pub async fn test_set_test_oracle_price(
         let signer: &Keypair = multisig_signers[i as usize];
 
         let accounts_meta = {
-            let accounts = perpetuals::accounts::SetTestOraclePrice {
+            let accounts = perpetuals::accounts::SetCustomOraclePrice {
                 admin: admin.pubkey(),
                 multisig: multisig_pda,
                 perpetuals: perpetuals_pda,
@@ -58,7 +58,7 @@ pub async fn test_set_test_oracle_price(
         utils::create_and_execute_perpetuals_ix(
             program_test_ctx,
             accounts_meta,
-            perpetuals::instruction::SetTestOraclePrice { params },
+            perpetuals::instruction::SetCustomOraclePrice { params },
             Some(&payer.pubkey()),
             &[admin, payer, signer],
         )
@@ -66,7 +66,8 @@ pub async fn test_set_test_oracle_price(
     }
 
     // ==== THEN ==============================================================
-    let test_oracle_account = utils::get_account::<TestOracle>(program_test_ctx, *oracle_pda).await;
+    let test_oracle_account =
+        utils::get_account::<CustomOracle>(program_test_ctx, *oracle_pda).await;
 
     assert_eq!(test_oracle_account.price, params.price);
     assert_eq!(test_oracle_account.expo, params.expo);

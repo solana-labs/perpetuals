@@ -2,7 +2,7 @@ use {
     crate::{instructions, utils},
     maplit::hashmap,
     perpetuals::{
-        instructions::{OpenPositionParams, SetTestOraclePriceParams},
+        instructions::{OpenPositionParams, SetCustomOraclePriceParams},
         state::{custody::PricingParams, position::Side},
     },
     solana_sdk::signer::Signer,
@@ -134,20 +134,20 @@ pub async fn liquidate_position() {
 
     // Makes ETH price to drop 10%
     {
-        let eth_test_oracle_pda = test_setup.custodies_info[1].test_oracle_pda;
+        let eth_test_oracle_pda = test_setup.custodies_info[1].custom_oracle_pda;
         let eth_custody_pda = test_setup.custodies_info[1].custody_pda;
 
         let publish_time =
             utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await;
 
-        instructions::test_set_test_oracle_price(
+        instructions::test_set_custom_oracle_price(
             &mut test_setup.program_test_ctx.borrow_mut(),
             admin_a,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
             &eth_custody_pda,
             &eth_test_oracle_pda,
-            SetTestOraclePriceParams {
+            SetCustomOraclePriceParams {
                 price: utils::scale(1_350, ETH_DECIMALS),
                 expo: -(ETH_DECIMALS as i32),
                 conf: utils::scale(10, ETH_DECIMALS),
