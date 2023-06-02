@@ -6,7 +6,7 @@ use {
     },
     bonfida_test_utils::ProgramTestExt,
     perpetuals::{
-        instructions::AddLiquidityParams,
+        instructions::{AddCustodyParams, AddLiquidityParams, SetTestOraclePriceParams},
         state::{
             custody::{BorrowRateParams, Fees, PricingParams},
             perpetuals::Permissions,
@@ -19,15 +19,15 @@ use {
     std::{cell::RefCell, collections::HashMap},
 };
 
-pub struct NamedSetupCustodyWithLiquidityParams<'a> {
-    pub setup_custody_params: NamedSetupCustodyParams<'a>,
+pub struct SetupCustodyWithLiquidityParams<'a> {
+    pub setup_custody_params: SetupCustodyParams<'a>,
     pub liquidity_amount: u64,
 
     // Who's adding the liquidity?
     pub payer_user_name: &'a str,
 }
 
-pub struct NamedSetupCustodyParams<'a> {
+pub struct SetupCustodyParams<'a> {
     // Which mint is it about
     pub mint_name: &'a str,
 
@@ -95,12 +95,14 @@ impl TestSetup {
         self.mints.get(&name.to_string()).unwrap().pubkey
     }
 
+    // Initialize everything required to test the program
+    // Create the mints, the users, deploy the program, create the pool and the custodies, provide liquidity.
     pub async fn new(
         users_param: Vec<UserParam<'_>>,
         mints_param: Vec<MintParam<'_>>,
         multisig_members_names: Vec<&str>,
         pool_name: &str,
-        custodies_named_params: Vec<NamedSetupCustodyWithLiquidityParams<'_>>,
+        custodies_params: Vec<SetupCustodyWithLiquidityParams<'_>>,
     ) -> TestSetup {
         let mut program_test = ProgramTest::default();
 
@@ -197,6 +199,7 @@ impl TestSetup {
 
         let multisig_signers: Vec<&Keypair> = multisig_members.values().collect();
 
+        // Execute the initialize transaction
         instructions::test_init(
             &mut program_test_ctx.borrow_mut(),
             program_authority_keypair,
@@ -226,8 +229,6 @@ impl TestSetup {
             .await;
         }
 
-        utils::warp_forward(&mut program_test_ctx.borrow_mut(), 1).await;
-
         // Mint tokens for users to match specified balances
         {
             for user_param in users_param.as_slice() {
@@ -249,62 +250,119 @@ impl TestSetup {
             }
         }
 
-        let custodies_params: Vec<utils::SetupCustodyWithLiquidityParams> = {
-            // Build custodies params using informations given to this function
-            // Basically this function received mint_name and have to replace it with actual mint
-
-            custodies_named_params
-                .into_iter()
-                .map(|params| {
-                    let payer = users.get(&params.payer_user_name.to_string()).unwrap();
-                    let mint_info = mints
-                        .get(&params.setup_custody_params.mint_name.to_string())
-                        .unwrap();
-
-                    utils::SetupCustodyWithLiquidityParams {
-                        setup_custody_params: utils::SetupCustodyParams {
-                            mint: mint_info.pubkey,
-                            decimals: mint_info.decimals,
-                            is_virtual: params.setup_custody_params.is_virtual,
-                            is_stable: params.setup_custody_params.is_stable,
-                            target_ratio: params.setup_custody_params.target_ratio,
-                            min_ratio: params.setup_custody_params.min_ratio,
-                            max_ratio: params.setup_custody_params.max_ratio,
-                            initial_price: params.setup_custody_params.initial_price,
-                            initial_conf: params.setup_custody_params.initial_conf,
-                            pricing_params: params.setup_custody_params.pricing_params,
-                            permissions: params.setup_custody_params.permissions,
-                            fees: params.setup_custody_params.fees,
-                            borrow_rate: params.setup_custody_params.borrow_rate,
-                        },
-                        liquidity_amount: params.liquidity_amount,
-                        payer: utils::copy_keypair(payer),
-                    }
-                })
-                .collect()
-        };
-
-        // Setup the pool without ratio bound so we can provide liquidity without ratio limit error
-        let (pool_pda, pool_bump, lp_token_mint_pda, lp_token_mint_bump, custodies_info) =
-            utils::setup_pool_with_custodies(
+        // Setup the pool
+        let (pool_pda, pool_bump, lp_token_mint_pda, lp_token_mint_bump) =
+            instructions::test_add_pool(
                 &mut program_test_ctx.borrow_mut(),
                 &multisig_members_keypairs[0],
-                pool_name,
                 payer_keypair,
+                pool_name,
                 &multisig_signers,
-                custodies_params
-                    .iter()
-                    .map(|e| {
-                        let mut params = e.setup_custody_params;
-
-                        params.max_ratio = 10_000;
-                        params.min_ratio = 0;
-
-                        params
-                    })
-                    .collect(),
             )
-            .await;
+            .await
+            .unwrap();
+
+        // Setup the custodies
+        // Do it without ratio bound so we can provide liquidity without ratio limit error
+        let custodies_info: Vec<SetupCustodyInfo> = {
+            let mut custodies_info: Vec<SetupCustodyInfo> = Vec::new();
+
+            let mut ratios = vec![];
+
+            for (idx, custody_param) in custodies_params.iter().enumerate() {
+                let mint_info = mints
+                    .get(&custody_param.setup_custody_params.mint_name.to_string())
+                    .unwrap();
+
+                let test_oracle_pda =
+                    utils::get_test_oracle_account(&pool_pda, &mint_info.pubkey).0;
+
+                let target_ratio = 10_000 / (idx + 1) as u64;
+
+                // Force ratio 0 to 100% to be able to provide liquidity
+                ratios.push(TokenRatios {
+                    target: target_ratio,
+                    min: 0,
+                    max: 10_000,
+                });
+
+                ratios.iter_mut().for_each(|x| x.target = target_ratio);
+
+                if 10000 % (idx + 1) != 0 {
+                    let len = ratios.len();
+                    ratios[len - 1].target += 10_000 % (idx + 1) as u64;
+                }
+
+                let custody_pda = {
+                    let add_custody_params = AddCustodyParams {
+                        is_stable: custody_param.setup_custody_params.is_stable,
+                        is_virtual: custody_param.setup_custody_params.is_virtual,
+                        oracle: fixtures::oracle_params_regular(test_oracle_pda),
+                        pricing: custody_param
+                            .setup_custody_params
+                            .pricing_params
+                            .unwrap_or_else(|| fixtures::pricing_params_regular(false)),
+                        permissions: custody_param
+                            .setup_custody_params
+                            .permissions
+                            .unwrap_or_else(fixtures::permissions_full),
+                        fees: custody_param
+                            .setup_custody_params
+                            .fees
+                            .unwrap_or_else(fixtures::fees_linear_regular),
+                        borrow_rate: custody_param
+                            .setup_custody_params
+                            .borrow_rate
+                            .unwrap_or_else(fixtures::borrow_rate_regular),
+
+                        // in BPS, 10_000 = 100%
+                        ratios: ratios.clone(),
+                    };
+
+                    instructions::test_add_custody(
+                        &mut program_test_ctx.borrow_mut(),
+                        &multisig_members_keypairs[0],
+                        payer_keypair,
+                        &pool_pda,
+                        &mint_info.pubkey,
+                        mint_info.decimals,
+                        add_custody_params,
+                        &multisig_signers,
+                    )
+                    .await
+                    .unwrap()
+                    .0
+                };
+
+                let publish_time =
+                    utils::get_current_unix_timestamp(&mut program_test_ctx.borrow_mut()).await;
+
+                instructions::test_set_test_oracle_price(
+                    &mut program_test_ctx.borrow_mut(),
+                    &multisig_members_keypairs[0],
+                    payer_keypair,
+                    &pool_pda,
+                    &custody_pda,
+                    &test_oracle_pda,
+                    SetTestOraclePriceParams {
+                        price: custody_param.setup_custody_params.initial_price,
+                        expo: -(mint_info.decimals as i32),
+                        conf: custody_param.setup_custody_params.initial_conf,
+                        publish_time,
+                    },
+                    &multisig_signers,
+                )
+                .await
+                .unwrap();
+
+                custodies_info.push(SetupCustodyInfo {
+                    test_oracle_pda,
+                    custody_pda,
+                });
+            }
+
+            custodies_info
+        };
 
         // Initialize users token accounts for lp token mint
         {
@@ -323,21 +381,29 @@ impl TestSetup {
         }
 
         // Add liquidity
-        for params in custodies_params.as_slice() {
+        for custody_param in custodies_params.as_slice() {
+            let mint_info = mints
+                .get(&custody_param.setup_custody_params.mint_name.to_string())
+                .unwrap();
+
+            let liquidity_provider = users
+                .get(&custody_param.payer_user_name.to_string())
+                .unwrap();
+
             println!(
                 "adding liquidity for mint {}",
-                params.setup_custody_params.mint
+                custody_param.setup_custody_params.mint_name
             );
 
-            if params.liquidity_amount > 0 {
+            if custody_param.liquidity_amount > 0 {
                 instructions::test_add_liquidity(
                     &mut program_test_ctx.borrow_mut(),
-                    &params.payer,
+                    liquidity_provider,
                     payer_keypair,
                     &pool_pda,
-                    &params.setup_custody_params.mint,
+                    &mint_info.pubkey,
                     AddLiquidityParams {
-                        amount_in: params.liquidity_amount,
+                        amount_in: custody_param.liquidity_amount,
                         min_lp_amount_out: 1,
                     },
                 )
@@ -346,34 +412,36 @@ impl TestSetup {
             }
         }
 
-        // Set proper ratios
-        let target_ratio = 10_000 / custodies_params.len() as u64;
+        // Set proper ratios for custodies
+        {
+            let target_ratio = 10_000 / custodies_params.len() as u64;
 
-        let mut ratios: Vec<TokenRatios> = custodies_params
-            .iter()
-            .map(|x| TokenRatios {
-                target: target_ratio,
-                min: x.setup_custody_params.min_ratio,
-                max: x.setup_custody_params.max_ratio,
-            })
-            .collect();
+            let mut ratios: Vec<TokenRatios> = custodies_params
+                .iter()
+                .map(|x| TokenRatios {
+                    target: target_ratio,
+                    min: x.setup_custody_params.min_ratio,
+                    max: x.setup_custody_params.max_ratio,
+                })
+                .collect();
 
-        if 10_000 % custodies_params.len() != 0 {
-            let len = ratios.len();
+            if 10_000 % custodies_params.len() != 0 {
+                let len = ratios.len();
 
-            ratios[len - 1].target += 10_000 % custodies_params.len() as u64;
-        }
+                ratios[len - 1].target += 10_000 % custodies_params.len() as u64;
+            }
 
-        for (idx, _params) in custodies_params.as_slice().iter().enumerate() {
-            utils::set_custody_ratios(
-                &mut program_test_ctx.borrow_mut(),
-                &multisig_members_keypairs[0],
-                payer_keypair,
-                &custodies_info[idx].custody_pda,
-                ratios.clone(),
-                &multisig_signers,
-            )
-            .await;
+            for (idx, _params) in custodies_params.as_slice().iter().enumerate() {
+                utils::set_custody_ratios(
+                    &mut program_test_ctx.borrow_mut(),
+                    &multisig_members_keypairs[0],
+                    payer_keypair,
+                    &custodies_info[idx].custody_pda,
+                    ratios.clone(),
+                    &multisig_signers,
+                )
+                .await;
+            }
         }
 
         TestSetup {

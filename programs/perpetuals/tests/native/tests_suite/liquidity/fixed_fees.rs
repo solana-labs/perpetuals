@@ -23,8 +23,8 @@ pub async fn fixed_fees() {
         }],
         vec!["admin_a", "admin_b", "admin_c"],
         "main_pool",
-        vec![utils::NamedSetupCustodyWithLiquidityParams {
-            setup_custody_params: utils::NamedSetupCustodyParams {
+        vec![utils::SetupCustodyWithLiquidityParams {
+            setup_custody_params: utils::SetupCustodyParams {
                 mint_name: "usdc",
                 is_stable: true,
                 is_virtual: false,

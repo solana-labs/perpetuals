@@ -49,8 +49,8 @@ pub async fn basic_interactions() {
         vec!["admin_a", "admin_b", "admin_c"],
         "main_pool",
         vec![
-            utils::NamedSetupCustodyWithLiquidityParams {
-                setup_custody_params: utils::NamedSetupCustodyParams {
+            utils::SetupCustodyWithLiquidityParams {
+                setup_custody_params: utils::SetupCustodyParams {
                     mint_name: "usdc",
                     is_stable: true,
                     is_virtual: false,
@@ -67,8 +67,8 @@ pub async fn basic_interactions() {
                 liquidity_amount: utils::scale(1_000, USDC_DECIMALS),
                 payer_user_name: "alice",
             },
-            utils::NamedSetupCustodyWithLiquidityParams {
-                setup_custody_params: utils::NamedSetupCustodyParams {
+            utils::SetupCustodyWithLiquidityParams {
+                setup_custody_params: utils::SetupCustodyParams {
                     mint_name: "eth",
                     is_stable: false,
                     is_virtual: false,
