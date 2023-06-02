@@ -482,7 +482,7 @@ describe("perpetuals", () => {
       updateTime: "0",
       side: { long: {} },
       price: "124230000",
-      sizeUsd: "861000000",
+      sizeUsd: "869610000",
       collateralUsd: "123000000",
       unrealizedProfitUsd: "0",
       unrealizedLossUsd: "0",
