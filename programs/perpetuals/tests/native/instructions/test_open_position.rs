@@ -4,7 +4,7 @@ use {
     bonfida_test_utils::ProgramTestContextExt,
     perpetuals::{
         instructions::OpenPositionParams,
-        state::{custody::Custody, perpetuals::Perpetuals, position::Position},
+        state::{custody::Custody, position::Position},
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
@@ -89,15 +89,13 @@ pub async fn test_open_position(
     // Check the position
     {
         let position_account = utils::get_account::<Position>(program_test_ctx, position_pda).await;
-        let perpetuals_account =
-            utils::get_account::<Perpetuals>(program_test_ctx, perpetuals_pda).await;
 
         assert_eq!(position_account.owner, owner.pubkey());
         assert_eq!(position_account.pool, *pool_pda);
         assert_eq!(position_account.custody, custody_pda);
         assert_eq!(
             position_account.open_time,
-            perpetuals_account.inception_time
+            utils::get_current_unix_timestamp(program_test_ctx).await
         );
         assert_eq!(position_account.update_time, 0);
         assert_eq!(position_account.side, params.side);

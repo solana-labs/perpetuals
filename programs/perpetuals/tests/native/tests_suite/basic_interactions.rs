@@ -1,138 +1,57 @@
 use {
-    crate::{
-        instructions,
-        utils::{self, fixtures},
-    },
-    bonfida_test_utils::ProgramTestExt,
+    crate::{instructions, utils},
+    maplit::hashmap,
     perpetuals::{
         instructions::{
             ClosePositionParams, OpenPositionParams, RemoveLiquidityParams, SwapParams,
         },
         state::position::Side,
     },
-    solana_program_test::ProgramTest,
     solana_sdk::signer::Signer,
 };
-
-const ROOT_AUTHORITY: usize = 0;
-const PERPETUALS_UPGRADE_AUTHORITY: usize = 1;
-const MULTISIG_MEMBER_A: usize = 2;
-const MULTISIG_MEMBER_B: usize = 3;
-const MULTISIG_MEMBER_C: usize = 4;
-const PAYER: usize = 5;
-const USER_ALICE: usize = 6;
-const USER_MARTIN: usize = 7;
-const USER_PAUL: usize = 8;
-
-const KEYPAIRS_COUNT: usize = 9;
 
 const USDC_DECIMALS: u8 = 6;
 const ETH_DECIMALS: u8 = 9;
 
 pub async fn basic_interactions() {
-    let mut program_test = ProgramTest::default();
-
-    // Initialize the accounts that will be used during the test suite
-    let keypairs =
-        utils::create_and_fund_multiple_accounts(&mut program_test, KEYPAIRS_COUNT).await;
-
-    // Initialize mints
-    let usdc_mint = program_test
-        .add_mint(None, USDC_DECIMALS, &keypairs[ROOT_AUTHORITY].pubkey())
-        .0;
-    let eth_mint = program_test
-        .add_mint(None, ETH_DECIMALS, &keypairs[ROOT_AUTHORITY].pubkey())
-        .0;
-
-    // Deploy the perpetuals program onchain as upgradeable program
-    utils::add_perpetuals_program(&mut program_test, &keypairs[PERPETUALS_UPGRADE_AUTHORITY]).await;
-
-    // Start the client and connect to localnet validator
-    let mut program_test_ctx = program_test.start_with_context().await;
-
-    let upgrade_authority = &keypairs[PERPETUALS_UPGRADE_AUTHORITY];
-
-    let multisig_signers = &[
-        &keypairs[MULTISIG_MEMBER_A],
-        &keypairs[MULTISIG_MEMBER_B],
-        &keypairs[MULTISIG_MEMBER_C],
-    ];
-
-    instructions::test_init(
-        &mut program_test_ctx,
-        upgrade_authority,
-        fixtures::init_params_permissions_full(1),
-        multisig_signers,
-    )
-    .await
-    .unwrap();
-
-    // Initialize and fund associated token accounts
-    {
-        // Alice: mint 1k USDC
-        {
-            utils::initialize_and_fund_token_account(
-                &mut program_test_ctx,
-                &usdc_mint,
-                &keypairs[USER_ALICE].pubkey(),
-                &keypairs[ROOT_AUTHORITY],
-                utils::scale(1_000, USDC_DECIMALS),
-            )
-            .await;
-        }
-
-        // Martin: mint 100 USDC and 2 ETH
-        {
-            utils::initialize_and_fund_token_account(
-                &mut program_test_ctx,
-                &usdc_mint,
-                &keypairs[USER_MARTIN].pubkey(),
-                &keypairs[ROOT_AUTHORITY],
-                utils::scale(100, USDC_DECIMALS),
-            )
-            .await;
-
-            utils::initialize_and_fund_token_account(
-                &mut program_test_ctx,
-                &eth_mint,
-                &keypairs[USER_MARTIN].pubkey(),
-                &keypairs[ROOT_AUTHORITY],
-                utils::scale(2, ETH_DECIMALS),
-            )
-            .await;
-        }
-
-        // Paul: mint 150 USDC
-        {
-            utils::initialize_and_fund_token_account(
-                &mut program_test_ctx,
-                &usdc_mint,
-                &keypairs[USER_PAUL].pubkey(),
-                &keypairs[ROOT_AUTHORITY],
-                utils::scale(150, USDC_DECIMALS),
-            )
-            .await;
-
-            utils::initialize_token_account(
-                &mut program_test_ctx,
-                &eth_mint,
-                &keypairs[USER_PAUL].pubkey(),
-            )
-            .await;
-        }
-    }
-
-    let (pool_pda, _, lp_token_mint_pda, _, _) = utils::setup_pool_with_custodies_and_liquidity(
-        &mut program_test_ctx,
-        &keypairs[MULTISIG_MEMBER_A],
-        "FOO",
-        &keypairs[PAYER],
-        multisig_signers,
+    let test_setup = utils::TestSetup::new(
         vec![
-            utils::SetupCustodyWithLiquidityParams {
-                setup_custody_params: utils::SetupCustodyParams {
-                    mint: usdc_mint,
-                    decimals: USDC_DECIMALS,
+            utils::UserParam {
+                name: "alice",
+                token_balances: hashmap! {
+                    "usdc" => utils::scale(1_000, USDC_DECIMALS),
+                },
+            },
+            utils::UserParam {
+                name: "martin",
+                token_balances: hashmap! {
+                    "usdc"  => utils::scale(100, USDC_DECIMALS),
+                    "eth"  => utils::scale(2, ETH_DECIMALS),
+                },
+            },
+            utils::UserParam {
+                name: "paul",
+                token_balances: hashmap! {
+                    "usdc"  => utils::scale(150, USDC_DECIMALS),
+                },
+            },
+        ],
+        vec![
+            utils::MintParam {
+                name: "usdc",
+                decimals: USDC_DECIMALS,
+            },
+            utils::MintParam {
+                name: "eth",
+                decimals: ETH_DECIMALS,
+            },
+        ],
+        vec!["admin_a", "admin_b", "admin_c"],
+        "main_pool",
+        vec![
+            utils::NamedSetupCustodyWithLiquidityParams {
+                setup_custody_params: utils::NamedSetupCustodyParams {
+                    mint_name: "usdc",
                     is_stable: true,
                     is_virtual: false,
                     target_ratio: utils::ratio_from_percentage(50.0),
@@ -145,14 +64,12 @@ pub async fn basic_interactions() {
                     fees: None,
                     borrow_rate: None,
                 },
-                // Alice: add 1k USDC liquidity
                 liquidity_amount: utils::scale(1_000, USDC_DECIMALS),
-                payer: utils::copy_keypair(&keypairs[USER_ALICE]),
+                payer_user_name: "alice",
             },
-            utils::SetupCustodyWithLiquidityParams {
-                setup_custody_params: utils::SetupCustodyParams {
-                    mint: eth_mint,
-                    decimals: ETH_DECIMALS,
+            utils::NamedSetupCustodyWithLiquidityParams {
+                setup_custody_params: utils::NamedSetupCustodyParams {
+                    mint_name: "eth",
                     is_stable: false,
                     is_virtual: false,
                     target_ratio: utils::ratio_from_percentage(50.0),
@@ -165,26 +82,32 @@ pub async fn basic_interactions() {
                     fees: None,
                     borrow_rate: None,
                 },
-                // Martin: add 1 ETH liquidity
                 liquidity_amount: utils::scale(1, ETH_DECIMALS),
-                payer: utils::copy_keypair(&keypairs[USER_MARTIN]),
+                payer_user_name: "martin",
             },
         ],
     )
     .await;
 
+    let alice = test_setup.get_user_keypair_by_name("alice");
+    let martin = test_setup.get_user_keypair_by_name("martin");
+    let paul = test_setup.get_user_keypair_by_name("paul");
+
+    let usdc_mint = &test_setup.get_mint_by_name("usdc");
+    let eth_mint = &test_setup.get_mint_by_name("eth");
+
     // Simple open/close position
     {
         // Martin: Open 0.1 ETH position
         let position_pda = instructions::test_open_position(
-            &mut program_test_ctx,
-            &keypairs[USER_MARTIN],
-            &keypairs[PAYER],
-            &pool_pda,
-            &eth_mint,
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            martin,
+            &test_setup.payer_keypair,
+            &test_setup.pool_pda,
+            eth_mint,
             OpenPositionParams {
                 // max price paid (slippage implied)
-                price: utils::scale(1_550, ETH_DECIMALS),
+                price: utils::scale(1_550, USDC_DECIMALS),
                 collateral: utils::scale_f64(0.1, ETH_DECIMALS),
                 size: utils::scale_f64(0.1, ETH_DECIMALS),
                 side: Side::Long,
@@ -196,10 +119,10 @@ pub async fn basic_interactions() {
 
         // Martin: Close the ETH position
         instructions::test_close_position(
-            &mut program_test_ctx,
-            &keypairs[USER_MARTIN],
-            &keypairs[PAYER],
-            &pool_pda,
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            martin,
+            &test_setup.payer_keypair,
+            &test_setup.pool_pda,
             &eth_mint,
             &position_pda,
             ClosePositionParams {
@@ -215,10 +138,10 @@ pub async fn basic_interactions() {
     {
         // Paul: Swap 150 USDC for ETH
         instructions::test_swap(
-            &mut program_test_ctx,
-            &keypairs[USER_PAUL],
-            &keypairs[PAYER],
-            &pool_pda,
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            paul,
+            &test_setup.payer_keypair,
+            &test_setup.pool_pda,
             &eth_mint,
             // The program receives USDC
             &usdc_mint,
@@ -238,21 +161,21 @@ pub async fn basic_interactions() {
 
     // Remove liquidity
     {
-        let alice_lp_token = utils::find_associated_token_account(
-            &keypairs[USER_ALICE].pubkey(),
-            &lp_token_mint_pda,
-        )
-        .0;
+        let alice_lp_token =
+            utils::find_associated_token_account(&alice.pubkey(), &test_setup.lp_token_mint_pda).0;
 
-        let alice_lp_token_balance =
-            utils::get_token_account_balance(&mut program_test_ctx, alice_lp_token).await;
+        let alice_lp_token_balance = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice_lp_token,
+        )
+        .await;
 
         // Alice: Remove 100% of provided liquidity (1k USDC less fees)
         instructions::test_remove_liquidity(
-            &mut program_test_ctx,
-            &keypairs[USER_ALICE],
-            &keypairs[PAYER],
-            &pool_pda,
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.pool_pda,
             &usdc_mint,
             RemoveLiquidityParams {
                 lp_amount_in: alice_lp_token_balance,

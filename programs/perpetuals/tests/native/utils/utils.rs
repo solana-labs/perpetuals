@@ -16,7 +16,10 @@ use {
             pool::TokenRatios,
         },
     },
-    solana_program::{bpf_loader_upgradeable, program_pack::Pack, stake_history::Epoch},
+    solana_program::{
+        bpf_loader_upgradeable, clock::SLOT_MS, epoch_schedule::DEFAULT_SLOTS_PER_EPOCH,
+        program_pack::Pack, stake_history::Epoch,
+    },
     solana_program_test::{read_file, BanksClientError, ProgramTest, ProgramTestContext},
     solana_sdk::{account, signature::Keypair, signer::Signer, signers::Signers},
     std::{
@@ -560,4 +563,43 @@ pub fn ratio_from_percentage(percentage: f64) -> u64 {
         .mul(percentage)
         .div(100_f64)
         .floor() as u64
+}
+
+pub async fn initialize_users_token_accounts(
+    program_test_ctx: &mut ProgramTestContext,
+    mints: Vec<Pubkey>,
+    users: Vec<Pubkey>,
+) {
+    for mint in mints {
+        program_test_ctx
+            .initialize_token_accounts(mint, users.as_slice())
+            .await
+            .unwrap();
+    }
+}
+
+// Doesn't check if you go before epoch 0 when passing negative amounts, be wary
+pub async fn warp_forward(ctx: &mut ProgramTestContext, seconds: i64) {
+    let clock_sysvar: Clock = ctx.banks_client.get_sysvar().await.unwrap();
+    println!(
+        "Original Time: epoch = {}, timestamp = {}",
+        clock_sysvar.epoch, clock_sysvar.unix_timestamp
+    );
+    let mut new_clock = clock_sysvar.clone();
+    new_clock.unix_timestamp += seconds;
+
+    let seconds_since_epoch_start = new_clock.unix_timestamp - clock_sysvar.epoch_start_timestamp;
+    let ms_since_epoch_start = seconds_since_epoch_start * 1_000;
+    let slots_since_epoch_start = ms_since_epoch_start / SLOT_MS as i64;
+    let epochs_since_epoch_start = slots_since_epoch_start / DEFAULT_SLOTS_PER_EPOCH as i64;
+    new_clock.epoch = (new_clock.epoch as i64 + epochs_since_epoch_start) as u64;
+
+    ctx.set_sysvar(&new_clock);
+    let clock_sysvar: Clock = ctx.banks_client.get_sysvar().await.unwrap();
+    println!(
+        "New Time: epoch = {}, timestamp = {}",
+        clock_sysvar.epoch, clock_sysvar.unix_timestamp
+    );
+
+    ctx.last_blockhash = ctx.banks_client.get_latest_blockhash().await.unwrap();
 }
