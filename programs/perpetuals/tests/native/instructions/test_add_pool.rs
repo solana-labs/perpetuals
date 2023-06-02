@@ -89,7 +89,7 @@ pub async fn test_add_pool(
 
     assert_eq!(*perpetuals_account.pools.last().unwrap(), pool_pda);
     assert_eq!(
-        perpetuals_account.inception_time,
+        utils::get_current_unix_timestamp(program_test_ctx).await,
         pool_account.inception_time
     );
 

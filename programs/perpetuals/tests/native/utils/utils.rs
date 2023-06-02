@@ -1,22 +1,19 @@
 use {
-    super::{fixtures, get_program_data_pda, get_test_oracle_account},
+    super::get_program_data_pda,
     crate::instructions,
     anchor_lang::{prelude::*, InstructionData},
     anchor_spl::token::spl_token,
     bonfida_test_utils::ProgramTestContextExt,
     borsh::BorshDeserialize,
     perpetuals::{
-        instructions::{
-            AddCustodyParams, AddLiquidityParams, SetCustodyConfigParams, SetTestOraclePriceParams,
-        },
+        instructions::SetCustodyConfigParams,
         math,
-        state::{
-            custody::{BorrowRateParams, Custody, Fees, PricingParams},
-            perpetuals::{Permissions, Perpetuals},
-            pool::TokenRatios,
-        },
+        state::{custody::Custody, perpetuals::Perpetuals, pool::TokenRatios},
     },
-    solana_program::{bpf_loader_upgradeable, program_pack::Pack, stake_history::Epoch},
+    solana_program::{
+        bpf_loader_upgradeable, clock::SLOT_MS, epoch_schedule::DEFAULT_SLOTS_PER_EPOCH,
+        program_pack::Pack, stake_history::Epoch,
+    },
     solana_program_test::{read_file, BanksClientError, ProgramTest, ProgramTestContext},
     solana_sdk::{account, signature::Keypair, signer::Signer, signers::Signers},
     std::{
@@ -310,238 +307,10 @@ pub async fn set_custody_ratios(
     .unwrap();
 }
 
-pub struct SetupCustodyWithLiquidityParams {
-    pub setup_custody_params: SetupCustodyParams,
-    pub liquidity_amount: u64,
-    pub payer: Keypair,
-}
-
-// Setup the pool, add custodies then add liquidity
-pub async fn setup_pool_with_custodies_and_liquidity(
-    program_test_ctx: &mut ProgramTestContext,
-    admin: &Keypair,
-    pool_name: &str,
-    payer: &Keypair,
-    multisig_signers: &[&Keypair],
-    custodies_params: Vec<SetupCustodyWithLiquidityParams>,
-) -> (
-    solana_sdk::pubkey::Pubkey,
-    u8,
-    solana_sdk::pubkey::Pubkey,
-    u8,
-    Vec<SetupCustodyInfo>,
-) {
-    // Setup the pool without ratio bound so we can provide liquidity without ratio limit error
-    let (pool_pda, pool_bump, lp_token_mint_pda, lp_token_mint_bump, custodies_info) =
-        setup_pool_with_custodies(
-            program_test_ctx,
-            admin,
-            pool_name,
-            payer,
-            multisig_signers,
-            custodies_params
-                .iter()
-                .map(|e| {
-                    let mut params = e.setup_custody_params;
-
-                    params.max_ratio = 10_000;
-                    params.min_ratio = 0;
-
-                    params
-                })
-                .collect(),
-        )
-        .await;
-
-    // Add liquidity
-    for params in custodies_params.as_slice() {
-        initialize_token_account(program_test_ctx, &lp_token_mint_pda, &params.payer.pubkey())
-            .await;
-
-        if params.liquidity_amount > 0 {
-            instructions::test_add_liquidity(
-                program_test_ctx,
-                &params.payer,
-                payer,
-                &pool_pda,
-                &params.setup_custody_params.mint,
-                AddLiquidityParams {
-                    amount_in: params.liquidity_amount,
-                    min_lp_amount_out: 1,
-                },
-            )
-            .await
-            .unwrap();
-        }
-    }
-
-    // Set proper ratios
-    let target_ratio = 10000 / custodies_params.len() as u64;
-    let mut ratios: Vec<TokenRatios> = custodies_params
-        .iter()
-        .map(|x| TokenRatios {
-            target: target_ratio,
-            min: x.setup_custody_params.min_ratio,
-            max: x.setup_custody_params.max_ratio,
-        })
-        .collect();
-    if 10000 % custodies_params.len() != 0 {
-        let len = ratios.len();
-        ratios[len - 1].target += 10000 % custodies_params.len() as u64;
-    }
-    for (idx, _params) in custodies_params.as_slice().iter().enumerate() {
-        set_custody_ratios(
-            program_test_ctx,
-            admin,
-            payer,
-            &custodies_info[idx].custody_pda,
-            ratios.clone(),
-            multisig_signers,
-        )
-        .await;
-    }
-
-    (
-        pool_pda,
-        pool_bump,
-        lp_token_mint_pda,
-        lp_token_mint_bump,
-        custodies_info,
-    )
-}
-
-#[derive(Clone, Copy)]
-pub struct SetupCustodyParams {
-    pub mint: Pubkey,
-    pub decimals: u8,
-    pub is_stable: bool,
-    pub is_virtual: bool,
-    pub target_ratio: u64,
-    pub min_ratio: u64,
-    pub max_ratio: u64,
-    pub initial_price: u64,
-    pub initial_conf: u64,
-    pub pricing_params: Option<PricingParams>,
-    pub permissions: Option<Permissions>,
-    pub fees: Option<Fees>,
-    pub borrow_rate: Option<BorrowRateParams>,
-}
-
 #[derive(Clone, Copy)]
 pub struct SetupCustodyInfo {
     pub test_oracle_pda: Pubkey,
     pub custody_pda: Pubkey,
-}
-
-pub async fn setup_pool_with_custodies(
-    program_test_ctx: &mut ProgramTestContext,
-    admin: &Keypair,
-    pool_name: &str,
-    payer: &Keypair,
-    multisig_signers: &[&Keypair],
-    custodies_params: Vec<SetupCustodyParams>,
-) -> (
-    solana_sdk::pubkey::Pubkey,
-    u8,
-    solana_sdk::pubkey::Pubkey,
-    u8,
-    Vec<SetupCustodyInfo>,
-) {
-    let (pool_pda, pool_bump, lp_token_mint_pda, lp_token_mint_bump) =
-        instructions::test_add_pool(program_test_ctx, admin, payer, pool_name, multisig_signers)
-            .await
-            .unwrap();
-
-    let mut custodies_info: Vec<SetupCustodyInfo> = Vec::new();
-
-    let mut ratios = vec![];
-
-    for (idx, custody_param) in custodies_params.iter().enumerate() {
-        let test_oracle_pda = get_test_oracle_account(&pool_pda, &custody_param.mint).0;
-
-        let target_ratio = 10000 / (idx + 1) as u64;
-        ratios.push(TokenRatios {
-            target: target_ratio,
-            min: custody_param.min_ratio,
-            max: custody_param.max_ratio,
-        });
-        ratios.iter_mut().for_each(|x| x.target = target_ratio);
-
-        if 10000 % (idx + 1) != 0 {
-            let len = ratios.len();
-            ratios[len - 1].target += 10000 % (idx + 1) as u64;
-        }
-
-        let custody_pda = {
-            let add_custody_params = AddCustodyParams {
-                is_stable: custody_param.is_stable,
-                is_virtual: custody_param.is_virtual,
-                oracle: fixtures::oracle_params_regular(test_oracle_pda),
-                pricing: custody_param
-                    .pricing_params
-                    .unwrap_or_else(|| fixtures::pricing_params_regular(false)),
-                permissions: custody_param
-                    .permissions
-                    .unwrap_or_else(fixtures::permissions_full),
-                fees: custody_param
-                    .fees
-                    .unwrap_or_else(fixtures::fees_linear_regular),
-                borrow_rate: custody_param
-                    .borrow_rate
-                    .unwrap_or_else(fixtures::borrow_rate_regular),
-
-                // in BPS, 10_000 = 100%
-                ratios: ratios.clone(),
-            };
-
-            instructions::test_add_custody(
-                program_test_ctx,
-                admin,
-                payer,
-                &pool_pda,
-                &custody_param.mint,
-                custody_param.decimals,
-                add_custody_params,
-                multisig_signers,
-            )
-            .await
-            .unwrap()
-            .0
-        };
-
-        let publish_time = get_current_unix_timestamp(program_test_ctx).await;
-
-        instructions::test_set_test_oracle_price(
-            program_test_ctx,
-            admin,
-            payer,
-            &pool_pda,
-            &custody_pda,
-            &test_oracle_pda,
-            SetTestOraclePriceParams {
-                price: custody_param.initial_price,
-                expo: -(custody_param.decimals as i32),
-                conf: custody_param.initial_conf,
-                publish_time,
-            },
-            multisig_signers,
-        )
-        .await
-        .unwrap();
-
-        custodies_info.push(SetupCustodyInfo {
-            test_oracle_pda,
-            custody_pda,
-        });
-    }
-
-    (
-        pool_pda,
-        pool_bump,
-        lp_token_mint_pda,
-        lp_token_mint_bump,
-        custodies_info,
-    )
 }
 
 pub fn scale(amount: u64, decimals: u8) -> u64 {
@@ -560,4 +329,43 @@ pub fn ratio_from_percentage(percentage: f64) -> u64 {
         .mul(percentage)
         .div(100_f64)
         .floor() as u64
+}
+
+pub async fn initialize_users_token_accounts(
+    program_test_ctx: &mut ProgramTestContext,
+    mints: Vec<Pubkey>,
+    users: Vec<Pubkey>,
+) {
+    for mint in mints {
+        program_test_ctx
+            .initialize_token_accounts(mint, users.as_slice())
+            .await
+            .unwrap();
+    }
+}
+
+// Doesn't check if you go before epoch 0 when passing negative amounts, be wary
+pub async fn warp_forward(ctx: &mut ProgramTestContext, seconds: i64) {
+    let clock_sysvar: Clock = ctx.banks_client.get_sysvar().await.unwrap();
+    println!(
+        "Original Time: epoch = {}, timestamp = {}",
+        clock_sysvar.epoch, clock_sysvar.unix_timestamp
+    );
+    let mut new_clock = clock_sysvar.clone();
+    new_clock.unix_timestamp += seconds;
+
+    let seconds_since_epoch_start = new_clock.unix_timestamp - clock_sysvar.epoch_start_timestamp;
+    let ms_since_epoch_start = seconds_since_epoch_start * 1_000;
+    let slots_since_epoch_start = ms_since_epoch_start / SLOT_MS as i64;
+    let epochs_since_epoch_start = slots_since_epoch_start / DEFAULT_SLOTS_PER_EPOCH as i64;
+    new_clock.epoch = (new_clock.epoch as i64 + epochs_since_epoch_start) as u64;
+
+    ctx.set_sysvar(&new_clock);
+    let clock_sysvar: Clock = ctx.banks_client.get_sysvar().await.unwrap();
+    println!(
+        "New Time: epoch = {}, timestamp = {}",
+        clock_sysvar.epoch, clock_sysvar.unix_timestamp
+    );
+
+    ctx.last_blockhash = ctx.banks_client.get_latest_blockhash().await.unwrap();
 }
