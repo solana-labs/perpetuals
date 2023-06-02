@@ -32,6 +32,8 @@ pub struct Fees {
     pub open_position: u64,
     pub close_position: u64,
     pub liquidation: u64,
+    // This is initially intended to be the protocol revenues (a fee on the fees)
+    // In the case of ADX, this will be repurposed to go to the ADX staking rewards (and give a share of the revenue to ADX holders)
     pub protocol_share: u64,
 }
 

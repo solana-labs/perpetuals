@@ -25,7 +25,7 @@ pub async fn test_add_pool(
     let multisig_pda = pda::get_multisig_pda().0;
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
-    let (pool_pda, pool_bump) = pda::get_pool_pda(String::from_str(pool_name).unwrap());
+    let (pool_pda, pool_bump) = pda::get_pool_pda(&String::from_str(pool_name).unwrap());
     let (lp_token_mint_pda, lp_token_mint_bump) = pda::get_lp_token_mint_pda(&pool_pda);
 
     let multisig_account = utils::get_account::<Multisig>(program_test_ctx, multisig_pda).await;

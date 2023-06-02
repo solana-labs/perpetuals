@@ -243,4 +243,20 @@ pub mod perpetuals {
     ) -> Result<u128> {
         instructions::get_assets_under_management(ctx, &params)
     }
+
+    pub fn add_stake(ctx: Context<AddStake>, params: AddStakeParams) -> Result<()> {
+        instructions::add_stake(ctx, &params)
+    }
+
+    pub fn remove_stake(ctx: Context<RemoveStake>, params: RemoveStakeParams) -> Result<()> {
+        instructions::remove_stake(ctx, &params)
+    }
+
+    pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
+        instructions::claim_stake(ctx)
+    }
+
+    pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
+        instructions::resolve_staking_round(ctx)
+    }
 }

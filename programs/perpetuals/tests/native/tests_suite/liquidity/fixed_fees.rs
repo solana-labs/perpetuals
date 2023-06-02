@@ -1,8 +1,7 @@
 use {
-    crate::utils::pda,
     crate::{
         instructions,
-        utils::{self, fixtures},
+        utils::{self, fixtures, pda},
     },
     bonfida_test_utils::ProgramTestExt,
     perpetuals::{
@@ -59,11 +58,15 @@ pub async fn fixed_fees() {
 
     let governance_realm_pda = pda::get_governance_realm_pda("ADRENA".to_string());
 
+    // mint for the payouts of the LM token staking (ADX staking)
+    let cortex_stake_reward_mint = usdc_mint;
+
     instructions::test_init(
         &mut program_test_ctx,
         upgrade_authority,
         fixtures::init_params_permissions_full(1),
         &governance_realm_pda,
+        &cortex_stake_reward_mint,
         multisig_signers,
     )
     .await
@@ -98,6 +101,7 @@ pub async fn fixed_fees() {
         &keypairs[MULTISIG_MEMBER_A],
         "FOO",
         &keypairs[PAYER],
+        &cortex_stake_reward_mint,
         multisig_signers,
         vec![utils::SetupCustodyWithLiquidityParams {
             setup_custody_params: utils::SetupCustodyParams {
@@ -134,6 +138,7 @@ pub async fn fixed_fees() {
             &keypairs[PAYER],
             &pool_pda,
             &usdc_mint,
+            &cortex_stake_reward_mint,
             AddLiquidityParams {
                 amount_in: utils::scale(1_000, USDC_DECIMALS),
                 min_lp_amount_out: 1,
@@ -173,6 +178,7 @@ pub async fn fixed_fees() {
             &keypairs[PAYER],
             &pool_pda,
             &usdc_mint,
+            &cortex_stake_reward_mint,
             RemoveLiquidityParams {
                 lp_amount_in: utils::scale(100, Perpetuals::LP_DECIMALS),
                 min_amount_out: 1,

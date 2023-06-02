@@ -6,39 +6,25 @@ use {
 };
 
 #[allow(clippy::too_many_arguments)]
-pub async fn relinquish_vote(
+pub async fn create_token_owner_record(
     program_test_ctx: &mut ProgramTestContext,
     payer: &Keypair,
     realm_pda: &Pubkey,
-    governance_pda: &Pubkey,
-    proposal_pda: &Pubkey,
     governing_token_mint: &Pubkey,
     governing_token_owner: &Pubkey,
-    governance_authority: &Keypair,
 ) -> std::result::Result<(), BanksClientError> {
-    let token_owner_record_address =
-        spl_governance::state::token_owner_record::get_token_owner_record_address(
-            &spl_governance_program_adapter::id(),
-            realm_pda,
-            governing_token_mint,
-            governing_token_owner,
-        );
-
-    let ix = spl_governance::instruction::relinquish_vote(
+    let ix = spl_governance::instruction::create_token_owner_record(
         &spl_governance_program_adapter::id(),
         realm_pda,
-        governance_pda,
-        proposal_pda,
-        &token_owner_record_address,
+        governing_token_owner,
         governing_token_mint,
-        Some(governance_authority.pubkey()),
-        Some(*governing_token_owner),
+        &payer.pubkey(),
     );
 
     let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
-        &[payer, governance_authority],
+        &[payer],
         program_test_ctx.last_blockhash,
     );
 

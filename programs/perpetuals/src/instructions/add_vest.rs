@@ -1,18 +1,18 @@
 //! AddVest instruction handler
 
 use {
-    crate::adapters,
-    crate::adapters::*,
-    crate::error::PerpetualsError,
-    crate::state::{
-        cortex::Cortex,
-        multisig::{AdminInstruction, Multisig},
-        perpetuals::Perpetuals,
-        vest::Vest,
+    crate::{
+        adapters::{self, CreateTokenOwnerRecord, SplGovernanceV3Adapter},
+        error::PerpetualsError,
+        state::{
+            cortex::Cortex,
+            multisig::{AdminInstruction, Multisig},
+            perpetuals::Perpetuals,
+            vest::Vest,
+        },
     },
     anchor_lang::prelude::*,
-    anchor_spl::token::TokenAccount,
-    anchor_spl::token::{Mint, Token},
+    anchor_spl::token::{Mint, Token, TokenAccount},
 };
 
 #[derive(Accounts)]
@@ -44,7 +44,7 @@ pub struct AddVest<'info> {
 
     #[account(
         mut,
-        realloc = Cortex::LEN + (cortex.vests.len() + 1) * std::mem::size_of::<Vest>(),
+        realloc = cortex.size() + std::mem::size_of::<Vest>(),
         realloc::payer = admin,
         realloc::zero = false,
         seeds = [b"cortex"],
@@ -78,9 +78,16 @@ pub struct AddVest<'info> {
     #[account(
         mut,
         seeds = [b"lm_token_mint"],
-        bump
+        bump = cortex.lm_token_bump
     )]
     pub lm_token_mint: Box<Account<'info, Mint>>,
+
+    #[account(
+        mut,
+        seeds = [b"governance_token_mint"],
+        bump = cortex.governance_token_bump
+    )]
+    pub governance_token_mint: Box<Account<'info, Mint>>,
 
     #[account(
         init_if_needed,
@@ -88,7 +95,7 @@ pub struct AddVest<'info> {
             b"vest_token_account",
             vest.key().as_ref(),
         ],
-        token::authority = vest,
+        token::authority = transfer_authority,
         token::mint = lm_token_mint,
         bump,
         payer = payer,
@@ -195,64 +202,52 @@ pub fn add_vest<'info>(
         cortex.vests.push(ctx.accounts.vest.key());
     }
 
-    // Deposit tokens in governance
+    // Give 1:1 governing power to the Vest owner (signed by the mint)
     {
-        let owner_key = ctx.accounts.owner.key();
-        let vest_signer_seeds: &[&[u8]] = &[b"vest", owner_key.as_ref(), &[ctx.accounts.vest.bump]];
+        let perpetuals = ctx.accounts.perpetuals.as_mut();
+        let mint_seeds: &[&[u8]] = &[
+            b"governance_token_mint",
+            &[ctx.accounts.cortex.governance_token_bump],
+        ];
 
-        let cpi_accounts = adapters::DepositGoverningTokens {
-            realm: ctx.accounts.governance_realm.to_account_info(),
-            realm_config: ctx.accounts.governance_realm_config.to_account_info(),
-            governing_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
-            governing_token_source: ctx.accounts.vest_token_account.to_account_info(),
-            governing_token_owner: ctx.accounts.vest.to_account_info(),
-            governing_token_transfer_authority: ctx.accounts.vest.to_account_info(),
-            payer: ctx.accounts.payer.to_account_info(),
-            governing_token_holding: ctx
-                .accounts
+        // due to some limitation in the governance code (a check that prevent depositing
+        // governance power when the owner is not signing the TX), we have to call
+        // create_token_owner_record first to bypass the signer check limitation on
+        // the token owner not signing this TX necesarily
+        {
+            let cpi_accounts = CreateTokenOwnerRecord {
+                realm: ctx.accounts.governance_realm.to_account_info(),
+                governing_token_owner: ctx.accounts.owner.to_account_info(),
+                governing_token_owner_record: ctx
+                    .accounts
+                    .governance_governing_token_owner_record
+                    .to_account_info(),
+                governing_token_mint: ctx.accounts.governance_token_mint.to_account_info(),
+                payer: ctx.accounts.payer.to_account_info(),
+            };
+
+            let cpi_program = ctx.accounts.governance_program.to_account_info();
+            adapters::create_token_owner_record(CpiContext::new(cpi_program, cpi_accounts))?;
+        }
+
+        perpetuals.add_governing_power(
+            ctx.accounts.transfer_authority.to_account_info(),
+            ctx.accounts.payer.to_account_info(),
+            ctx.accounts.owner.to_account_info(),
+            ctx.accounts
+                .governance_governing_token_owner_record
+                .to_account_info(),
+            ctx.accounts.governance_token_mint.to_account_info(),
+            ctx.accounts.governance_realm.to_account_info(),
+            ctx.accounts.governance_realm_config.to_account_info(),
+            ctx.accounts
                 .governance_governing_token_holding
                 .to_account_info(),
-            governing_token_owner_record: ctx
-                .accounts
-                .governance_governing_token_owner_record
-                .to_account_info(),
-        };
-
-        let cpi_program = ctx.accounts.governance_program.to_account_info();
-
-        adapters::deposit_governing_tokens(
-            CpiContext::new(cpi_program, cpi_accounts).with_signer(&[vest_signer_seeds]),
+            ctx.accounts.governance_program.to_account_info(),
             ctx.accounts.vest.amount,
+            Some(mint_seeds),
+            false,
         )?;
-    }
-
-    // Set vote delegate to vest owner
-    {
-        let owner_key = ctx.accounts.owner.key();
-        let vest_signer_seeds: &[&[u8]] = &[b"vest", owner_key.as_ref(), &[ctx.accounts.vest.bump]];
-
-        let cpi_accounts = adapters::SetGovernanceDelegate {
-            realm: ctx.accounts.governance_realm.to_account_info(),
-            governance_authority: ctx.accounts.vest.to_account_info(),
-            governing_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
-            governing_token_owner: ctx.accounts.vest.to_account_info(),
-            governing_token_owner_record: ctx
-                .accounts
-                .governance_governing_token_owner_record
-                .to_account_info(),
-        };
-
-        let cpi_program = ctx.accounts.governance_program.to_account_info();
-
-        let mut cpi_context = CpiContext::new(cpi_program, cpi_accounts);
-
-        let new_governance_delegate = ctx.accounts.owner.to_account_info();
-
-        cpi_context
-            .remaining_accounts
-            .append(&mut Vec::from([new_governance_delegate]));
-
-        adapters::set_governance_delegate(cpi_context.with_signer(&[vest_signer_seeds]))?;
     }
 
     Ok(0)

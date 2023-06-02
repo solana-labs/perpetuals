@@ -162,18 +162,22 @@ pub fn add_collateral(ctx: Context<AddCollateral>, params: &AddCollateralParams)
     msg!("Amount in: {}", transfer_amount);
     msg!("Collateral added in USD: {}", collateral_usd);
 
-    // compute amount of lm token to mint
-    let lm_rewards_amount = ctx.accounts.cortex.get_lm_rewards_amount(fee_amount)?;
+    // LM rewards
+    let lm_rewards_amount = {
+        // compute amount of lm token to mint
+        let amount = ctx.accounts.cortex.get_lm_rewards_amount(fee_amount)?;
 
-    // mint lm tokens
-    perpetuals.mint_tokens(
-        ctx.accounts.lm_token_mint.to_account_info(),
-        ctx.accounts.lm_token_account.to_account_info(),
-        ctx.accounts.transfer_authority.to_account_info(),
-        ctx.accounts.token_program.to_account_info(),
-        lm_rewards_amount,
-    )?;
-    msg!("Amount LM rewards out: {}", lm_rewards_amount);
+        // mint lm tokens
+        perpetuals.mint_tokens(
+            ctx.accounts.lm_token_mint.to_account_info(),
+            ctx.accounts.lm_token_account.to_account_info(),
+            ctx.accounts.transfer_authority.to_account_info(),
+            ctx.accounts.token_program.to_account_info(),
+            amount,
+        )?;
+        msg!("Amount LM rewards out: {}", amount);
+        amount
+    };
 
     // check pool constraints
     msg!("Check pool constraints");

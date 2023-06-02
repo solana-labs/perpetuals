@@ -3,16 +3,12 @@ use {
         adapters, instructions,
         utils::{self, fixtures, pda, scale},
     },
-    bonfida_test_utils::ProgramTestExt,
+    bonfida_test_utils::{ProgramTestContextExt, ProgramTestExt},
     perpetuals::{
-        instructions::{
-            AddStakeParams, AddVestParams, ClosePositionParams, OpenPositionParams,
-            RemoveLiquidityParams, RemoveStakeParams, SwapParams,
-        },
+        instructions::{AddStakeParams, AddVestParams, SwapParams},
         state::{
             cortex::{Cortex, StakingRound},
             perpetuals::Perpetuals,
-            position::Side,
         },
     },
     solana_program_test::ProgramTest,
@@ -27,7 +23,6 @@ const MULTISIG_MEMBER_C: usize = 4;
 const PAYER: usize = 5;
 const USER_ALICE: usize = 6;
 const USER_MARTIN: usize = 7;
-const USER_PAUL: usize = 8;
 
 const KEYPAIRS_COUNT: usize = 9;
 
@@ -35,7 +30,10 @@ const USDC_DECIMALS: u8 = 6;
 const ETH_DECIMALS: u8 = 9;
 const GOV_TOKEN_DECIMALS: u8 = 6;
 
-pub async fn basic_interactions() {
+// this test is about filling the maximum number of staking rounds the systme can hold (StakingRound::MAX_RESOLVED_ROUNDS)
+// and playing around that limit for different edge cases
+
+pub async fn test_staking_rewards_from_swap() {
     let mut program_test = ProgramTest::default();
 
     // Initialize the accounts that will be used during the test suite
@@ -82,7 +80,7 @@ pub async fn basic_interactions() {
     .await
     .unwrap();
 
-    let gov_token_mint_pda = pda::get_governance_token_mint_pda().0;
+    let governance_token_mint = pda::get_governance_token_mint_pda().0;
 
     adapters::spl_governance::create_realm(
         &mut program_test_ctx,
@@ -90,7 +88,7 @@ pub async fn basic_interactions() {
         &keypairs[PAYER],
         "ADRENA".to_string(),
         utils::scale(10_000, GOV_TOKEN_DECIMALS),
-        &gov_token_mint_pda,
+        &governance_token_mint,
     )
     .await
     .unwrap();
@@ -99,7 +97,7 @@ pub async fn basic_interactions() {
     {
         let lm_token_mint = utils::pda::get_lm_token_mint_pda().0;
 
-        // Alice: mint 1k USDC, create LM token account, create stake reward token account
+        // Alice: mint 1k USDC, mint 2 ETH,  create LM token account, create stake reward token account
         {
             utils::initialize_and_fund_token_account(
                 &mut program_test_ctx,
@@ -107,6 +105,15 @@ pub async fn basic_interactions() {
                 &keypairs[USER_ALICE].pubkey(),
                 &keypairs[ROOT_AUTHORITY],
                 utils::scale(1_000, USDC_DECIMALS),
+            )
+            .await;
+
+            utils::initialize_and_fund_token_account(
+                &mut program_test_ctx,
+                &eth_mint,
+                &keypairs[USER_ALICE].pubkey(),
+                &keypairs[ROOT_AUTHORITY],
+                utils::scale(2, ETH_DECIMALS),
             )
             .await;
 
@@ -125,14 +132,14 @@ pub async fn basic_interactions() {
             .await;
         }
 
-        // Martin: mint 100 USDC and 2 ETH, create LM token account
+        // Martin: mint 1k USDC, mint 2 ETH,  create LM token account, create stake reward token account
         {
             utils::initialize_and_fund_token_account(
                 &mut program_test_ctx,
                 &usdc_mint,
                 &keypairs[USER_MARTIN].pubkey(),
                 &keypairs[ROOT_AUTHORITY],
-                utils::scale(100, USDC_DECIMALS),
+                utils::scale(1_000, USDC_DECIMALS),
             )
             .await;
 
@@ -151,87 +158,17 @@ pub async fn basic_interactions() {
                 &keypairs[USER_MARTIN].pubkey(),
             )
             .await;
-        }
-
-        // Paul: mint 150 USDC, create LM token account
-        {
-            utils::initialize_and_fund_token_account(
-                &mut program_test_ctx,
-                &usdc_mint,
-                &keypairs[USER_PAUL].pubkey(),
-                &keypairs[ROOT_AUTHORITY],
-                utils::scale(150, USDC_DECIMALS),
-            )
-            .await;
 
             utils::initialize_token_account(
                 &mut program_test_ctx,
-                &eth_mint,
-                &keypairs[USER_PAUL].pubkey(),
-            )
-            .await;
-
-            utils::initialize_token_account(
-                &mut program_test_ctx,
-                &lm_token_mint,
-                &keypairs[USER_PAUL].pubkey(),
+                &cortex_stake_reward_mint,
+                &keypairs[USER_MARTIN].pubkey(),
             )
             .await;
         }
     }
 
-    // Simple vest and claim
-    {
-        // Alice: vest 2 token, unlockable at 50% unlock share (circulating supply 2 tokens)
-        instructions::test_add_vest(
-            &mut program_test_ctx,
-            &keypairs[MULTISIG_MEMBER_A],
-            &keypairs[PAYER],
-            &keypairs[USER_ALICE],
-            &governance_realm_pda,
-            &AddVestParams {
-                amount: utils::scale(2, Cortex::LM_DECIMALS),
-                unlock_share: utils::scale_f64(0.5, Perpetuals::BPS_DECIMALS),
-            },
-            multisig_signers,
-        )
-        .await
-        .unwrap();
-
-        // Martin: vest 2 token, unlockable at 50% unlock share (circulating supply 4 tokens)
-        instructions::test_add_vest(
-            &mut program_test_ctx,
-            &keypairs[MULTISIG_MEMBER_A],
-            &keypairs[PAYER],
-            &keypairs[USER_MARTIN],
-            &governance_realm_pda,
-            &AddVestParams {
-                amount: utils::scale(2, Cortex::LM_DECIMALS),
-                unlock_share: utils::scale_f64(0.5, Perpetuals::BPS_DECIMALS),
-            },
-            multisig_signers,
-        )
-        .await
-        .unwrap();
-
-        // Alice: claim vest
-        instructions::test_claim_vest(
-            &mut program_test_ctx,
-            &keypairs[PAYER],
-            &keypairs[USER_ALICE],
-            &governance_realm_pda,
-        )
-        .await
-        .unwrap();
-    }
-
-    println!("usdc mint: {}", usdc_mint);
-    println!("eth mint: {}", eth_mint);
-    println!(
-        "cortex_stake_reward_mint mint: {}",
-        cortex_stake_reward_mint
-    );
-    let (pool_pda, _, lp_token_mint_pda, _, _) = utils::setup_pool_with_custodies_and_liquidity(
+    let (pool_pda, _, _, _, _) = utils::setup_pool_with_custodies_and_liquidity(
         &mut program_test_ctx,
         &keypairs[MULTISIG_MEMBER_A],
         "FOO",
@@ -267,7 +204,7 @@ pub async fn basic_interactions() {
                     min_ratio: utils::ratio_from_percentage(0.0),
                     max_ratio: utils::ratio_from_percentage(100.0),
                     initial_price: utils::scale(1_500, ETH_DECIMALS),
-                    initial_conf: utils::scale(10, ETH_DECIMALS),
+                    initial_conf: utils::scale(10, ETH_DECIMALS), // Prob USDC change later
                     pricing_params: None,
                     permissions: None,
                     fees: None,
@@ -281,52 +218,41 @@ pub async fn basic_interactions() {
     )
     .await;
 
-    // Simple open/close position
+    // Prep work: Vest and claim (to get some governance tokens)
     {
-        // Martin: Open 0.1 ETH position
-        let position_pda = instructions::test_open_position(
+        // Alice: vest 2 token, unlockable at 50% unlock share (circulating supply 2 tokens)
+        instructions::test_add_vest(
             &mut program_test_ctx,
-            &keypairs[USER_MARTIN],
+            &keypairs[MULTISIG_MEMBER_A],
             &keypairs[PAYER],
-            &pool_pda,
-            &eth_mint,
-            &cortex_stake_reward_mint,
-            OpenPositionParams {
-                // max price paid (slippage implied)
-                price: utils::scale(1_550, USDC_DECIMALS),
-                collateral: utils::scale_f64(0.1, ETH_DECIMALS),
-                size: utils::scale_f64(0.1, ETH_DECIMALS),
-                side: Side::Long,
+            &keypairs[USER_ALICE],
+            &governance_realm_pda,
+            &AddVestParams {
+                amount: utils::scale(2, Cortex::LM_DECIMALS),
+                unlock_share: utils::scale_f64(0.51, Perpetuals::BPS_DECIMALS),
             },
+            multisig_signers,
         )
         .await
-        .unwrap()
-        .0;
+        .unwrap();
 
-        // Martin: Close the ETH position
-        instructions::test_close_position(
+        // Alice: claim vest
+        instructions::test_claim_vest(
             &mut program_test_ctx,
-            &keypairs[USER_MARTIN],
             &keypairs[PAYER],
-            &pool_pda,
-            &eth_mint,
-            &cortex_stake_reward_mint,
-            &position_pda,
-            ClosePositionParams {
-                // lowest exit price paid (slippage implied)
-                price: utils::scale(1_450, USDC_DECIMALS),
-            },
+            &keypairs[USER_ALICE],
+            &governance_realm_pda,
         )
         .await
         .unwrap();
     }
 
-    // Simple swap
+    // Prep work: Generate some platform activity to fill current round' rewards
     {
-        // Paul: Swap 150 USDC for ETH
+        // Martin: Swap 500 USDC for ETH
         instructions::test_swap(
             &mut program_test_ctx,
-            &keypairs[USER_PAUL],
+            &keypairs[USER_MARTIN],
             &keypairs[PAYER],
             &pool_pda,
             &eth_mint,
@@ -334,51 +260,26 @@ pub async fn basic_interactions() {
             &usdc_mint,
             &cortex_stake_reward_mint,
             SwapParams {
-                amount_in: utils::scale(150, USDC_DECIMALS),
-
-                // 1% slippage
-                min_amount_out: utils::scale(150, USDC_DECIMALS)
-                    / utils::scale(1_500, ETH_DECIMALS)
-                    * 99
-                    / 100,
+                amount_in: utils::scale(500, USDC_DECIMALS),
+                min_amount_out: 0,
             },
         )
         .await
         .unwrap();
     }
 
-    // Remove liquidity
+    // happy path: stake, resolve, claim (for the open position)
     {
-        let alice_lp_token = utils::find_associated_token_account(
+        // GIVEN
+        let alice_stake_reward_token_account_address = utils::find_associated_token_account(
             &keypairs[USER_ALICE].pubkey(),
-            &lp_token_mint_pda,
+            &cortex_stake_reward_mint,
         )
         .0;
-
-        let alice_lp_token_balance =
-            utils::get_token_account_balance(&mut program_test_ctx, alice_lp_token).await;
-
-        // Alice: Remove 100% of provided liquidity (1k USDC less fees)
-        instructions::test_remove_liquidity(
-            &mut program_test_ctx,
-            &keypairs[USER_ALICE],
-            &keypairs[PAYER],
-            &pool_pda,
-            &usdc_mint,
-            &cortex_stake_reward_mint,
-            RemoveLiquidityParams {
-                lp_amount_in: alice_lp_token_balance,
-                min_amount_out: 1,
-            },
-        )
-        .await
-        .unwrap();
-    }
-
-    // Stake
-    {
-        // refresh blockhash after add vest
-        utils::warp_forward(&mut program_test_ctx, 1).await;
+        let alice_stake_reward_token_account_before = program_test_ctx
+            .get_token_account(alice_stake_reward_token_account_address)
+            .await
+            .unwrap();
 
         // Alice: add stake LM token
         instructions::test_add_stake(
@@ -394,21 +295,27 @@ pub async fn basic_interactions() {
         .await
         .unwrap();
 
-        // Alice: remove stake LM token
-        instructions::test_remove_stake(
+        // Info - at this stage, alice won't be eligible for current round rewards, as she joined after round inception
+
+        // go to next round warps in the future
+        utils::warp_forward(
+            &mut program_test_ctx,
+            StakingRound::ROUND_MIN_DURATION_SECONDS,
+        )
+        .await;
+
+        // resolve round
+        instructions::test_resolve_staking_round(
             &mut program_test_ctx,
             &keypairs[USER_ALICE],
+            &keypairs[USER_ALICE],
             &keypairs[PAYER],
-            RemoveStakeParams {
-                amount: scale(1, Cortex::LM_DECIMALS),
-            },
             &cortex_stake_reward_mint,
-            &governance_realm_pda,
         )
         .await
         .unwrap();
 
-        // Alice: test claim stake (no stake account, none)
+        // Alice: test claim stake (stake account but not eligible for current round, none)
         instructions::test_claim_stake(
             &mut program_test_ctx,
             &keypairs[USER_ALICE],
@@ -420,14 +327,29 @@ pub async fn basic_interactions() {
         .await
         .unwrap();
 
-        // resolution of the round
-        // warps to when the round is resolvable
+        // THEN
+        let alice_stake_reward_token_account_after = program_test_ctx
+            .get_token_account(alice_stake_reward_token_account_address)
+            .await
+            .unwrap();
+
+        // alice didn't receive stake rewards
+        assert_eq!(
+            alice_stake_reward_token_account_after.amount,
+            alice_stake_reward_token_account_before.amount
+        );
+
+        // Info - new round started, forwarding the previous reward since no stake previously
+        // Info - this time Alice was subscribed in time and will qualify for rewards
+
+        // go to next round warps in the future
         utils::warp_forward(
             &mut program_test_ctx,
             StakingRound::ROUND_MIN_DURATION_SECONDS,
         )
         .await;
 
+        // resolve round
         instructions::test_resolve_staking_round(
             &mut program_test_ctx,
             &keypairs[USER_ALICE],
@@ -437,5 +359,30 @@ pub async fn basic_interactions() {
         )
         .await
         .unwrap();
+
+        // Alice: test claim stake (stake account eligible for round, some)
+        instructions::test_claim_stake(
+            &mut program_test_ctx,
+            &keypairs[USER_ALICE],
+            &keypairs[USER_ALICE],
+            &keypairs[PAYER],
+            &governance_realm_pda,
+            &cortex_stake_reward_mint,
+        )
+        .await
+        .unwrap();
+
+        // THEN
+        let alice_stake_reward_token_account_before = alice_stake_reward_token_account_after;
+        let alice_stake_reward_token_account_after = program_test_ctx
+            .get_token_account(alice_stake_reward_token_account_address)
+            .await
+            .unwrap();
+
+        // alice received stake rewards
+        assert!(
+            alice_stake_reward_token_account_after.amount
+                > alice_stake_reward_token_account_before.amount
+        );
     }
 }

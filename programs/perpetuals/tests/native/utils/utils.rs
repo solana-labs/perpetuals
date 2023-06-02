@@ -1,5 +1,5 @@
 use {
-    super::{fixtures, get_program_data_pda, get_test_oracle_account},
+    super::{fixtures, get_lm_token_mint_pda, get_program_data_pda, get_test_oracle_account},
     crate::instructions,
     anchor_lang::{prelude::*, InstructionData},
     anchor_spl::token::spl_token,
@@ -18,8 +18,8 @@ use {
         },
     },
     solana_program::{
-        borsh::try_from_slice_unchecked, bpf_loader_upgradeable, program_pack::Pack,
-        stake_history::Epoch,
+        borsh::try_from_slice_unchecked, bpf_loader_upgradeable, clock::SLOT_MS,
+        epoch_schedule::DEFAULT_SLOTS_PER_EPOCH, program_pack::Pack, stake_history::Epoch,
     },
     solana_program_test::{read_file, BanksClientError, ProgramTest, ProgramTestContext},
     solana_sdk::{
@@ -93,6 +93,25 @@ pub async fn get_borsh_account<T: BorshDeserialize>(
         .unwrap_or_else(|| panic!("GET-TEST-ACCOUNT-ERROR: Account {} not found", address))
 }
 
+pub async fn try_get_account<T: anchor_lang::AccountDeserialize>(
+    program_test_ctx: &mut ProgramTestContext,
+    key: Pubkey,
+) -> Option<T> {
+    let account = program_test_ctx
+        .banks_client
+        .get_account(key)
+        .await
+        .unwrap();
+
+    // an account with 0 lamport can be considered inexistant in the context of our tests
+    // on mainnet, someone might just send lamports to the right place but doesn't matter here
+    return if let Some(a) = account {
+        Some(T::try_deserialize(&mut a.data.as_slice()).unwrap())
+    } else {
+        None
+    };
+}
+
 pub async fn get_account<T: anchor_lang::AccountDeserialize>(
     program_test_ctx: &mut ProgramTestContext,
     key: Pubkey,
@@ -159,6 +178,32 @@ pub async fn mint_tokens(
         .mint_tokens(mint_authority, mint, token_account, amount)
         .await
         .unwrap();
+}
+
+// Doesn't check if you go before epoch 0 when passing negative amounts, be wary
+pub async fn warp_forward(ctx: &mut ProgramTestContext, seconds: i64) {
+    let clock_sysvar: Clock = ctx.banks_client.get_sysvar().await.unwrap();
+    println!(
+        "Original Time: epoch = {}, timestamp = {}",
+        clock_sysvar.epoch, clock_sysvar.unix_timestamp
+    );
+    let mut new_clock = clock_sysvar.clone();
+    new_clock.unix_timestamp += seconds;
+
+    let seconds_since_epoch_start = new_clock.unix_timestamp - clock_sysvar.epoch_start_timestamp;
+    let ms_since_epoch_start = seconds_since_epoch_start * 1_000;
+    let slots_since_epoch_start = ms_since_epoch_start / SLOT_MS as i64;
+    let epochs_since_epoch_start = slots_since_epoch_start / DEFAULT_SLOTS_PER_EPOCH as i64;
+    new_clock.epoch = (new_clock.epoch as i64 + epochs_since_epoch_start) as u64;
+
+    ctx.set_sysvar(&new_clock);
+    let clock_sysvar: Clock = ctx.banks_client.get_sysvar().await.unwrap();
+    println!(
+        "New Time: epoch = {}, timestamp = {}",
+        clock_sysvar.epoch, clock_sysvar.unix_timestamp
+    );
+
+    ctx.last_blockhash = ctx.banks_client.get_latest_blockhash().await.unwrap();
 }
 
 pub async fn add_spl_governance_program(
@@ -373,6 +418,7 @@ pub async fn setup_pool_with_custodies_and_liquidity(
     admin: &Keypair,
     pool_name: &str,
     payer: &Keypair,
+    stake_reward_mint: &Pubkey,
     multisig_signers: &[&Keypair],
     custodies_params: Vec<SetupCustodyWithLiquidityParams>,
 ) -> (
@@ -406,9 +452,14 @@ pub async fn setup_pool_with_custodies_and_liquidity(
 
     // Add liquidity
     for params in custodies_params.as_slice() {
+        println!(
+            "adding liquidity for mint {}",
+            params.setup_custody_params.mint
+        );
         initialize_token_account(program_test_ctx, &lp_token_mint_pda, &params.payer.pubkey())
             .await;
-
+        let lm_token_mint = get_lm_token_mint_pda().0;
+        initialize_token_account(program_test_ctx, &lm_token_mint, &params.payer.pubkey()).await;
         if params.liquidity_amount > 0 {
             instructions::test_add_liquidity(
                 program_test_ctx,
@@ -416,6 +467,7 @@ pub async fn setup_pool_with_custodies_and_liquidity(
                 payer,
                 &pool_pda,
                 &params.setup_custody_params.mint,
+                stake_reward_mint,
                 AddLiquidityParams {
                     amount_in: params.liquidity_amount,
                     min_lp_amount_out: 1,
@@ -591,6 +643,44 @@ pub async fn setup_pool_with_custodies(
         lp_token_mint_bump,
         custodies_info,
     )
+}
+
+pub async fn refresh_test_oracle_initial_prices(
+    program_test_ctx: &mut ProgramTestContext,
+    admin: &Keypair,
+    pool_pda: &Pubkey,
+    payer: &Keypair,
+    multisig_signers: &[&Keypair],
+    custodies_params: &Vec<SetupCustodyParams>,
+    custodies_infos: &Vec<SetupCustodyInfo>,
+) -> Result<()> {
+    let publish_time = get_current_unix_timestamp(program_test_ctx).await;
+
+    for i in 0..custodies_params.len() {
+        let params = custodies_params[i];
+        let info = custodies_infos[i];
+        let test_oracle_pda = info.test_oracle_pda;
+        let custody_pda = info.custody_pda;
+
+        instructions::test_set_test_oracle_price(
+            program_test_ctx,
+            admin,
+            payer,
+            &pool_pda,
+            &custody_pda,
+            &test_oracle_pda,
+            SetTestOraclePriceParams {
+                price: params.initial_price,
+                expo: -(params.decimals as i32),
+                conf: scale(0, params.decimals),
+                publish_time,
+            },
+            multisig_signers,
+        )
+        .await
+        .unwrap();
+    }
+    Ok(())
 }
 
 pub fn scale(amount: u64, decimals: u8) -> u64 {

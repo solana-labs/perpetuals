@@ -1,15 +1,14 @@
 use {
-    crate::utils::pda,
-    crate::utils::utils,
+    crate::utils::{pda, utils},
     anchor_lang::prelude::Pubkey,
     perpetuals::adapters::spl_governance_program_adapter,
-    solana_program_test::BanksClientError,
-    solana_program_test::ProgramTestContext,
+    solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
-    spl_governance::state::enums::MintMaxVoterWeightSource,
-    spl_governance::state::realm::GoverningTokenConfigAccountArgs,
-    spl_governance::state::realm::RealmV2,
-    spl_governance::state::realm_config::GoverningTokenType,
+    spl_governance::state::{
+        enums::MintMaxVoterWeightSource,
+        realm::{GoverningTokenConfigAccountArgs, RealmV2},
+        realm_config::GoverningTokenType,
+    },
 };
 
 pub async fn create_realm(
@@ -30,7 +29,7 @@ pub async fn create_realm(
             &payer.pubkey(),
             None,
             Some(GoverningTokenConfigAccountArgs {
-                token_type: GoverningTokenType::Liquid,
+                token_type: GoverningTokenType::Membership,
                 voter_weight_addin: None,
                 max_voter_weight_addin: None,
             }),

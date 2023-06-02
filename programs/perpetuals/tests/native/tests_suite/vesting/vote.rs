@@ -1,10 +1,9 @@
 use {
-    crate::adapters,
-    crate::utils::pda,
     crate::{
-        instructions,
-        utils::{self, fixtures},
+        adapters, instructions,
+        utils::{self, fixtures, pda},
     },
+    bonfida_test_utils::ProgramTestExt,
     perpetuals::{
         instructions::AddVestParams,
         state::{cortex::Cortex, perpetuals::Perpetuals},
@@ -21,16 +20,21 @@ const MULTISIG_MEMBER_C: usize = 4;
 const PAYER: usize = 5;
 const USER_ALICE: usize = 6;
 
+const USDC_DECIMALS: u8 = 6;
 const KEYPAIRS_COUNT: usize = 7;
 const LM_TOKEN_DECIMALS: u8 = 6;
 
-#[tokio::test]
 pub async fn vote() {
     let mut program_test = ProgramTest::default();
 
     // Initialize the accounts that will be used during the test suite
     let keypairs =
         utils::create_and_fund_multiple_accounts(&mut program_test, KEYPAIRS_COUNT).await;
+
+    // Initialize mints
+    let usdc_mint = program_test
+        .add_mint(None, USDC_DECIMALS, &keypairs[ROOT_AUTHORITY].pubkey())
+        .0;
 
     // Deploy programs
     utils::add_perpetuals_program(&mut program_test, &keypairs[PERPETUALS_UPGRADE_AUTHORITY]).await;
@@ -50,11 +54,15 @@ pub async fn vote() {
 
     let governance_realm_pda = pda::get_governance_realm_pda("ADRENA".to_string());
 
+    // mint for the payouts of the LM token staking (ADX staking)
+    let cortex_stake_reward_mint = usdc_mint;
+
     instructions::test_init(
         &mut program_test_ctx,
         upgrade_authority,
         fixtures::init_params_permissions_full(1),
         &governance_realm_pda,
+        &cortex_stake_reward_mint,
         multisig_signers,
     )
     .await

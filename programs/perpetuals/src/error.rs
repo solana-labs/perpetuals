@@ -28,10 +28,14 @@ pub enum PerpetualsError {
     InvalidPoolState,
     #[msg("Invalid vest state")]
     InvalidVestState,
+    #[msg("Invalid stake state")]
+    InvalidStakeState,
     #[msg("Invalid custody state")]
     InvalidCustodyState,
     #[msg("Invalid position state")]
     InvalidPositionState,
+    #[msg("Invalid staking round state")]
+    InvalidStakingRoundState,
     #[msg("Invalid perpetuals config")]
     InvalidPerpetualsConfig,
     #[msg("Invalid pool config")]

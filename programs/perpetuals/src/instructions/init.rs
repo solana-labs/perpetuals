@@ -1,12 +1,17 @@
 //! Init instruction handler
+
 use {
-    crate::adapters::SplGovernanceV3Adapter,
     crate::{
+        adapters::SplGovernanceV3Adapter,
         error::PerpetualsError,
-        state::{cortex::Cortex, multisig::Multisig, perpetuals::Perpetuals},
+        state::{
+            cortex::{Cortex, StakingRound},
+            multisig::Multisig,
+            perpetuals::Perpetuals,
+        },
     },
     anchor_lang::prelude::*,
-    anchor_spl::token::{Mint, Token},
+    anchor_spl::token::{Mint, Token, TokenAccount},
     solana_program::program_error::ProgramError,
 };
 
@@ -37,7 +42,7 @@ pub struct Init<'info> {
     #[account(
         init,
         payer = upgrade_authority,
-        space = Cortex::LEN,
+        space = Cortex::LEN + std::mem::size_of::<StakingRound>(),
         seeds = [b"cortex"],
         bump
     )]
@@ -53,6 +58,40 @@ pub struct Init<'info> {
         bump
     )]
     pub lm_token_mint: Box<Account<'info, Mint>>,
+
+    // the shadow governance token transparently managed by the program (and only the program)
+    #[account(
+        init,
+        payer = upgrade_authority,
+        mint::authority = transfer_authority,
+        mint::freeze_authority = transfer_authority,
+        mint::decimals = Cortex::GOVERNANCE_DECIMALS,
+        seeds = [b"governance_token_mint"],
+        bump
+    )]
+    pub governance_token_mint: Box<Account<'info, Mint>>,
+
+    // staked token vault
+    #[account(
+        init,
+        payer = upgrade_authority,
+        token::mint = lm_token_mint,
+        token::authority = transfer_authority,
+        seeds = [b"stake_token_account"],
+        bump
+    )]
+    pub stake_token_account: Box<Account<'info, TokenAccount>>,
+
+    // staking reward token vault
+    #[account(
+        init,
+        payer = upgrade_authority,
+        token::mint = stake_reward_token_mint,
+        token::authority = transfer_authority,
+        seeds = [b"stake_reward_token_account"],
+        bump
+    )]
+    pub stake_reward_token_account: Box<Account<'info, TokenAccount>>,
 
     #[account(
         init,
@@ -79,6 +118,9 @@ pub struct Init<'info> {
 
     pub governance_program: Program<'info, SplGovernanceV3Adapter>,
 
+    #[account()]
+    pub stake_reward_token_mint: Box<Account<'info, Mint>>,
+
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
     // remaining accounts: 1 to Multisig::MAX_SIGNERS admin signers (read-only, unsigned)
@@ -99,50 +141,77 @@ pub struct InitParams {
 
 pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
     // initialize multisig, this will fail if account is already initialized
-    let mut multisig = ctx.accounts.multisig.load_init()?;
+    {
+        let mut multisig = ctx.accounts.multisig.load_init()?;
 
-    multisig.set_signers(ctx.remaining_accounts, params.min_signatures)?;
+        multisig.set_signers(ctx.remaining_accounts, params.min_signatures)?;
 
-    // record multisig PDA bump
-    multisig.bump = *ctx
-        .bumps
-        .get("multisig")
-        .ok_or(ProgramError::InvalidSeeds)?;
-
-    // record perpetuals
-    let perpetuals = ctx.accounts.perpetuals.as_mut();
-    perpetuals.permissions.allow_swap = params.allow_swap;
-    perpetuals.permissions.allow_add_liquidity = params.allow_add_liquidity;
-    perpetuals.permissions.allow_remove_liquidity = params.allow_remove_liquidity;
-    perpetuals.permissions.allow_open_position = params.allow_open_position;
-    perpetuals.permissions.allow_close_position = params.allow_close_position;
-    perpetuals.permissions.allow_pnl_withdrawal = params.allow_pnl_withdrawal;
-    perpetuals.permissions.allow_collateral_withdrawal = params.allow_collateral_withdrawal;
-    perpetuals.permissions.allow_size_change = params.allow_size_change;
-    perpetuals.transfer_authority_bump = *ctx
-        .bumps
-        .get("transfer_authority")
-        .ok_or(ProgramError::InvalidSeeds)?;
-    perpetuals.perpetuals_bump = *ctx
-        .bumps
-        .get("perpetuals")
-        .ok_or(ProgramError::InvalidSeeds)?;
-    perpetuals.inception_time = perpetuals.get_time()?;
-
-    if !perpetuals.validate() {
-        return err!(PerpetualsError::InvalidPerpetualsConfig);
+        // record multisig PDA bump
+        multisig.bump = *ctx
+            .bumps
+            .get("multisig")
+            .ok_or(ProgramError::InvalidSeeds)?;
     }
 
+    // record perpetuals
+    let perpetuals = {
+        let perpetuals = ctx.accounts.perpetuals.as_mut();
+        perpetuals.permissions.allow_swap = params.allow_swap;
+        perpetuals.permissions.allow_add_liquidity = params.allow_add_liquidity;
+        perpetuals.permissions.allow_remove_liquidity = params.allow_remove_liquidity;
+        perpetuals.permissions.allow_open_position = params.allow_open_position;
+        perpetuals.permissions.allow_close_position = params.allow_close_position;
+        perpetuals.permissions.allow_pnl_withdrawal = params.allow_pnl_withdrawal;
+        perpetuals.permissions.allow_collateral_withdrawal = params.allow_collateral_withdrawal;
+        perpetuals.permissions.allow_size_change = params.allow_size_change;
+        perpetuals.transfer_authority_bump = *ctx
+            .bumps
+            .get("transfer_authority")
+            .ok_or(ProgramError::InvalidSeeds)?;
+        perpetuals.perpetuals_bump = *ctx
+            .bumps
+            .get("perpetuals")
+            .ok_or(ProgramError::InvalidSeeds)?;
+        perpetuals.inception_time = perpetuals.get_time()?;
+
+        if !perpetuals.validate() {
+            return err!(PerpetualsError::InvalidPerpetualsConfig);
+        }
+        perpetuals
+    };
+
     // record cortex
-    let cortex = ctx.accounts.cortex.as_mut();
-    cortex.lm_token_bump = *ctx
-        .bumps
-        .get("lm_token_mint")
-        .ok_or(ProgramError::InvalidSeeds)?;
-    cortex.bump = *ctx.bumps.get("cortex").ok_or(ProgramError::InvalidSeeds)?;
-    cortex.inception_epoch = cortex.get_epoch()?;
-    cortex.governance_program = ctx.accounts.governance_program.key();
-    cortex.governance_realm = ctx.accounts.governance_realm.key();
+    {
+        let cortex = ctx.accounts.cortex.as_mut();
+        cortex.lm_token_bump = *ctx
+            .bumps
+            .get("lm_token_mint")
+            .ok_or(ProgramError::InvalidSeeds)?;
+        cortex.governance_token_bump = *ctx
+            .bumps
+            .get("governance_token_mint")
+            .ok_or(ProgramError::InvalidSeeds)?;
+        cortex.bump = *ctx.bumps.get("cortex").ok_or(ProgramError::InvalidSeeds)?;
+        cortex.stake_token_account_bump = *ctx
+            .bumps
+            .get("stake_token_account")
+            .ok_or(ProgramError::InvalidSeeds)?;
+        cortex.stake_reward_token_account_bump = *ctx
+            .bumps
+            .get("stake_reward_token_account")
+            .ok_or(ProgramError::InvalidSeeds)?;
+        cortex.inception_epoch = cortex.get_epoch()?;
+        cortex.governance_program = ctx.accounts.governance_program.key();
+        cortex.governance_realm = ctx.accounts.governance_realm.key();
+        cortex.stake_reward_token_mint = ctx.accounts.stake_reward_token_mint.key();
+        cortex.resolved_reward_token_amount = u64::MIN;
+        cortex.resolved_stake_token_amount = u64::MIN;
+        cortex.stake_token_decimals = ctx.accounts.lm_token_mint.decimals;
+        cortex.stake_reward_token_decimals = ctx.accounts.stake_reward_token_mint.decimals;
+        // initialize the first staking rounds
+        cortex.current_staking_round = StakingRound::new(perpetuals.get_time()?);
+        cortex.next_staking_round = StakingRound::new(0);
+    }
 
     Ok(())
 }
