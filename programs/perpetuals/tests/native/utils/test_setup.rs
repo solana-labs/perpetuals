@@ -6,7 +6,7 @@ use {
     },
     bonfida_test_utils::ProgramTestExt,
     perpetuals::{
-        instructions::{AddCustodyParams, AddLiquidityParams, SetTestOraclePriceParams},
+        instructions::{AddCustodyParams, AddLiquidityParams, SetCustomOraclePriceParams},
         state::{
             custody::{BorrowRateParams, Fees, PricingParams},
             perpetuals::Permissions,
@@ -274,8 +274,8 @@ impl TestSetup {
                     .get(&custody_param.setup_custody_params.mint_name.to_string())
                     .unwrap();
 
-                let test_oracle_pda =
-                    utils::get_test_oracle_account(&pool_pda, &mint_info.pubkey).0;
+                let custom_oracle_pda =
+                    utils::get_custom_oracle_account(&pool_pda, &mint_info.pubkey).0;
 
                 let target_ratio = 10_000 / (idx + 1) as u64;
 
@@ -297,7 +297,7 @@ impl TestSetup {
                     let add_custody_params = AddCustodyParams {
                         is_stable: custody_param.setup_custody_params.is_stable,
                         is_virtual: custody_param.setup_custody_params.is_virtual,
-                        oracle: fixtures::oracle_params_regular(test_oracle_pda),
+                        oracle: fixtures::oracle_params_regular(custom_oracle_pda),
                         pricing: custody_param
                             .setup_custody_params
                             .pricing_params
@@ -337,14 +337,14 @@ impl TestSetup {
                 let publish_time =
                     utils::get_current_unix_timestamp(&mut program_test_ctx.borrow_mut()).await;
 
-                instructions::test_set_test_oracle_price(
+                instructions::test_set_custom_oracle_price(
                     &mut program_test_ctx.borrow_mut(),
                     &multisig_members_keypairs[0],
                     payer_keypair,
                     &pool_pda,
                     &custody_pda,
-                    &test_oracle_pda,
-                    SetTestOraclePriceParams {
+                    &custom_oracle_pda,
+                    SetCustomOraclePriceParams {
                         price: custody_param.setup_custody_params.initial_price,
                         expo: -(mint_info.decimals as i32),
                         conf: custody_param.setup_custody_params.initial_conf,
@@ -356,7 +356,7 @@ impl TestSetup {
                 .unwrap();
 
                 custodies_info.push(SetupCustodyInfo {
-                    test_oracle_pda,
+                    custom_oracle_pda,
                     custody_pda,
                 });
             }

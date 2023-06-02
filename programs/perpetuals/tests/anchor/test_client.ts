@@ -665,14 +665,14 @@ export class TestClient {
     }
   };
 
-  setTestOraclePrice = async (price: number, custody) => {
+  setCustomOraclePrice = async (price: number, custody) => {
     let multisig = await this.program.account.multisig.fetch(
       this.multisig.publicKey
     );
     for (let i = 0; i < multisig.minSignatures; ++i) {
       try {
         await this.program.methods
-          .setTestOraclePrice({
+          .setCustomOraclePrice({
             price: new BN(price * 1000),
             expo: -3,
             conf: new BN(0),

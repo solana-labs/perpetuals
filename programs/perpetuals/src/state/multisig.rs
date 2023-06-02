@@ -33,7 +33,7 @@ pub enum AdminInstruction {
     SetBorrowRate,
     WithdrawFees,
     WithdrawSolFees,
-    SetTestOraclePrice,
+    SetCustomOraclePrice,
     SetTestTime,
     UpgradeCustody,
 }

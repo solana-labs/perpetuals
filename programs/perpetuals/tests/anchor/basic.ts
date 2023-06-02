@@ -133,7 +133,7 @@ describe("perpetuals", () => {
     oracleConfig = {
       maxPriceError: new BN(10000),
       maxPriceAgeSec: 60,
-      oracleType: { test: {} },
+      oracleType: { custom: {} },
       oracleAccount: tc.custodies[0].oracleAccount,
     };
     pricing = {
@@ -224,7 +224,7 @@ describe("perpetuals", () => {
       isVirtual,
       oracle: {
         oracleAccount: tc.custodies[0].oracleAccount,
-        oracleType: { test: {} },
+        oracleType: { custom: {} },
         maxPriceError: "10000",
         maxPriceAgeSec: 60,
       },
@@ -385,11 +385,11 @@ describe("perpetuals", () => {
     expect(JSON.stringify(token)).to.equal(JSON.stringify(tokenExpected));
   });
 
-  it("setTestOraclePrice", async () => {
-    await tc.setTestOraclePrice(123, tc.custodies[0]);
-    await tc.setTestOraclePrice(200, tc.custodies[1]);
+  it("setCustomOraclePrice", async () => {
+    await tc.setCustomOraclePrice(123, tc.custodies[0]);
+    await tc.setCustomOraclePrice(200, tc.custodies[1]);
 
-    let oracle = await tc.program.account.testOracle.fetch(
+    let oracle = await tc.program.account.customOracle.fetch(
       tc.custodies[0].oracleAccount
     );
     let oracleExpected = {
@@ -539,7 +539,7 @@ describe("perpetuals", () => {
       tc.users[0].positionAccountsLong[0],
       tc.custodies[0]
     );
-    await tc.setTestOraclePrice(80, tc.custodies[0]);
+    await tc.setCustomOraclePrice(80, tc.custodies[0]);
     await tc.liquidate(
       tc.users[0],
       tc.users[0].tokenAccounts[0],

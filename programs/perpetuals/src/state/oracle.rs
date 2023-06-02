@@ -13,7 +13,7 @@ const ORACLE_MAX_PRICE: u64 = (1 << 28) - 1;
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Debug)]
 pub enum OracleType {
     None,
-    Test,
+    Custom,
     Pyth,
 }
 
@@ -39,15 +39,15 @@ pub struct OracleParams {
 
 #[account]
 #[derive(Default, Debug)]
-pub struct TestOracle {
+pub struct CustomOracle {
     pub price: u64,
     pub expo: i32,
     pub conf: u64,
     pub publish_time: i64,
 }
 
-impl TestOracle {
-    pub const LEN: usize = 8 + std::mem::size_of::<TestOracle>();
+impl CustomOracle {
+    pub const LEN: usize = 8 + std::mem::size_of::<CustomOracle>();
 }
 
 impl PartialOrd for OraclePrice {
@@ -89,7 +89,7 @@ impl OraclePrice {
         use_ema: bool,
     ) -> Result<Self> {
         match oracle_params.oracle_type {
-            OracleType::Test => Self::get_test_price(
+            OracleType::Custom => Self::get_custom_price(
                 oracle_account,
                 oracle_params.max_price_error,
                 oracle_params.max_price_age_sec,
@@ -226,22 +226,22 @@ impl OraclePrice {
     }
 
     // private helpers
-    fn get_test_price(
-        test_price_info: &AccountInfo,
+    fn get_custom_price(
+        custom_price_info: &AccountInfo,
         max_price_error: u64,
         max_price_age_sec: u32,
         current_time: i64,
     ) -> Result<OraclePrice> {
         require!(
-            !Perpetuals::is_empty_account(test_price_info)?,
+            !Perpetuals::is_empty_account(custom_price_info)?,
             PerpetualsError::InvalidOracleAccount
         );
 
-        let oracle_acc = Account::<TestOracle>::try_from(test_price_info)?;
+        let oracle_acc = Account::<CustomOracle>::try_from(custom_price_info)?;
 
         let last_update_age_sec = math::checked_sub(current_time, oracle_acc.publish_time)?;
         if last_update_age_sec > max_price_age_sec as i64 {
-            msg!("Error: Test oracle price is stale");
+            msg!("Error: Custom oracle price is stale");
             return err!(PerpetualsError::StaleOraclePrice);
         }
 
@@ -251,7 +251,7 @@ impl OraclePrice {
                 oracle_acc.price as u128,
             )? > max_price_error as u128
         {
-            msg!("Error: Test oracle price is out of bounds");
+            msg!("Error: Custom oracle price is out of bounds");
             return err!(PerpetualsError::InvalidOraclePrice);
         }
 

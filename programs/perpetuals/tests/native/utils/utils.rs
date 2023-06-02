@@ -309,7 +309,7 @@ pub async fn set_custody_ratios(
 
 #[derive(Clone, Copy)]
 pub struct SetupCustodyInfo {
-    pub test_oracle_pda: Pubkey,
+    pub custom_oracle_pda: Pubkey,
     pub custody_pda: Pubkey,
 }
 

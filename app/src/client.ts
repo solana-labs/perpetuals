@@ -132,7 +132,10 @@ export class PerpetualsClient {
     return (await this.getCustody(poolName, tokenMint)).oracle.oracleAccount;
   };
 
-  getCustodyTestOracleAccountKey = (poolName: string, tokenMint: PublicKey) => {
+  getCustodyCustomOracleAccountKey = (
+    poolName: string,
+    tokenMint: PublicKey
+  ) => {
     return this.findProgramAddress("oracle_account", [
       this.getPoolKey(poolName),
       tokenMint,

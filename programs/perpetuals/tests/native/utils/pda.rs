@@ -73,7 +73,7 @@ pub fn get_custody_token_account_pda(
     )
 }
 
-pub fn get_test_oracle_account(pool_pda: &Pubkey, custody_mint: &Pubkey) -> (Pubkey, u8) {
+pub fn get_custom_oracle_account(pool_pda: &Pubkey, custody_mint: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[
             "oracle_account".as_ref(),
