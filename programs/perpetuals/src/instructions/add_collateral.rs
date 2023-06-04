@@ -209,15 +209,6 @@ pub fn add_collateral(ctx: Context<AddCollateral>, params: &AddCollateralParams)
         amount
     };
 
-    // check pool constraints
-    msg!("Check pool constraints");
-    let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
-    let deposit_amount = math::checked_sub(transfer_amount, protocol_fee)?;
-    require!(
-        pool.check_token_ratio(token_id, deposit_amount, 0, custody, &token_price)?,
-        PerpetualsError::TokenRatioOutOfRange
-    );
-
     // update existing position
     msg!("Update existing position");
     position.update_time = perpetuals.get_time()?;

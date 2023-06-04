@@ -105,10 +105,7 @@ pub struct ClosePosition<'info> {
 
     #[account(
         mut,
-        seeds = [b"custody",
-                 pool.key().as_ref(),
-                 custody.mint.as_ref()],
-        bump = custody.bump
+        constraint = position.custody == custody.key()
     )]
     pub custody: Box<Account<'info, Custody>>,
 
