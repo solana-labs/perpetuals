@@ -14,8 +14,8 @@ import {
   unwrapSolIfNeeded,
   wrapSolIfNeeded,
 } from "@/utils/transactionHelpers";
-import { BN } from "@project-serum/anchor";
-import { MethodsBuilder } from "@project-serum/anchor/dist/cjs/program/namespace/methods";
+import { BN } from "@coral-xyz/anchor";
+import { MethodsBuilder } from "@coral-xyz/anchor/dist/cjs/program/namespace/methods";
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection, TransactionInstruction } from "@solana/web3.js";

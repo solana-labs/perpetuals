@@ -4,8 +4,9 @@ use {
     crate::{
         error::PerpetualsError,
         state::{
-            custody::{BorrowRateParams, Custody, Fees, OracleParams, PricingParams},
+            custody::{BorrowRateParams, Custody, Fees, PricingParams},
             multisig::{AdminInstruction, Multisig},
+            oracle::OracleParams,
             perpetuals::Permissions,
             pool::{Pool, TokenRatios},
         },
@@ -46,6 +47,7 @@ pub struct SetCustodyConfig<'info> {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct SetCustodyConfigParams {
     pub is_stable: bool,
+    pub is_virtual: bool,
     pub oracle: OracleParams,
     pub pricing: PricingParams,
     pub permissions: Permissions,
@@ -89,6 +91,7 @@ pub fn set_custody_config<'info>(
     // update custody data
     let custody = ctx.accounts.custody.as_mut();
     custody.is_stable = params.is_stable;
+    custody.is_virtual = params.is_virtual;
     custody.oracle = params.oracle;
     custody.pricing = params.pricing;
     custody.permissions = params.permissions;

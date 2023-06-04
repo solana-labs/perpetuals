@@ -9,7 +9,7 @@ import { useGlobalStore } from "@/stores/store";
 import { formatPrice } from "@/utils/formatters";
 import CloseIcon from "@carbon/icons-react/lib/Close";
 import EditIcon from "@carbon/icons-react/lib/Edit";
-import { BN } from "@project-serum/anchor";
+import { BN } from "@pcoral-xyz/anchor";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { closePosition } from "src/actions/closePosition";
 import { twMerge } from "tailwind-merge";

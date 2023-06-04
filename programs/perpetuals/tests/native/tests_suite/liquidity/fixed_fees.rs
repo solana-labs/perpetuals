@@ -1,113 +1,36 @@
 use {
-    crate::{
-        instructions,
-        utils::{self, fixtures, pda},
-    },
-    bonfida_test_utils::ProgramTestExt,
+    crate::{instructions, utils},
+    maplit::hashmap,
     perpetuals::{
         instructions::{AddLiquidityParams, RemoveLiquidityParams},
-        state::{
-            custody::{Custody, Fees, FeesMode},
-            perpetuals::Perpetuals,
-            pool::Pool,
-        },
+        state::{custody::Custody, perpetuals::Perpetuals, pool::Pool},
     },
-    solana_program_test::ProgramTest,
-    solana_sdk::signer::Signer,
 };
-
-const ROOT_AUTHORITY: usize = 0;
-const PERPETUALS_UPGRADE_AUTHORITY: usize = 1;
-const MULTISIG_MEMBER_A: usize = 2;
-const MULTISIG_MEMBER_B: usize = 3;
-const MULTISIG_MEMBER_C: usize = 4;
-const PAYER: usize = 5;
-const USER_ALICE: usize = 6;
-
-const KEYPAIRS_COUNT: usize = 7;
 
 const USDC_DECIMALS: u8 = 6;
 
 pub async fn fixed_fees() {
-    let mut program_test = ProgramTest::default();
-
-    // Initialize the accounts that will be used during the test suite
-    let keypairs =
-        utils::create_and_fund_multiple_accounts(&mut program_test, KEYPAIRS_COUNT).await;
-
-    // Initialize mints
-    let usdc_mint = program_test
-        .add_mint(None, USDC_DECIMALS, &keypairs[ROOT_AUTHORITY].pubkey())
-        .0;
-
-    // Deploy programs
-    utils::add_perpetuals_program(&mut program_test, &keypairs[PERPETUALS_UPGRADE_AUTHORITY]).await;
-    utils::add_spl_governance_program(&mut program_test, &keypairs[PERPETUALS_UPGRADE_AUTHORITY])
-        .await;
-
-    // Start the client and connect to localnet validator
-    let mut program_test_ctx = program_test.start_with_context().await;
-
-    let upgrade_authority = &keypairs[PERPETUALS_UPGRADE_AUTHORITY];
-
-    let multisig_signers = &[
-        &keypairs[MULTISIG_MEMBER_A],
-        &keypairs[MULTISIG_MEMBER_B],
-        &keypairs[MULTISIG_MEMBER_C],
-    ];
-
-    let governance_realm_pda = pda::get_governance_realm_pda("ADRENA".to_string());
-
-    // mint for the payouts of the LM token staking (ADX staking)
-    let cortex_stake_reward_mint = usdc_mint;
-
-    instructions::test_init(
-        &mut program_test_ctx,
-        upgrade_authority,
-        fixtures::init_params_permissions_full(1),
-        &governance_realm_pda,
-        &cortex_stake_reward_mint,
-        multisig_signers,
-    )
-    .await
-    .unwrap();
-
-    // Initialize and fund associated token accounts
-    {
-        // Alice: mint 100k USDC, create LM token account
-        {
-            let lm_token_mint = utils::pda::get_lm_token_mint_pda().0;
-
-            utils::initialize_and_fund_token_account(
-                &mut program_test_ctx,
-                &usdc_mint,
-                &keypairs[USER_ALICE].pubkey(),
-                &keypairs[ROOT_AUTHORITY],
-                utils::scale(100_000, USDC_DECIMALS),
-            )
-            .await;
-
-            utils::initialize_token_account(
-                &mut program_test_ctx,
-                &lm_token_mint,
-                &keypairs[USER_ALICE].pubkey(),
-            )
-            .await;
-        }
-    }
-
-    let (pool_pda, _, _, _, custodies_info) = utils::setup_pool_with_custodies_and_liquidity(
-        &mut program_test_ctx,
-        &keypairs[MULTISIG_MEMBER_A],
-        "FOO",
-        &keypairs[PAYER],
-        &cortex_stake_reward_mint,
-        multisig_signers,
+    let test_setup = utils::TestSetup::new(
+        vec![utils::UserParam {
+            name: "alice",
+            token_balances: hashmap! {
+                "usdc" => utils::scale(100_000, USDC_DECIMALS),
+            },
+        }],
+        vec![utils::MintParam {
+            name: "usdc",
+            decimals: USDC_DECIMALS,
+        }],
+        vec!["admin_a", "admin_b", "admin_c"],
+        "usdc",
+        6,
+        "ADRENA",
+        "main_pool",
         vec![utils::SetupCustodyWithLiquidityParams {
             setup_custody_params: utils::SetupCustodyParams {
-                mint: usdc_mint,
-                decimals: USDC_DECIMALS,
+                mint_name: "usdc",
                 is_stable: true,
+                is_virtual: false,
                 target_ratio: utils::ratio_from_percentage(50.0),
                 min_ratio: utils::ratio_from_percentage(0.0),
                 max_ratio: utils::ratio_from_percentage(100.0),
@@ -115,28 +38,26 @@ pub async fn fixed_fees() {
                 initial_conf: utils::scale_f64(0.01, USDC_DECIMALS),
                 pricing_params: None,
                 permissions: None,
+                fees: None,
                 borrow_rate: None,
-                fees: Some(Fees {
-                    mode: FeesMode::Fixed,
-                    add_liquidity: 200,
-                    remove_liquidity: 300,
-                    protocol_share: 25,
-                    ..fixtures::fees_linear_regular()
-                }),
             },
             liquidity_amount: utils::scale(0, USDC_DECIMALS),
-            payer: utils::copy_keypair(&keypairs[USER_ALICE]),
+            payer_user_name: "alice",
         }],
     )
     .await;
 
+    let alice = test_setup.get_user_keypair_by_name("alice");
+    let cortex_stake_reward_mint = test_setup.get_cortex_stake_reward_mint();
+    let usdc_mint = &test_setup.get_mint_by_name("usdc");
+
     // Check add liquidity fee
     {
         instructions::test_add_liquidity(
-            &mut program_test_ctx,
-            &keypairs[USER_ALICE],
-            &keypairs[PAYER],
-            &pool_pda,
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.pool_pda,
             &usdc_mint,
             &cortex_stake_reward_mint,
             AddLiquidityParams {
@@ -148,10 +69,16 @@ pub async fn fixed_fees() {
         .unwrap();
 
         {
-            let pool_account = utils::get_account::<Pool>(&mut program_test_ctx, pool_pda).await;
-            let custody_account =
-                utils::get_account::<Custody>(&mut program_test_ctx, custodies_info[0].custody_pda)
-                    .await;
+            let pool_account = utils::get_account::<Pool>(
+                &mut test_setup.program_test_ctx.borrow_mut(),
+                test_setup.pool_pda,
+            )
+            .await;
+            let custody_account = utils::get_account::<Custody>(
+                &mut test_setup.program_test_ctx.borrow_mut(),
+                test_setup.custodies_info[0].custody_pda,
+            )
+            .await;
 
             assert_eq!(
                 pool_account.aum_usd,
@@ -173,10 +100,10 @@ pub async fn fixed_fees() {
     // Check remove liquidity fee
     {
         instructions::test_remove_liquidity(
-            &mut program_test_ctx,
-            &keypairs[USER_ALICE],
-            &keypairs[PAYER],
-            &pool_pda,
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.pool_pda,
             &usdc_mint,
             &cortex_stake_reward_mint,
             RemoveLiquidityParams {
@@ -188,10 +115,16 @@ pub async fn fixed_fees() {
         .unwrap();
 
         {
-            let pool_account = utils::get_account::<Pool>(&mut program_test_ctx, pool_pda).await;
-            let custody_account =
-                utils::get_account::<Custody>(&mut program_test_ctx, custodies_info[0].custody_pda)
-                    .await;
+            let pool_account = utils::get_account::<Pool>(
+                &mut test_setup.program_test_ctx.borrow_mut(),
+                test_setup.pool_pda,
+            )
+            .await;
+            let custody_account = utils::get_account::<Custody>(
+                &mut test_setup.program_test_ctx.borrow_mut(),
+                test_setup.custodies_info[0].custody_pda,
+            )
+            .await;
 
             assert_eq!(
                 pool_account.aum_usd,

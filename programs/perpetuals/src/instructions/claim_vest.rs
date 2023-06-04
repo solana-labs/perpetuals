@@ -2,6 +2,7 @@ use {
     crate::{
         adapters::SplGovernanceV3Adapter,
         error::PerpetualsError,
+        math,
         state::{cortex::Cortex, perpetuals::Perpetuals, vest::Vest},
     },
     anchor_lang::prelude::*,
@@ -68,18 +69,6 @@ pub struct ClaimVest<'info> {
     )]
     pub governance_token_mint: Box<Account<'info, Mint>>,
 
-    #[account(
-        mut,
-        seeds = [
-            b"vest_token_account",
-            vest.key().as_ref(),
-        ],
-        token::authority = transfer_authority,
-        token::mint = lm_token_mint,
-        bump = vest.vest_token_account_bump
-    )]
-    pub vest_token_account: Box<Account<'info, TokenAccount>>,
-
     /// CHECK: checked by spl governance v3 program
     /// A realm represent one project (ADRENA, MANGO etc.) within the governance program
     pub governance_realm: UncheckedAccount<'info>,
@@ -104,37 +93,55 @@ pub struct ClaimVest<'info> {
     rent: Sysvar<'info, Rent>,
 }
 
-pub fn claim_vest<'info>(ctx: Context<'_, '_, '_, 'info, ClaimVest<'info>>) -> Result<u8> {
-    {
-        // validate owner
-        require!(
-            ctx.accounts.vest.owner == ctx.accounts.owner.key(),
-            PerpetualsError::InvalidVestState
-        );
+// Return claimed amount
+pub fn claim_vest<'info>(ctx: Context<'_, '_, '_, 'info, ClaimVest<'info>>) -> Result<u64> {
+    // validate owner
+    require!(
+        ctx.accounts.vest.owner == ctx.accounts.owner.key(),
+        PerpetualsError::InvalidVestState
+    );
 
-        // validate maturation of vest
-        require!(
-            ctx.accounts
-                .vest
-                .is_claimable(ctx.accounts.lm_token_mint.supply)?,
-            PerpetualsError::InvalidVestState
-        );
+    let vest = ctx.accounts.vest.as_mut();
+
+    let current_time = ctx.accounts.perpetuals.get_time()?;
+
+    let claimable_amount = vest.get_claimable_amount(current_time)?;
+
+    if claimable_amount == 0 {
+        return Ok(0);
     }
 
-    // Transfer vested token to user account
+    // Mint lm token to user account
     {
-        let perpetuals = ctx.accounts.perpetuals.as_ref();
-
-        perpetuals.transfer_tokens(
-            ctx.accounts.vest_token_account.to_account_info(),
+        ctx.accounts.perpetuals.mint_tokens(
+            ctx.accounts.lm_token_mint.to_account_info(),
             ctx.accounts.receiving_account.to_account_info(),
             ctx.accounts.transfer_authority.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
-            ctx.accounts.vest.amount,
+            claimable_amount,
         )?;
     }
 
-    // Revoke 1:1 governing power to the Vest owner
+    // Update vest accounting
+    {
+        vest.claimed_amount = math::checked_add(vest.claimed_amount, claimable_amount)?;
+        vest.last_claim_timestamp = current_time;
+    }
+
+    // If everything have been claimed, remove vesting from the cortex list
+    if vest.claimed_amount == vest.amount {
+        let cortex = ctx.accounts.cortex.as_mut();
+
+        let vest_idx = cortex
+            .vests
+            .iter()
+            .position(|x| *x == ctx.accounts.vest.key())
+            .ok_or(PerpetualsError::InvalidVestState)?;
+
+        cortex.vests.remove(vest_idx);
+    }
+
+    // Revoke 1:1 governing power for each claimed tokens
     {
         let perpetuals = ctx.accounts.perpetuals.as_mut();
         perpetuals.remove_governing_power(
@@ -150,24 +157,11 @@ pub fn claim_vest<'info>(ctx: Context<'_, '_, '_, 'info, ClaimVest<'info>>) -> R
                 .governance_governing_token_holding
                 .to_account_info(),
             ctx.accounts.governance_program.to_account_info(),
-            ctx.accounts.vest.amount,
+            claimable_amount,
         )?;
-    }
-
-    // remove vest from the list
-    {
-        let cortex = ctx.accounts.cortex.as_mut();
-
-        let vest_idx = cortex
-            .vests
-            .iter()
-            .position(|x| *x == ctx.accounts.vest.key())
-            .ok_or(PerpetualsError::InvalidVestState)?;
-
-        cortex.vests.remove(vest_idx);
     }
 
     // Note: the vest PDA still lives, we can unalloc (currently works same as Pool, without removal)
 
-    Ok(0)
+    Ok(claimable_amount)
 }

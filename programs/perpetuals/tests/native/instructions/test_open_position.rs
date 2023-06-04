@@ -4,7 +4,7 @@ use {
     bonfida_test_utils::ProgramTestContextExt,
     perpetuals::{
         instructions::OpenPositionParams,
-        state::{custody::Custody, perpetuals::Perpetuals, position::Position},
+        state::{custody::Custody, position::Position},
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
@@ -76,13 +76,15 @@ pub async fn test_open_position(
             position: position_pda,
             custody: custody_pda,
             custody_oracle_account: custody_oracle_account_address,
-            custody_token_account: custody_token_account_pda,
             stake_reward_token_custody: srt_custody_pda,
             stake_reward_token_custody_oracle_account: srt_custody_oracle_account_address,
             stake_reward_token_custody_token_account: srt_custody_token_account_pda,
             stake_reward_token_account: stake_reward_token_account_pda, // the stake reward vault
             lm_token_mint: lm_token_mint_pda,
             stake_reward_token_mint: *stake_reward_token_mint,
+            collateral_custody: custody_pda,
+            collateral_custody_oracle_account: custody_oracle_account_address,
+            collateral_custody_token_account: custody_token_account_pda,
             system_program: anchor_lang::system_program::ID,
             token_program: anchor_spl::token::ID,
             perpetuals_program: perpetuals::ID,
@@ -118,15 +120,13 @@ pub async fn test_open_position(
     // Check the position
     {
         let position_account = utils::get_account::<Position>(program_test_ctx, position_pda).await;
-        let perpetuals_account =
-            utils::get_account::<Perpetuals>(program_test_ctx, perpetuals_pda).await;
 
         assert_eq!(position_account.owner, owner.pubkey());
         assert_eq!(position_account.pool, *pool_pda);
         assert_eq!(position_account.custody, custody_pda);
         assert_eq!(
             position_account.open_time,
-            perpetuals_account.inception_time
+            utils::get_current_unix_timestamp(program_test_ctx).await
         );
         assert_eq!(position_account.update_time, 0);
         assert_eq!(position_account.side, params.side);

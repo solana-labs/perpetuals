@@ -1,9 +1,9 @@
-import * as anchor from "@project-serum/anchor";
+import * as anchor from "@coral-xyz/anchor";
 import { TestClient } from "./test_client";
 import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import * as spl from "@solana/spl-token";
 import { expect, assert } from "chai";
-import { BN } from "bn.js";
+import BN from "bn.js";
 
 describe("perpetuals", () => {
   let tc = new TestClient();
@@ -15,6 +15,7 @@ describe("perpetuals", () => {
   let borrowRate;
   let ratios;
   let isStable;
+  let isVirtual;
   let perpetualsExpected;
   let multisigExpected;
   let tokenExpected;
@@ -132,7 +133,7 @@ describe("perpetuals", () => {
     oracleConfig = {
       maxPriceError: new BN(10000),
       maxPriceAgeSec: 60,
-      oracleType: { test: {} },
+      oracleType: { custom: {} },
       oracleAccount: tc.custodies[0].oracleAccount,
     };
     pricing = {
@@ -200,9 +201,11 @@ describe("perpetuals", () => {
       },
     ];
     isStable = false;
+    isVirtual = false;
     await tc.addCustody(
       tc.custodies[0],
       isStable,
+      isVirtual,
       oracleConfig,
       pricing,
       permissions,
@@ -218,9 +221,10 @@ describe("perpetuals", () => {
       tokenAccount: tc.custodies[0].tokenAccount,
       decimals: 9,
       isStable,
+      isVirtual,
       oracle: {
         oracleAccount: tc.custodies[0].oracleAccount,
-        oracleType: { test: {} },
+        oracleType: { custom: {} },
         maxPriceError: "10000",
         maxPriceAgeSec: 60,
       },
@@ -332,6 +336,7 @@ describe("perpetuals", () => {
     await tc.addCustody(
       tc.custodies[1],
       isStable,
+      isVirtual,
       oracleConfig2,
       pricing,
       permissions,
@@ -346,6 +351,7 @@ describe("perpetuals", () => {
     await tc.addCustody(
       tc.custodies[1],
       isStable,
+      isVirtual,
       oracleConfig2,
       pricing,
       permissions,
@@ -363,6 +369,7 @@ describe("perpetuals", () => {
     await tc.setCustodyConfig(
       tc.custodies[0],
       isStable,
+      isVirtual,
       oracleConfig,
       pricing,
       permissions,
@@ -378,11 +385,11 @@ describe("perpetuals", () => {
     expect(JSON.stringify(token)).to.equal(JSON.stringify(tokenExpected));
   });
 
-  it("setTestOraclePrice", async () => {
-    await tc.setTestOraclePrice(123, tc.custodies[0]);
-    await tc.setTestOraclePrice(200, tc.custodies[1]);
+  it("setCustomOraclePrice", async () => {
+    await tc.setCustomOraclePrice(123, tc.custodies[0]);
+    await tc.setCustomOraclePrice(200, tc.custodies[1]);
 
-    let oracle = await tc.program.account.testOracle.fetch(
+    let oracle = await tc.program.account.customOracle.fetch(
       tc.custodies[0].oracleAccount
     );
     let oracleExpected = {
@@ -470,6 +477,7 @@ describe("perpetuals", () => {
       owner: tc.users[0].wallet.publicKey.toBase58(),
       pool: tc.pool.publicKey.toBase58(),
       custody: tc.custodies[0].custody.toBase58(),
+      collateralCustody: tc.custodies[0].custody.toBase58(),
       openTime: "111",
       updateTime: "0",
       side: { long: {} },
@@ -531,7 +539,7 @@ describe("perpetuals", () => {
       tc.users[0].positionAccountsLong[0],
       tc.custodies[0]
     );
-    await tc.setTestOraclePrice(80, tc.custodies[0]);
+    await tc.setCustomOraclePrice(80, tc.custodies[0]);
     await tc.liquidate(
       tc.users[0],
       tc.users[0].tokenAccounts[0],

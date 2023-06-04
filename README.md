@@ -8,7 +8,7 @@ Solana Perpetuals protocol is an open-source implementation of a non-custodial d
 
 ### Setup Environment
 
-1. Clone the repository from <https://github.com/askibin/perpetuals.git>.
+1. Clone the repository from <https://github.com/solana-labs/perpetuals.git>.
 2. Install the latest Solana tools from <https://docs.solana.com/cli/install-solana-cli-tools>. If you already have Solana tools, run `solana-install update` to get the latest compatible version.
 3. Install the latest Rust stable from <https://rustup.rs/>. If you already have Rust, run `rustup update` to get the latest version.
 4. Install the latest Anchor framework from <https://www.anchor-lang.com/docs/installation>. If you already have Anchor, run `avm update` to get the latest version.
@@ -130,7 +130,9 @@ CLI offers other useful commands. You can get the list of all of them by running
 npx ts-node src/cli.ts --help
 ```
 
-## UI
+## UI (Deprecated)
+
+### UI doesn't support the latest version of the on-chain program. The code is still available but for the reference only. Latest supported commit is 34f9bbb.
 
 We have implemented a coressponding UI for the smartcontract, written in Typescript/Tailwind/Next. To quickly spin up a UI linked to the contract, first follow the previous directions to build the contract, and to init the exchange.
 
@@ -166,9 +168,9 @@ yarn dev
 
 ## Support
 
-If you are experiencing technical difficulties while working with the Perpetuals codebase, ask your question on [StackExchange](https://solana.stackexchange.com) (tag your question with `perpetuals`).
+If you are experiencing technical difficulties while working with the Perpetuals codebase, open an issue on [Github](https://github.com/solana-labs/perpetuals/issues). For more general questions about programming on Solana blockchain use [StackExchange](https://solana.stackexchange.com).
 
-If you find a bug in the code, you can raise an issue on [Github](https://github.com/askibin/perpetuals). But if this is a security issue, please don't disclose it on Github or in public channels. Send information to solana.farms@protonmail.com instead.
+If you find a bug in the code, you can raise an issue on [Github](https://github.com/solana-labs/perpetuals/issues). But if this is a security issue, please don't disclose it on Github or in public channels. Send information to solana.farms@protonmail.com instead.
 
 ## Contributing
 

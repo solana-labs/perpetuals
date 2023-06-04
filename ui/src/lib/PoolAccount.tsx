@@ -3,8 +3,8 @@ import { CustodyAccount } from "@/lib/CustodyAccount";
 import { TokenE } from "@/lib/Token";
 import { AccountMeta, Pool, TokenRatios } from "@/lib/types";
 import { PERPETUALS_PROGRAM_ID } from "@/utils/constants";
-import { BN } from "@project-serum/anchor";
-import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pubkey";
+import { BN } from "@coral-xyz/anchor";
+import { findProgramAddressSync } from "@coral-xyz/anchor/dist/cjs/utils/pubkey";
 import { Mint } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
 

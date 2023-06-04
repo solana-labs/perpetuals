@@ -18,7 +18,7 @@ use {
 
 solana_security_txt::security_txt! {
     name: "Perpetuals",
-    project_url: "https://github.com/askibin/perpetuals",
+    project_url: "https://github.com/solana-labs/perpetuals",
     contacts: "email:solana.farms@protonmail.com",
     policy: "",
     preferred_languages: "en",
@@ -43,7 +43,7 @@ pub mod perpetuals {
         instructions::add_vest(ctx, &params)
     }
 
-    pub fn claim_vest<'info>(ctx: Context<'_, '_, '_, 'info, ClaimVest<'info>>) -> Result<u8> {
+    pub fn claim_vest<'info>(ctx: Context<'_, '_, '_, 'info, ClaimVest<'info>>) -> Result<u64> {
         instructions::claim_vest(ctx)
     }
 
@@ -117,17 +117,17 @@ pub mod perpetuals {
         instructions::upgrade_custody(ctx, &params)
     }
 
+    pub fn set_custom_oracle_price<'info>(
+        ctx: Context<'_, '_, '_, 'info, SetCustomOraclePrice<'info>>,
+        params: SetCustomOraclePriceParams,
+    ) -> Result<u8> {
+        instructions::set_custom_oracle_price(ctx, &params)
+    }
+
     // test instructions
 
     pub fn test_init(ctx: Context<TestInit>, params: TestInitParams) -> Result<()> {
         instructions::test_init(ctx, &params)
-    }
-
-    pub fn set_test_oracle_price<'info>(
-        ctx: Context<'_, '_, '_, 'info, SetTestOraclePrice<'info>>,
-        params: SetTestOraclePriceParams,
-    ) -> Result<u8> {
-        instructions::set_test_oracle_price(ctx, &params)
     }
 
     pub fn set_test_time<'info>(
@@ -258,5 +258,12 @@ pub mod perpetuals {
 
     pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
         instructions::resolve_staking_round(ctx)
+    }
+
+    pub fn get_lp_token_price(
+        ctx: Context<GetLpTokenPrice>,
+        params: GetLpTokenPriceParams,
+    ) -> Result<u64> {
+        instructions::get_lp_token_price(ctx, &params)
     }
 }

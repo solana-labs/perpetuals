@@ -5,8 +5,8 @@ use {
     perpetuals::{
         instructions::InitParams,
         state::{
-            custody::{BorrowRateParams, Fees, FeesMode, OracleParams, PricingParams},
-            oracle::OracleType,
+            custody::{BorrowRateParams, Fees, FeesMode, PricingParams},
+            oracle::{OracleParams, OracleType},
             perpetuals::Permissions,
         },
     },
@@ -72,9 +72,10 @@ pub fn pricing_params_regular(use_ema: bool) -> PricingParams {
 pub fn oracle_params_regular(oracle_account: Pubkey) -> OracleParams {
     OracleParams {
         oracle_account,
-        oracle_type: OracleType::Test,
+        oracle_type: OracleType::Custom,
         max_price_error: 1_000_000,
-        max_price_age_sec: 30,
+        // Price never go stale in tests
+        max_price_age_sec: u32::MAX,
     }
 }
 

@@ -1,10 +1,10 @@
-//! SetTestOraclePrice instruction handler
+//! SetCustomOraclePrice instruction handler
 
 use {
     crate::state::{
         custody::Custody,
         multisig::{AdminInstruction, Multisig},
-        oracle::TestOracle,
+        oracle::CustomOracle,
         perpetuals::Perpetuals,
         pool::Pool,
     },
@@ -12,7 +12,7 @@ use {
 };
 
 #[derive(Accounts)]
-pub struct SetTestOraclePrice<'info> {
+pub struct SetCustomOraclePrice<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
 
@@ -47,29 +47,29 @@ pub struct SetTestOraclePrice<'info> {
     #[account(
         init_if_needed,
         payer = admin,
-        space = TestOracle::LEN,
+        space = CustomOracle::LEN,
         //constraint = oracle_account.key() == custody.oracle.oracle_account,
         seeds = [b"oracle_account",
                  pool.key().as_ref(),
                  custody.mint.as_ref()],
         bump
     )]
-    pub oracle_account: Box<Account<'info, TestOracle>>,
+    pub oracle_account: Box<Account<'info, CustomOracle>>,
 
     system_program: Program<'info, System>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
-pub struct SetTestOraclePriceParams {
+pub struct SetCustomOraclePriceParams {
     pub price: u64,
     pub expo: i32,
     pub conf: u64,
     pub publish_time: i64,
 }
 
-pub fn set_test_oracle_price<'info>(
-    ctx: Context<'_, '_, '_, 'info, SetTestOraclePrice<'info>>,
-    params: &SetTestOraclePriceParams,
+pub fn set_custom_oracle_price<'info>(
+    ctx: Context<'_, '_, '_, 'info, SetCustomOraclePrice<'info>>,
+    params: &SetCustomOraclePriceParams,
 ) -> Result<u8> {
     // validate signatures
     let mut multisig = ctx.accounts.multisig.load_mut()?;
@@ -77,7 +77,7 @@ pub fn set_test_oracle_price<'info>(
     let signatures_left = multisig.sign_multisig(
         &ctx.accounts.admin,
         &Multisig::get_account_infos(&ctx)[1..],
-        &Multisig::get_instruction_data(AdminInstruction::SetTestOraclePrice, params)?,
+        &Multisig::get_instruction_data(AdminInstruction::SetCustomOraclePrice, params)?,
     )?;
     if signatures_left > 0 {
         msg!(

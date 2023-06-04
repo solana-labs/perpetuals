@@ -72,13 +72,15 @@ pub async fn test_close_position(
             position: *position_pda,
             custody: custody_pda,
             custody_oracle_account: custody_oracle_account_address,
-            custody_token_account: custody_token_account_pda,
             stake_reward_token_custody: srt_custody_pda,
             stake_reward_token_custody_oracle_account: srt_custody_oracle_account_address,
             stake_reward_token_custody_token_account: srt_custody_token_account_pda, // the stake reward vault
             stake_reward_token_account: stake_reward_token_account_pda,
             lm_token_mint: lm_token_mint_pda,
             stake_reward_token_mint: *stake_reward_token_mint,
+            collateral_custody: custody_pda,
+            collateral_custody_oracle_account: custody_oracle_account_address,
+            collateral_custody_token_account: custody_token_account_pda,
             token_program: anchor_spl::token::ID,
             perpetuals_program: perpetuals::ID,
         }

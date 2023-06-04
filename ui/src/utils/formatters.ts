@@ -1,4 +1,4 @@
-import { BN } from "@project-serum/anchor";
+import { BN } from "@coral-xyz/anchor";
 
 export function formatNumberCommas(num: number | BN | null) {
   if (typeof num === "bigint") {

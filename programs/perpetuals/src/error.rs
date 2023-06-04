@@ -32,6 +32,8 @@ pub enum PerpetualsError {
     InvalidStakeState,
     #[msg("Invalid custody state")]
     InvalidCustodyState,
+    #[msg("Invalid collateral custody")]
+    InvalidCollateralCustody,
     #[msg("Invalid position state")]
     InvalidPositionState,
     #[msg("Invalid staking round state")]
@@ -64,4 +66,6 @@ pub enum PerpetualsError {
     InvalidGovernanceProgram,
     #[msg("Governance realm do not match Cortex's")]
     InvalidGovernanceRealm,
+    #[msg("Vesting unlock time is too close or passed")]
+    InvalidVestingUnlockTime,
 }

@@ -76,52 +76,44 @@ pub fn get_swap_amount_and_fees(
 
     // compute token amount returned to the user
     let curtime = ctx.accounts.perpetuals.get_time()?;
-    let pool = ctx.accounts.pool.as_mut();
+    let pool = &ctx.accounts.pool;
     let token_id_in = pool.get_token_id(&ctx.accounts.receiving_custody.key())?;
     let token_id_out = pool.get_token_id(&ctx.accounts.dispensing_custody.key())?;
-    let receiving_custody = ctx.accounts.receiving_custody.as_mut();
-    let dispensing_custody = ctx.accounts.dispensing_custody.as_mut();
+    let receiving_custody = &ctx.accounts.receiving_custody;
+    let dispensing_custody = &ctx.accounts.dispensing_custody;
 
     let received_token_price = OraclePrice::new_from_oracle(
-        receiving_custody.oracle.oracle_type,
         &ctx.accounts
             .receiving_custody_oracle_account
             .to_account_info(),
-        receiving_custody.oracle.max_price_error,
-        receiving_custody.oracle.max_price_age_sec,
+        &receiving_custody.oracle,
         curtime,
         false,
     )?;
 
     let received_token_ema_price = OraclePrice::new_from_oracle(
-        receiving_custody.oracle.oracle_type,
         &ctx.accounts
             .receiving_custody_oracle_account
             .to_account_info(),
-        receiving_custody.oracle.max_price_error,
-        receiving_custody.oracle.max_price_age_sec,
+        &receiving_custody.oracle,
         curtime,
         receiving_custody.pricing.use_ema,
     )?;
 
     let dispensed_token_price = OraclePrice::new_from_oracle(
-        dispensing_custody.oracle.oracle_type,
         &ctx.accounts
             .dispensing_custody_oracle_account
             .to_account_info(),
-        dispensing_custody.oracle.max_price_error,
-        dispensing_custody.oracle.max_price_age_sec,
+        &dispensing_custody.oracle,
         curtime,
         false,
     )?;
 
     let dispensed_token_ema_price = OraclePrice::new_from_oracle(
-        dispensing_custody.oracle.oracle_type,
         &ctx.accounts
             .dispensing_custody_oracle_account
             .to_account_info(),
-        dispensing_custody.oracle.max_price_error,
-        dispensing_custody.oracle.max_price_age_sec,
+        &dispensing_custody.oracle,
         curtime,
         dispensing_custody.pricing.use_ema,
     )?;
