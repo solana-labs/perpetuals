@@ -1,7 +1,7 @@
 //! Cortex state and routines
 
 use {
-    super::{perpetuals::Perpetuals, stake::Stake, vest::Vest},
+    super::{perpetuals::Perpetuals, staking::Staking, vest::Vest},
     crate::math,
     anchor_lang::prelude::*,
 };
@@ -14,14 +14,17 @@ pub const SECONDS_PER_HOURS: i64 = 3600;
 #[derive(Default, Debug)]
 pub struct Cortex {
     pub vests: Vec<Pubkey>,
+    //
     pub bump: u8,
     pub lm_token_bump: u8,
     pub governance_token_bump: u8,
     pub stake_token_account_bump: u8,
     pub stake_reward_token_account_bump: u8,
+    //
     pub inception_epoch: u64,
     pub governance_program: Pubkey,
     pub governance_realm: Pubkey,
+    //
     pub stake_reward_token_mint: Pubkey,
     pub stake_token_decimals: u8,
     pub stake_reward_token_decimals: u8,
@@ -49,13 +52,13 @@ impl StakingRound {
     // a staking round can be resolved after at least 6 hours
     const ROUND_MIN_DURATION_HOURS: i64 = 6;
     pub const ROUND_MIN_DURATION_SECONDS: i64 = Self::ROUND_MIN_DURATION_HOURS * SECONDS_PER_HOURS;
-    // A Stake account max age is 365, this is due to computing limit in the claim instruction.
+    // A Staking account max age is 365, this is due to computing limit in the claim instruction.
     // This is also arbitrarily used as the max theoretical amount of staking rounds
     // stored if all were persisting (rounds get cleaned up once their rewards are fully claimed by their participants).
     // This is done to ensure the Cortex.resolved_staking_rounds doesn't grow out of proportion, primarily to facilitate
     // the fetching from front end.
     pub const MAX_RESOLVED_ROUNDS: usize =
-        ((Stake::MAX_AGE_SECONDS / SECONDS_PER_HOURS) / Self::ROUND_MIN_DURATION_HOURS) as usize;
+        ((Staking::MAX_AGE_SECONDS / SECONDS_PER_HOURS) / Self::ROUND_MIN_DURATION_HOURS) as usize;
 
     pub fn new(start_time: i64) -> Self {
         Self {

@@ -5,11 +5,10 @@ use {
         adapters::SplGovernanceV3Adapter,
         error::PerpetualsError,
         math, program,
-        state::{cortex::Cortex, perpetuals::Perpetuals, stake::Stake},
+        state::{cortex::Cortex, perpetuals::Perpetuals, staking::Staking},
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
-    num::Zero,
     solana_program::program_error::ProgramError,
 };
 
@@ -60,11 +59,11 @@ pub struct RemoveStake<'info> {
 
     #[account(
         mut,
-        seeds = [b"stake",
+        seeds = [b"staking",
                  owner.key().as_ref()],
-        bump = stake.bump
+        bump = staking.bump
     )]
-    pub stake: Box<Account<'info, Stake>>,
+    pub staking: Box<Account<'info, Staking>>,
 
     #[account(
         mut,
@@ -122,18 +121,184 @@ pub struct RemoveStake<'info> {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub struct RemoveStakeParams {
-    pub amount: u64,
+    // Liquid staking
+    pub remove_liquid_stake: bool,
+    pub amount: Option<u64>,
+
+    // Locked staking
+    pub remove_locked_stake: bool,
+    pub locked_stake_index: Option<usize>,
 }
 
+// Remove one stake at a time
 pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Result<()> {
     // validate inputs
     {
         msg!("Validate inputs");
-        if params.amount == 0 {
+
+        // Only one staking to end at a time
+        if (params.remove_liquid_stake && params.remove_locked_stake)
+            || (!params.remove_liquid_stake && !params.remove_locked_stake)
+        {
+            return Err(ProgramError::InvalidArgument.into());
+        }
+
+        // missing index when removing locked stake
+        if params.remove_locked_stake && params.locked_stake_index.is_none() {
+            return Err(ProgramError::InvalidArgument.into());
+        }
+
+        // missing amount when removing liquid stake
+        if params.remove_liquid_stake && (params.amount.is_none() || params.amount.unwrap() == 0) {
             return Err(ProgramError::InvalidArgument.into());
         }
     }
 
+    // claim existing rewards before removing the stake
+    {
+        // calling the program itself through CPI to enforce parity with cpi API
+        let cpi_accounts = crate::cpi::accounts::ClaimStakes {
+            caller: ctx.accounts.owner.to_account_info(),
+            owner: ctx.accounts.owner.to_account_info(),
+            caller_reward_token_account: ctx.accounts.owner_reward_token_account.to_account_info(),
+            owner_reward_token_account: ctx.accounts.owner_reward_token_account.to_account_info(),
+            stake_reward_token_account: ctx.accounts.stake_reward_token_account.to_account_info(),
+            transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
+            staking: ctx.accounts.staking.to_account_info(),
+            cortex: ctx.accounts.cortex.to_account_info(),
+            perpetuals: ctx.accounts.perpetuals.to_account_info(),
+            stake_reward_token_mint: ctx.accounts.stake_reward_token_mint.to_account_info(),
+            system_program: ctx.accounts.system_program.to_account_info(),
+            token_program: ctx.accounts.token_program.to_account_info(),
+        };
+
+        let cpi_program = ctx.accounts.perpetuals_program.to_account_info();
+        crate::cpi::claim_stakes(CpiContext::new(cpi_program, cpi_accounts))?
+    }
+
+    let staking = ctx.accounts.staking.as_mut();
+    let perpetuals = ctx.accounts.perpetuals.as_mut();
+    let cortex = ctx.accounts.cortex.as_mut();
+
+    let token_amount_to_unstake = if params.remove_liquid_stake {
+        //
+        // Handle liquid staking
+        //
+
+        let token_amount_to_unstake = params.amount.unwrap();
+
+        // verify user staked balance
+        {
+            require!(
+                staking.liquid_stake.amount >= token_amount_to_unstake,
+                PerpetualsError::InvalidStakeState
+            );
+        }
+
+        // Revoke governing power allocated to the stake
+        {
+            let voting_power = math::checked_as_u64(math::checked_div(
+                math::checked_mul(
+                    token_amount_to_unstake,
+                    staking.liquid_stake.vote_multiplier as u64,
+                )? as u128,
+                Perpetuals::BPS_POWER,
+            )?)?;
+
+            perpetuals.remove_governing_power(
+                ctx.accounts.transfer_authority.to_account_info(),
+                ctx.accounts.owner.to_account_info(),
+                ctx.accounts
+                    .governance_governing_token_owner_record
+                    .to_account_info(),
+                ctx.accounts.governance_token_mint.to_account_info(),
+                ctx.accounts.governance_realm.to_account_info(),
+                ctx.accounts.governance_realm_config.to_account_info(),
+                ctx.accounts
+                    .governance_governing_token_holding
+                    .to_account_info(),
+                ctx.accounts.governance_program.to_account_info(),
+                voting_power,
+            )?;
+        }
+
+        // apply delta to user stake
+        staking.liquid_stake.amount =
+            math::checked_sub(staking.liquid_stake.amount, token_amount_to_unstake)?;
+
+        // Apply delta to current and next round
+        {
+            let real_yield_unstake_amount = math::checked_as_u64(math::checked_div(
+                math::checked_mul(
+                    token_amount_to_unstake,
+                    staking.liquid_stake.base_reward_multiplier as u64,
+                )? as u128,
+                Perpetuals::BPS_POWER,
+            )?)?;
+
+            // forfeit current round participation, if any
+            if staking
+                .liquid_stake
+                .qualifies_for_rewards_from(&cortex.current_staking_round)
+            {
+                cortex.current_staking_round.total_stake = math::checked_sub(
+                    cortex.current_staking_round.total_stake,
+                    real_yield_unstake_amount,
+                )?;
+            }
+
+            // apply delta to next round
+            cortex.next_staking_round.total_stake = math::checked_sub(
+                cortex.next_staking_round.total_stake,
+                real_yield_unstake_amount,
+            )?;
+        }
+
+        token_amount_to_unstake
+    } else {
+        //
+        // Handle locked staking
+        //
+
+        let locked_stake = staking
+            .locked_stakes
+            .get(params.locked_stake_index.unwrap())
+            .ok_or(PerpetualsError::CannotFoundStake)?;
+
+        // Check the stake have ended and have been resolved
+        {
+            let current_time = ctx.accounts.perpetuals.get_time()?;
+            require!(
+                locked_stake.has_ended(current_time) && locked_stake.resolved,
+                PerpetualsError::UnresolvedStake
+            );
+        }
+
+        let token_amount_to_unstake = locked_stake.amount;
+
+        // Remove the stake from the list
+        staking
+            .locked_stakes
+            .remove(params.locked_stake_index.unwrap());
+
+        token_amount_to_unstake
+    };
+
+    // Unstake owner's tokens
+    {
+        msg!("Transfer tokens");
+        let perpetuals = ctx.accounts.perpetuals.as_mut();
+
+        perpetuals.transfer_tokens(
+            ctx.accounts.stake_token_account.to_account_info(),
+            ctx.accounts.lm_token_account.to_account_info(),
+            ctx.accounts.transfer_authority.to_account_info(),
+            ctx.accounts.token_program.to_account_info(),
+            token_amount_to_unstake,
+        )?;
+    }
+
+    /*
     // verify user staked balance
     {
         let stake = ctx.accounts.stake.as_mut();
@@ -249,7 +414,7 @@ pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Re
             stake.stake_time = 0;
             stake.close(ctx.accounts.owner.to_account_info())?;
         }
-    }
+    }*/
 
     Ok(())
 }

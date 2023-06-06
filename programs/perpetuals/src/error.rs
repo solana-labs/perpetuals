@@ -68,4 +68,10 @@ pub enum PerpetualsError {
     InvalidGovernanceRealm,
     #[msg("Vesting unlock time is too close or passed")]
     InvalidVestingUnlockTime,
+    #[msg("Invalid staking locking time")]
+    InvalidStakingLockingTime,
+    #[msg("Cannot found stake")]
+    CannotFoundStake,
+    #[msg("Stake is not resolved")]
+    UnresolvedStake,
 }
