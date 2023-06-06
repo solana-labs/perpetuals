@@ -84,13 +84,9 @@ pub async fn test_staking_rewards_from_swap() {
     )
     .await;
 
-    let alice = test_setup.get_user_keypair_by_name("alice");
     let martin = test_setup.get_user_keypair_by_name("martin");
 
-    let admin_a = test_setup.get_multisig_member_keypair_by_name("admin_a");
-
     let cortex_stake_reward_mint = test_setup.get_cortex_stake_reward_mint();
-    let multisig_signers = test_setup.get_multisig_signers();
 
     let usdc_mint = &test_setup.get_mint_by_name("usdc");
     let eth_mint = &test_setup.get_mint_by_name("eth");

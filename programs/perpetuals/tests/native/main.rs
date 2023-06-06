@@ -15,11 +15,7 @@ pub async fn test_integration() {
     tests_suite::position::liquidate_position().await;
     tests_suite::position::max_user_profit().await;
 
-    tests_suite::staking::test_bounty_no_rewards().await;
-    tests_suite::staking::test_bounty_phase_one().await;
-    tests_suite::staking::test_staking_rewards_from_swap().await;
-    tests_suite::staking::test_staking_rewards_from_open_and_close_position().await;
-    tests_suite::staking::test_staking_rewards_from_add_and_remove_liquidity().await;
+    tests_suite::staking::test_staking_rewards_generation().await;
 
     tests_suite::lp_token::lp_token_price().await;
 }
