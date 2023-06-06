@@ -244,15 +244,24 @@ pub async fn basic_interactions() {
         .unwrap();
     }
 
-    // Stake
+    // Staking
     {
-        // Alice: add stake LM token
+        instructions::test_init_staking(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            &test_setup.payer_keypair,
+        )
+        .await
+        .unwrap();
+
+        // Alice: add liquid stake
         instructions::test_add_stake(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,
             AddStakeParams {
                 amount: utils::scale(1, Cortex::LM_DECIMALS),
+                locked_days: 0,
             },
             &cortex_stake_reward_mint,
             &test_setup.governance_realm_pda,
@@ -260,13 +269,16 @@ pub async fn basic_interactions() {
         .await
         .unwrap();
 
-        // Alice: remove stake LM token
+        // Alice: remove liquid staking
         instructions::test_remove_stake(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,
             RemoveStakeParams {
-                amount: utils::scale(1, Cortex::LM_DECIMALS),
+                remove_liquid_stake: true,
+                amount: Some(utils::scale(1, Cortex::LM_DECIMALS)),
+                remove_locked_stake: false,
+                locked_stake_index: None,
             },
             &cortex_stake_reward_mint,
             &test_setup.governance_realm_pda,
@@ -274,8 +286,8 @@ pub async fn basic_interactions() {
         .await
         .unwrap();
 
-        // Alice: test_setup claim stake (no stake account, none)
-        instructions::test_claim_stake(
+        // Alice: claim stake (nothing to be claimed yet)
+        instructions::test_claim_stakes(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             alice,
@@ -286,8 +298,7 @@ pub async fn basic_interactions() {
         .await
         .unwrap();
 
-        // resolution of the round
-        // warps to when the round is resolvable
+        // warps to the next round
         utils::warp_forward(
             &mut test_setup.program_test_ctx.borrow_mut(),
             StakingRound::ROUND_MIN_DURATION_SECONDS,

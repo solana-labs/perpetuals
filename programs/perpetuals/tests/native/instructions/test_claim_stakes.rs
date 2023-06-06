@@ -7,7 +7,7 @@ use {
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 
-pub async fn test_claim_stake(
+pub async fn test_claim_stakes(
     program_test_ctx: &mut ProgramTestContext,
     caller: &Keypair,
     owner: &Keypair,
