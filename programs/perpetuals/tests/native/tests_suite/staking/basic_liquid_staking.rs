@@ -1,22 +1,17 @@
 use {
-    crate::{
-        instructions,
-        utils::{self, pda},
-    },
+    crate::{instructions, utils},
     maplit::hashmap,
     perpetuals::{
-        instructions::{
-            AddLiquidityParams, AddVestParams, ClosePositionParams, OpenPositionParams,
-            RemoveLiquidityParams, SwapParams,
-        },
-        state::{cortex::Cortex, perpetuals::Perpetuals, position::Side},
+        instructions::{AddLiquidityParams, AddStakeParams, AddVestParams},
+        state::cortex::{Cortex, StakingRound},
     },
+    solana_sdk::signer::Signer,
 };
 
 const USDC_DECIMALS: u8 = 6;
 const ETH_DECIMALS: u8 = 9;
 
-pub async fn test_staking_rewards_generation() {
+pub async fn basic_liquid_staking() {
     let test_setup = utils::TestSetup::new(
         vec![
             utils::UserParam {
@@ -99,7 +94,6 @@ pub async fn test_staking_rewards_generation() {
     let multisig_signers = test_setup.get_multisig_signers();
 
     let eth_mint = &test_setup.get_mint_by_name("eth");
-    let usdc_mint = &test_setup.get_mint_by_name("usdc");
 
     // Prep work: Alice get 2 governance tokens using vesting
     {
@@ -139,16 +133,86 @@ pub async fn test_staking_rewards_generation() {
         .unwrap();
     }
 
-    let stake_reward_token_account_pda = pda::get_stake_reward_token_account_pda().0;
+    let alice_stake_reward_token_account_address =
+        utils::find_associated_token_account(&alice.pubkey(), &cortex_stake_reward_mint).0;
 
-    // Check that add liquidity generates rewards
+    // Alice: start liquid staking
     {
-        let stake_reward_token_account_balance_before = utils::get_token_account_balance(
+        instructions::test_init_staking(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
+            alice,
+            &test_setup.payer_keypair,
+        )
+        .await
+        .unwrap();
+
+        instructions::test_add_stake(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            &test_setup.payer_keypair,
+            AddStakeParams {
+                amount: utils::scale(1, Cortex::LM_DECIMALS),
+                locked_days: 0,
+            },
+            &cortex_stake_reward_mint,
+            &test_setup.governance_realm_pda,
+        )
+        .await
+        .unwrap();
+    }
+
+    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+
+    // Alice: claim when there is nothing to claim yet
+    {
+        let balance_before = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice_stake_reward_token_account_address,
         )
         .await;
 
+        instructions::test_claim_stakes(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.governance_realm_pda,
+            &cortex_stake_reward_mint,
+        )
+        .await
+        .unwrap();
+
+        let balance_after = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice_stake_reward_token_account_address,
+        )
+        .await;
+
+        assert_eq!(balance_before, balance_after);
+    }
+
+    // warp to the next round and resolve the current one
+    // this round bear no rewards for the new staking at the staking started during the round
+    {
+        utils::warp_forward(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            StakingRound::ROUND_MIN_DURATION_SECONDS,
+        )
+        .await;
+
+        instructions::test_resolve_staking_round(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            alice,
+            &test_setup.payer_keypair,
+            &cortex_stake_reward_mint,
+        )
+        .await
+        .unwrap();
+    }
+
+    // Use add liquidity to generate rewards for the current round
+    {
         // Generate platform activity to fill current round' rewards
         instructions::test_add_liquidity(
             &mut test_setup.program_test_ctx.borrow_mut(),
@@ -164,197 +228,55 @@ pub async fn test_staking_rewards_generation() {
         )
         .await
         .unwrap();
+    }
 
-        utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
-
-        let stake_reward_token_account_balance_after = utils::get_token_account_balance(
+    // warp to the next round and resolve the current one
+    // this round bear rewards for the new staking at the staking started before the round
+    {
+        utils::warp_forward(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
+            StakingRound::ROUND_MIN_DURATION_SECONDS,
         )
         .await;
 
-        // Check rewards has been generated
-        assert_eq!(
-            stake_reward_token_account_balance_after - stake_reward_token_account_balance_before,
-            22_188,
-        );
+        instructions::test_resolve_staking_round(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            alice,
+            &test_setup.payer_keypair,
+            &cortex_stake_reward_mint,
+        )
+        .await
+        .unwrap();
     }
 
     utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
-    // Check that open position generates rewards
-    let position_pda = {
-        let stake_reward_token_account_balance_before = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
-        )
-        .await;
-
-        // Martin: Open 0.1 ETH long position x1
-        let position_pda = instructions::test_open_position(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            &martin,
-            &test_setup.payer_keypair,
-            &test_setup.pool_pda,
-            &eth_mint,
-            &cortex_stake_reward_mint,
-            OpenPositionParams {
-                // max price paid (slippage implied)
-                price: utils::scale(1_550, ETH_DECIMALS),
-                collateral: utils::scale_f64(0.1, ETH_DECIMALS),
-                size: utils::scale_f64(0.1, ETH_DECIMALS),
-                side: Side::Long,
-            },
-        )
-        .await
-        .unwrap()
-        .0;
-
-        utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
-
-        let stake_reward_token_account_balance_after = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
-        )
-        .await;
-
-        // Check rewards has been generated
-        assert_eq!(
-            stake_reward_token_account_balance_after - stake_reward_token_account_balance_before,
-            3_637,
-        );
-
-        position_pda
-    };
-
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
-
-    // Check that close position generates rewards
+    // Claim when there is one round worth of rewards to claim
     {
-        let stake_reward_token_account_balance_before = utils::get_token_account_balance(
+        let balance_before = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
+            alice_stake_reward_token_account_address,
         )
         .await;
 
-        // Martin: Close the ETH position
-        instructions::test_close_position(
+        instructions::test_claim_stakes(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            martin,
+            alice,
+            alice,
             &test_setup.payer_keypair,
-            &test_setup.pool_pda,
-            &eth_mint,
+            &test_setup.governance_realm_pda,
             &cortex_stake_reward_mint,
-            &position_pda,
-            ClosePositionParams {
-                // lowest exit price paid (slippage implied)
-                price: utils::scale(1_485, USDC_DECIMALS),
-            },
         )
         .await
         .unwrap();
 
-        utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
-
-        let stake_reward_token_account_balance_after = utils::get_token_account_balance(
+        let balance_after = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
+            alice_stake_reward_token_account_address,
         )
         .await;
 
-        // Check rewards has been generated
-        assert_eq!(
-            stake_reward_token_account_balance_after - stake_reward_token_account_balance_before,
-            3_637,
-        );
-    }
-
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
-
-    // Check that swap generates rewards
-    {
-        let stake_reward_token_account_balance_before = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
-        )
-        .await;
-
-        // Martin: Swap 150 USDC for ETH
-        instructions::test_swap(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            martin,
-            &test_setup.payer_keypair,
-            &test_setup.pool_pda,
-            &eth_mint,
-            // The program receives USDC
-            &usdc_mint,
-            &cortex_stake_reward_mint,
-            SwapParams {
-                amount_in: utils::scale(150, USDC_DECIMALS),
-
-                // 1% slippage
-                min_amount_out: utils::scale(150, USDC_DECIMALS)
-                    / utils::scale(1_500, ETH_DECIMALS)
-                    * 99
-                    / 100,
-            },
-        )
-        .await
-        .unwrap();
-
-        utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
-
-        let stake_reward_token_account_balance_after = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
-        )
-        .await;
-
-        // Check rewards has been generated
-        assert_eq!(
-            stake_reward_token_account_balance_after - stake_reward_token_account_balance_before,
-            6_370,
-        );
-    }
-
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
-
-    // Check that remove liquidity generates rewards
-    {
-        let stake_reward_token_account_balance_before = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
-        )
-        .await;
-
-        // Generate platform activity to fill current round' rewards
-        instructions::test_remove_liquidity(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            martin,
-            &test_setup.payer_keypair,
-            &test_setup.pool_pda,
-            &eth_mint,
-            &cortex_stake_reward_mint,
-            RemoveLiquidityParams {
-                lp_amount_in: utils::scale(1, Perpetuals::LP_DECIMALS),
-                min_amount_out: 0,
-            },
-        )
-        .await
-        .unwrap();
-
-        utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
-
-        let stake_reward_token_account_balance_after = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
-        )
-        .await;
-
-        // Check rewards has been generated
-        assert_eq!(
-            stake_reward_token_account_balance_after - stake_reward_token_account_balance_before,
-            75,
-        );
+        assert_eq!(balance_after - balance_before, 90_094_938);
     }
 }

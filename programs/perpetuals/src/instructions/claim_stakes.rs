@@ -87,8 +87,6 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
     let staking = ctx.accounts.staking.as_mut();
     let cortex = ctx.accounts.cortex.as_mut();
 
-    // rewards = rate_sum * token_staked -- Done this way as any stake/unstake claim all previous rewards
-
     msg!("Process resolved rounds & rewards calculation");
 
     // Process resolved rounds and:
@@ -99,6 +97,11 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
         sol_log_compute_units();
 
         let resolved_staking_rounds_len_before = cortex.resolved_staking_rounds.len();
+
+        msg!(
+            ">>> resolved_staking_rounds_len_before: {}",
+            resolved_staking_rounds_len_before
+        );
 
         let mut rewards_token_amount: u64 = 0;
 
@@ -137,8 +140,12 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
 
             // Liquid staking
             {
+                msg!(">>> Check if liquid stake is elligbile for rewards");
+
                 // Stake is elligible for rewards
                 if staking.liquid_stake.qualifies_for_rewards_from(round) {
+                    msg!(">>> YES ELLIGIBLE");
+
                     let liquid_stake_rewards_token_amount = math::checked_decimal_mul(
                         staking.liquid_stake.amount_with_multiplier,
                         -stake_token_decimals,
@@ -155,6 +162,8 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
                     round.total_claim =
                         math::checked_add(round.total_claim, liquid_stake_rewards_token_amount)
                             .unwrap();
+                } else {
+                    msg!(">>> NOT ELLIGIBLE");
                 }
             }
 
@@ -231,7 +240,7 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
 
     // Update stakings claim time
     {
-        // refresh stake time while keeping the stake time out of the current round
+        // refresh claim time while keeping the claim time out of the current round
         // so that the user stay eligible for current round rewards
         let claim_time = math::checked_sub(cortex.current_staking_round.start_time, 1)?;
 

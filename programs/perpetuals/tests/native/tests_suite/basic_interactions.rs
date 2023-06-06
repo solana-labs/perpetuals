@@ -269,6 +269,18 @@ pub async fn basic_interactions() {
         .await
         .unwrap();
 
+        // Alice: claim stake (nothing to be claimed yet)
+        instructions::test_claim_stakes(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.governance_realm_pda,
+            &cortex_stake_reward_mint,
+        )
+        .await
+        .unwrap();
+
         // Alice: remove liquid staking
         instructions::test_remove_stake(
             &mut test_setup.program_test_ctx.borrow_mut(),
@@ -282,18 +294,6 @@ pub async fn basic_interactions() {
             },
             &cortex_stake_reward_mint,
             &test_setup.governance_realm_pda,
-        )
-        .await
-        .unwrap();
-
-        // Alice: claim stake (nothing to be claimed yet)
-        instructions::test_claim_stakes(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            alice,
-            alice,
-            &test_setup.payer_keypair,
-            &test_setup.governance_realm_pda,
-            &cortex_stake_reward_mint,
         )
         .await
         .unwrap();

@@ -44,7 +44,7 @@ pub struct LiquidStake {
     pub amount: u64,
     pub stake_time: i64,
 
-    // Last time tokens have been claimed for this stake
+    // Time used for claim purpose, to know wherever the stake is elligible for round reward
     pub claim_time: i64,
 
     // In BPS
@@ -88,7 +88,10 @@ impl LiquidStake {
     pub fn qualifies_for_rewards_from(&self, staking_round: &StakingRound) -> bool {
         msg!("self.stake_time: {}", self.stake_time);
         msg!("staking_round.start_time: {}", staking_round.start_time);
-        self.stake_time > 0 && self.stake_time < staking_round.start_time
+
+        self.stake_time > 0
+            && self.stake_time < staking_round.start_time
+            && (self.claim_time == 0 || self.claim_time < staking_round.start_time)
     }
 }
 
@@ -96,9 +99,9 @@ impl LockedStake {
     pub const LEN: usize = std::mem::size_of::<LockedStake>();
 
     pub fn qualifies_for_rewards_from(&self, staking_round: &StakingRound) -> bool {
-        msg!("self.stake_time: {}", self.stake_time);
-        msg!("staking_round.start_time: {}", staking_round.start_time);
-        self.stake_time > 0 && self.stake_time < staking_round.start_time
+        self.stake_time > 0
+            && self.stake_time < staking_round.start_time
+            && (self.claim_time == 0 || self.claim_time < staking_round.start_time)
     }
 
     pub fn has_ended(&self, current_time: i64) -> bool {

@@ -202,6 +202,7 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
             Perpetuals::BPS_POWER,
         )?)?;
 
+        staking.liquid_stake.stake_time = perpetuals.get_time()?;
         staking.liquid_stake.base_reward_multiplier = staking_option.base_reward_multiplier;
         staking.liquid_stake.lm_token_reward_multiplier = staking_option.lm_token_reward_multiplier;
         staking.liquid_stake.vote_multiplier = staking_option.vote_multiplier;

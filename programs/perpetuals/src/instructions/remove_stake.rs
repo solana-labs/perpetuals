@@ -228,7 +228,7 @@ pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Re
 
         // Apply delta to current and next round
         {
-            let real_yield_unstake_amount = math::checked_as_u64(math::checked_div(
+            let unstake_amount = math::checked_as_u64(math::checked_div(
                 math::checked_mul(
                     token_amount_to_unstake,
                     staking.liquid_stake.base_reward_multiplier as u64,
@@ -241,17 +241,13 @@ pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Re
                 .liquid_stake
                 .qualifies_for_rewards_from(&cortex.current_staking_round)
             {
-                cortex.current_staking_round.total_stake = math::checked_sub(
-                    cortex.current_staking_round.total_stake,
-                    real_yield_unstake_amount,
-                )?;
+                cortex.current_staking_round.total_stake =
+                    math::checked_sub(cortex.current_staking_round.total_stake, unstake_amount)?;
             }
 
             // apply delta to next round
-            cortex.next_staking_round.total_stake = math::checked_sub(
-                cortex.next_staking_round.total_stake,
-                real_yield_unstake_amount,
-            )?;
+            cortex.next_staking_round.total_stake =
+                math::checked_sub(cortex.next_staking_round.total_stake, unstake_amount)?;
         }
 
         token_amount_to_unstake
