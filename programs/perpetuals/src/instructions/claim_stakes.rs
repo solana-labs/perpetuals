@@ -89,28 +89,22 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
 
     msg!("Process resolved rounds & rewards calculation");
 
-    // Process resolved rounds and:
-    // 1. Calculate total rewards amount
+    // Loop over resolved rounds and:
+    // 1. Calculate rewards token amount to be claimed for staker
     // 2. Drop fully claimed rounds
     let rewards_token_amount = {
         // prints compute budget before
         sol_log_compute_units();
 
         let resolved_staking_rounds_len_before = cortex.resolved_staking_rounds.len();
-
-        msg!(
-            ">>> resolved_staking_rounds_len_before: {}",
-            resolved_staking_rounds_len_before
-        );
-
-        let mut rewards_token_amount: u64 = 0;
-
         let stake_token_decimals = cortex.stake_token_decimals as i32;
         let stake_reward_token_decimals = cortex.stake_reward_token_decimals as i32;
 
+        let mut rewards_token_amount: u64 = 0;
+
         // For each resolved staking rounds
         cortex.resolved_staking_rounds.retain_mut(|round| {
-            // Locked staking
+            // Calculate rewards for locked stakes
             {
                 // For each user locked stakes
                 for locked_stake in staking.locked_stakes.iter_mut() {
@@ -138,14 +132,10 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
                 }
             }
 
-            // Liquid staking
+            // Calculate rewards for liquid stake
             {
-                msg!(">>> Check if liquid stake is elligbile for rewards");
-
                 // Stake is elligible for rewards
                 if staking.liquid_stake.qualifies_for_rewards_from(round) {
-                    msg!(">>> YES ELLIGIBLE");
-
                     let liquid_stake_rewards_token_amount = math::checked_decimal_mul(
                         staking.liquid_stake.amount_with_multiplier,
                         -stake_token_decimals,
@@ -169,6 +159,7 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
 
             // retain element if there is stake that has not been claimed yet by other participants
             let round_fully_claimed = round.total_claim == round.total_stake;
+
             // note: some dust of rewards will build up in the token account due to rate precision of 9 units
             !round_fully_claimed
         });
@@ -203,10 +194,12 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
     {
         if rewards_token_amount.is_zero() {
             msg!("No reward tokens to claim at this time");
+
             return Ok(());
         }
 
         msg!("Transfer rewards_token_amount: {}", rewards_token_amount);
+
         let perpetuals = ctx.accounts.perpetuals.as_mut();
 
         let (owner_rewards_token_amount, caller_reward_token_amount) = {
@@ -238,7 +231,7 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
         }
     }
 
-    // Update stakings claim time
+    // Update stakes claim time
     {
         // refresh claim time while keeping the claim time out of the current round
         // so that the user stay eligible for current round rewards

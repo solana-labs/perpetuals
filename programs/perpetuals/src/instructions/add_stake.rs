@@ -131,9 +131,9 @@ pub struct AddStakeParams {
 }
 
 pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> {
-    // validate inputs
     let staking_option = {
         msg!("Validate inputs");
+
         if params.amount == 0 {
             return Err(ProgramError::InvalidArgument.into());
         }
@@ -145,6 +145,7 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
     let perpetuals = ctx.accounts.perpetuals.as_mut();
     let cortex = ctx.accounts.cortex.as_mut();
 
+    // Add stake to Staking account
     let amount_with_multiplier = if staking_option.locked_days == 0 {
         //
         // Liquid staking
@@ -152,9 +153,8 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
 
         // @TODO, make user to not lose current round of reward when adding new tokens to liquid stake
         if staking.liquid_stake.amount > 0 {
-            // Claim rewards before cdoing anything else
+            // Claim rewards
             {
-                // claim reward on previously staked tokens
                 // recursive program call
                 let cpi_accounts = crate::cpi::accounts::ClaimStakes {
                     caller: ctx.accounts.owner.to_account_info(),
