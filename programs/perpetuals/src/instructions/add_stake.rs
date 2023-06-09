@@ -236,6 +236,15 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
             resolved: false,
         });
 
+        // Adapt the size of the staking account
+        Perpetuals::realloc(
+            ctx.accounts.owner.to_account_info(),
+            staking.clone().to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+            staking.size(),
+            false,
+        )?;
+
         amount_with_multiplier
     };
 

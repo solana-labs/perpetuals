@@ -114,6 +114,8 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
         // add the current round to resolved rounds and update data if there was any stake
         // Note: the rewards will go to the next round stakers if a round finishes without anyone staking
         if !current_round_stake_token_amount.is_zero() {
+            /*
+            // Not true anymore with multipliers
             require!(
                 ctx.accounts.stake_token_account.amount
                     == math::checked_add(
@@ -121,8 +123,10 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
                         current_round_stake_token_amount
                     )?,
                 PerpetualsError::InvalidStakingRoundState
-            );
-            cortex.resolved_stake_token_amount = ctx.accounts.stake_token_account.amount;
+            );*/
+
+            cortex.resolved_stake_token_amount = current_round_stake_token_amount;
+
             require!(
                 ctx.accounts.stake_reward_token_account.amount
                     == math::checked_add(
@@ -131,6 +135,7 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
                     )?,
                 PerpetualsError::InvalidStakingRoundState
             );
+
             cortex.resolved_reward_token_amount = ctx.accounts.stake_reward_token_account.amount;
             let current_staking_round = cortex.current_staking_round.clone();
             cortex.resolved_staking_rounds.push(current_staking_round);
@@ -159,6 +164,8 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
         // and shift the rounds
         cortex.current_staking_round = new_current_round;
         cortex.next_staking_round = StakingRound::new(0);
+
+        msg!("===> NEW CORTEX SIZE: {}", cortex.size());
     }
     msg!(
         "Cortex.resolved_staking_rounds after {:?}",

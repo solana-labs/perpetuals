@@ -123,6 +123,7 @@ pub fn resolve_locked_stakes(ctx: Context<ResolveLockedStakes>) -> Result<()> {
                 )?;
             }
 
+            /*
             // forfeit current round participation, if any
             if locked_stake.qualifies_for_rewards_from(&cortex.current_staking_round) {
                 cortex.current_staking_round.total_stake = math::checked_sub(
@@ -130,6 +131,12 @@ pub fn resolve_locked_stakes(ctx: Context<ResolveLockedStakes>) -> Result<()> {
                     locked_stake.amount_with_multiplier,
                 )?;
             }
+             */
+
+            msg!(
+                ">>> cortex.next_staking_round.total_stake: {}",
+                cortex.next_staking_round.total_stake
+            );
 
             // remove staked tokens from next round
             cortex.next_staking_round.total_stake = math::checked_sub(

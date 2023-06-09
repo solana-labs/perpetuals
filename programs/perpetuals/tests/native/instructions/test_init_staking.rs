@@ -1,6 +1,7 @@
 use {
     crate::utils::{self, pda},
     anchor_lang::ToAccountMetas,
+    solana_program::pubkey::Pubkey,
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
@@ -9,7 +10,7 @@ pub async fn test_init_staking(
     program_test_ctx: &mut ProgramTestContext,
     owner: &Keypair,
     payer: &Keypair,
-) -> std::result::Result<(), BanksClientError> {
+) -> std::result::Result<(Pubkey, u8), BanksClientError> {
     // ==== GIVEN =============================================================
     let (staking_pda, staking_bump) = pda::get_staking_pda(&owner.pubkey());
 
@@ -31,5 +32,5 @@ pub async fn test_init_staking(
 
     // ==== THEN ==============================================================
 
-    Ok(())
+    Ok((staking_pda, staking_bump))
 }
