@@ -23,14 +23,14 @@ pub struct Liquidate<'info> {
 
     #[account(
         mut,
-        constraint = receiving_account.mint == custody.mint,
+        constraint = receiving_account.mint == collateral_custody.mint,
         constraint = receiving_account.owner == position.owner
     )]
     pub receiving_account: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
-        constraint = rewards_receiving_account.mint == custody.mint,
+        constraint = rewards_receiving_account.mint == collateral_custody.mint,
         constraint = rewards_receiving_account.owner == signer.key()
     )]
     pub rewards_receiving_account: Box<Account<'info, TokenAccount>>,
