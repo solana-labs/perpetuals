@@ -28,8 +28,8 @@ codegen-units = 1
 overflow-checks = true
 
 [dependencies]
-anchor-lang = { version = "0.27.0", features = ["init-if-needed"]}
-anchor-spl = "0.27.0"
+anchor-lang = { version = "0.28.0", features = ["init-if-needed"]}
+anchor-spl = "0.28.0"
 
 # need it because using zero_copy (anchor 0.27.0 breaking change)
 # https://github.com/coral-xyz/anchor/blob/master/CHANGELOG.md
@@ -43,7 +43,7 @@ num = "0.4.0"
 
 pyth-sdk-solana = "0.7.2"
 spl-governance = { tag = "governance-v3.1.0", git = "https://github.com/solana-labs/solana-program-library", features = ["no-entrypoint"] }
-clockwork-sdk = { git = "https://github.com/clockwork-xyz/clockwork" }
+# clockwork-sdk = { git = "https://github.com/clockwork-xyz/clockwork" }
 
 [dev-dependencies]
 solana-program-test = "=1.14.16"
