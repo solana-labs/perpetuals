@@ -408,10 +408,14 @@ impl Custody {
         if stats.open_positions > 0 {
             Ok(Position {
                 side,
-                price: math::checked_as_u64(math::checked_div(
-                    stats.weighted_price,
-                    stats.total_quantity,
-                )?)?,
+                price: if stats.total_quantity > 0 {
+                    math::checked_as_u64(math::checked_div(
+                        stats.weighted_price,
+                        stats.total_quantity,
+                    )?)?
+                } else {
+                    0
+                },
                 size_usd: stats.size_usd,
                 unrealized_loss_usd: stats.cumulative_interest_usd,
                 cumulative_interest_snapshot: stats.cumulative_interest_snapshot,

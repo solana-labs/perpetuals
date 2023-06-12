@@ -23,7 +23,7 @@ pub struct ClosePosition<'info> {
 
     #[account(
         mut,
-        constraint = receiving_account.mint == custody.mint,
+        constraint = receiving_account.mint == collateral_custody.mint,
         has_one = owner
     )]
     pub receiving_account: Box<Account<'info, TokenAccount>>,
