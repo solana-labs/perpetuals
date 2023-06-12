@@ -1,11 +1,9 @@
 use {
     crate::utils::{self, pda},
     anchor_lang::{prelude::Pubkey, ToAccountMetas},
-    bonfida_test_utils::ProgramTestContextExt,
     perpetuals::{
-        adapters::spl_governance_program_adapter,
-        instructions::RemoveStakeParams,
-        state::{cortex::Cortex, staking::Staking},
+        adapters::spl_governance_program_adapter, instructions::RemoveStakeParams,
+        state::staking::Staking,
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
@@ -50,17 +48,7 @@ pub async fn test_remove_stake(
 
     // // ==== WHEN ==============================================================
     // save account state before tx execution
-    let cortex_account_before = utils::get_account::<Cortex>(program_test_ctx, cortex_pda).await;
     let staking_account_before = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
-    let owner_lm_token_account_before = program_test_ctx
-        .get_token_account(lm_token_account_address)
-        .await
-        .unwrap();
-
-    // Before state
-    let governance_governing_token_holding_balance_before =
-        utils::get_token_account_balance(program_test_ctx, governance_governing_token_holding_pda)
-            .await;
 
     utils::create_and_execute_perpetuals_ix(
         program_test_ctx,
@@ -102,71 +90,19 @@ pub async fn test_remove_stake(
 
     // ==== THEN ==============================================================
 
-    /*
-    // check balance changes
-    {
-        let owner_lm_token_account_after = program_test_ctx
-            .get_token_account(lm_token_account_address)
-            .await
-            .unwrap();
+    let staking_account_after = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
 
+    if params.remove_locked_stake {
         assert_eq!(
-            owner_lm_token_account_before.amount + params.amount,
-            owner_lm_token_account_after.amount
+            staking_account_after.locked_stakes.len(),
+            staking_account_before.locked_stakes.len() - 1,
+        );
+    } else {
+        assert_eq!(
+            staking_account_after.liquid_stake.amount,
+            staking_account_before.liquid_stake.amount - params.amount.unwrap(),
         );
     }
-
-    // check `Cortex` data update
-    {
-        let cortex_account_after = utils::get_account::<Cortex>(program_test_ctx, cortex_pda).await;
-        // same amount of resolved staking rounds
-        assert_eq!(
-            cortex_account_after.resolved_staking_rounds.len(),
-            cortex_account_before.resolved_staking_rounds.len()
-        );
-        // forfeited the previously staked amount for this round
-        // checked in advanced test suite
-
-        // restaked the initial amount minus the removed amount for next round
-        assert_eq!(
-            cortex_account_after.next_staking_round.total_stake,
-            cortex_account_before.next_staking_round.total_stake - params.amount
-        );
-
-        // note: additional tests in claim test_claim.rs (which is CPIed from this call)
-    }
-
-    // check `Stake` data update
-    {
-        let stake_account_after =
-            utils::try_get_account::<Staking>(program_test_ctx, staking_pda).await;
-        // if the whole stake wasn't removed
-        if let Some(s) = stake_account_after {
-            assert_eq!(s.amount, staking_account_before.amount - params.amount);
-
-            let clock = program_test_ctx.banks_client.get_sysvar::<Clock>().await?;
-            assert_eq!(s.stake_time, clock.unix_timestamp);
-        } else {
-            assert_eq!(staking_account_before.amount - params.amount, 0)
-        }
-
-        // note: additional tests in claim test_claim.rs (which is CPIed from this call)
-    }
-
-    // Check governance accounts
-    {
-        let governance_governing_token_holding_balance_after = utils::get_token_account_balance(
-            program_test_ctx,
-            governance_governing_token_holding_pda,
-        )
-        .await;
-
-        assert_eq!(
-            governance_governing_token_holding_balance_before - params.amount,
-            governance_governing_token_holding_balance_after
-        );
-    }
-    */
 
     Ok(())
 }

@@ -275,7 +275,6 @@ pub async fn basic_interactions() {
             alice,
             alice,
             &test_setup.payer_keypair,
-            &test_setup.governance_realm_pda,
             &cortex_stake_reward_mint,
         )
         .await

@@ -1,11 +1,11 @@
 use {
     crate::utils::{self, pda},
     anchor_lang::{prelude::Pubkey, ToAccountMetas},
-    bonfida_test_utils::ProgramTestContextExt,
     perpetuals::{
         adapters::spl_governance_program_adapter,
         instructions::AddStakeParams,
-        state::{cortex::Cortex, staking::Staking},
+        math,
+        state::{perpetuals::Perpetuals, staking::Staking},
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
@@ -21,7 +21,7 @@ pub async fn test_add_stake(
 ) -> std::result::Result<(), BanksClientError> {
     // ==== GIVEN =============================================================
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
-    let (staking_pda, staking_bump) = pda::get_staking_pda(&owner.pubkey());
+    let (staking_pda, _) = pda::get_staking_pda(&owner.pubkey());
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
     let stake_token_account_pda = pda::get_stake_token_account_pda().0;
@@ -50,15 +50,7 @@ pub async fn test_add_stake(
 
     // // ==== WHEN ==============================================================
     // save account state before tx execution
-    let cortex_account_before = utils::get_account::<Cortex>(program_test_ctx, cortex_pda).await;
-    let staking_account_before =
-        utils::try_get_account::<Staking>(program_test_ctx, staking_pda).await;
-    let owner_lm_token_account_before = program_test_ctx
-        .get_token_account(lm_token_account_address)
-        .await
-        .unwrap();
-
-    // Before state
+    let staking_account_before = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
     let governance_governing_token_holding_balance_before =
         utils::get_token_account_balance(program_test_ctx, governance_governing_token_holding_pda)
             .await;
@@ -100,77 +92,50 @@ pub async fn test_add_stake(
     .await?;
 
     // ==== THEN ==============================================================
+    let governance_governing_token_holding_balance_after =
+        utils::get_token_account_balance(program_test_ctx, governance_governing_token_holding_pda)
+            .await;
 
-    /*
-    // check balance changes
+    let staking_account_after = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
+
+    // Check changes in staking account
     {
-        let owner_lm_token_account_after = program_test_ctx
-            .get_token_account(lm_token_account_address)
-            .await
-            .unwrap();
-
-        assert_eq!(
-            owner_lm_token_account_after.amount,
-            owner_lm_token_account_before.amount - params.amount
-        );
-    }
-
-    // check `Cortex` data update
-    {
-        let cortex_account_after = utils::get_account::<Cortex>(program_test_ctx, cortex_pda).await;
-        // same amount of resolved staking rounds
-        assert_eq!(
-            cortex_account_after.resolved_staking_rounds.len(),
-            cortex_account_before.resolved_staking_rounds.len()
-        );
-        // conditionnal checks if the account was initialized previously
-        if let Some(s) = staking_account_before.clone() {
-            // forfeited the previously staked amount for this round
+        // liquid stake
+        if params.locked_days == 0 {
+            assert!(
+                staking_account_after.liquid_stake.amount
+                    > staking_account_before.liquid_stake.amount,
+            );
+        } else {
             assert_eq!(
-                cortex_account_after.current_staking_round.total_stake,
-                cortex_account_before.current_staking_round.total_stake - s.amount
+                staking_account_after.locked_stakes.len(),
+                staking_account_before.locked_stakes.len() + 1
             );
         }
-        // restaked the initial amount minus the removed amount for next round
-        assert_eq!(
-            cortex_account_after.next_staking_round.total_stake,
-            cortex_account_before.next_staking_round.total_stake + params.amount
-        );
     }
 
-    // check `Staking` data update
+    // Check voting power
     {
-        let staking_account_after =
-            utils::get_account::<Staking>(program_test_ctx, stake_pda).await;
-        // conditionnal checks if the account was initialized previously
-        if let Some(s) = stake_account_before {
-            assert_eq!(stake_account_after.amount, s.amount + params.amount);
+        // Depending on the lock duration, vote multiplier will differ
+        let staking_option = staking_account_after
+            .get_staking_option(params.locked_days)
+            .unwrap();
 
-            // Note - there is a claiming part that isn't tested here that can be added once we have the
-            // duration of a staking_round
-        } else {
-            assert_eq!(stake_account_after.amount, params.amount);
-        }
-        assert_eq!(stake_account_after.bump, stake_bump);
-
-        let clock = program_test_ctx.banks_client.get_sysvar::<Clock>().await?;
-        assert_eq!(stake_account_after.stake_time, clock.unix_timestamp);
-    }
-
-    // Check governance accounts
-    {
-        let governance_governing_token_holding_balance_after = utils::get_token_account_balance(
-            program_test_ctx,
-            governance_governing_token_holding_pda,
+        let additional_voting_power = math::checked_as_u64(
+            math::checked_div(
+                math::checked_mul(params.amount, staking_option.vote_multiplier as u64).unwrap()
+                    as u128,
+                Perpetuals::BPS_POWER,
+            )
+            .unwrap(),
         )
-        .await;
+        .unwrap();
 
         assert_eq!(
-            governance_governing_token_holding_balance_before + params.amount,
-            governance_governing_token_holding_balance_after
+            governance_governing_token_holding_balance_before + additional_voting_power,
+            governance_governing_token_holding_balance_after,
         );
     }
-    */
 
     Ok(())
 }

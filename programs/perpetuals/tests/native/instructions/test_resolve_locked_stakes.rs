@@ -1,10 +1,7 @@
 use {
     crate::utils::{self, pda},
     anchor_lang::{prelude::Pubkey, ToAccountMetas},
-    perpetuals::{
-        adapters::spl_governance_program_adapter,
-        state::{cortex::Cortex, staking::Staking},
-    },
+    perpetuals::adapters::spl_governance_program_adapter,
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
@@ -21,8 +18,6 @@ pub async fn test_resolve_locked_stakes(
     let staking_pda = pda::get_staking_pda(&owner.pubkey()).0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
-    let stake_token_account_pda = pda::get_stake_token_account_pda().0;
-    let stake_reward_token_account_pda = pda::get_stake_reward_token_account_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
     let governance_token_mint_pda = pda::get_governance_token_mint_pda().0;
 
@@ -41,15 +36,6 @@ pub async fn test_resolve_locked_stakes(
         );
 
     // // ==== WHEN ==============================================================
-    // save account state before tx execution
-    let cortex_account_before = utils::get_account::<Cortex>(program_test_ctx, cortex_pda).await;
-    let staking_account_before = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
-
-    // Before state
-    let governance_governing_token_holding_balance_before =
-        utils::get_token_account_balance(program_test_ctx, governance_governing_token_holding_pda)
-            .await;
-
     utils::create_and_execute_perpetuals_ix(
         program_test_ctx,
         perpetuals::accounts::ResolveLockedStakes {

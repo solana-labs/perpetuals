@@ -123,18 +123,14 @@ pub fn resolve_locked_stakes(ctx: Context<ResolveLockedStakes>) -> Result<()> {
                 )?;
             }
 
-            /*
-            // forfeit current round participation, if any
-            if locked_stake.qualifies_for_rewards_from(&cortex.current_staking_round) {
-                cortex.current_staking_round.total_stake = math::checked_sub(
-                    cortex.current_staking_round.total_stake,
-                    locked_stake.amount_with_multiplier,
-                )?;
-            }
-             */
+            // forfeit current round participation
+            cortex.current_staking_round.total_stake = math::checked_sub(
+                cortex.current_staking_round.total_stake,
+                locked_stake.amount_with_multiplier,
+            )?;
 
             msg!(
-                ">>> cortex.next_staking_round.total_stake: {}",
+                "cortex.next_staking_round.total_stake: {}",
                 cortex.next_staking_round.total_stake
             );
 
@@ -155,6 +151,12 @@ pub fn resolve_locked_stakes(ctx: Context<ResolveLockedStakes>) -> Result<()> {
             msg!(
                 "Cortex.next_staking_round after remove stake {:?}",
                 cortex.next_staking_round
+            );
+
+            msg!(
+                ">>>> locked_stake: lock_duration: {}, stake_time: {} ",
+                locked_stake.lock_duration,
+                locked_stake.stake_time
             );
 
             locked_stake.resolved = true;

@@ -263,6 +263,7 @@ pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Re
         // Check the stake have ended and have been resolved
         {
             let current_time = ctx.accounts.perpetuals.get_time()?;
+
             require!(
                 locked_stake.has_ended(current_time) && locked_stake.resolved,
                 PerpetualsError::UnresolvedStake

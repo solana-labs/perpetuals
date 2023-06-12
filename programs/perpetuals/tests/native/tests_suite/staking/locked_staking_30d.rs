@@ -2,7 +2,7 @@ use {
     crate::{instructions, utils},
     maplit::hashmap,
     perpetuals::{
-        instructions::{AddLiquidityParams, AddStakeParams, AddVestParams},
+        instructions::{AddLiquidityParams, AddStakeParams, AddVestParams, RemoveStakeParams},
         state::cortex::{Cortex, StakingRound},
     },
     solana_sdk::signer::Signer,
@@ -11,7 +11,7 @@ use {
 const USDC_DECIMALS: u8 = 6;
 const ETH_DECIMALS: u8 = 9;
 
-pub async fn basic_liquid_staking() {
+pub async fn locked_staking_30d() {
     let test_setup = utils::TestSetup::new(
         vec![
             utils::UserParam {
@@ -136,7 +136,7 @@ pub async fn basic_liquid_staking() {
     let alice_stake_reward_token_account_address =
         utils::find_associated_token_account(&alice.pubkey(), &cortex_stake_reward_mint).0;
 
-    // Alice: start liquid staking
+    // Alice: start 30d locked staking
     {
         instructions::test_init_staking(
             &mut test_setup.program_test_ctx.borrow_mut(),
@@ -146,13 +146,15 @@ pub async fn basic_liquid_staking() {
         .await
         .unwrap();
 
+        utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+
         instructions::test_add_stake(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,
             AddStakeParams {
                 amount: utils::scale(1, Cortex::LM_DECIMALS),
-                locked_days: 0,
+                locked_days: 30,
             },
             &cortex_stake_reward_mint,
             &test_setup.governance_realm_pda,
@@ -176,7 +178,6 @@ pub async fn basic_liquid_staking() {
             alice,
             alice,
             &test_setup.payer_keypair,
-            &test_setup.governance_realm_pda,
             &cortex_stake_reward_mint,
         )
         .await
@@ -265,7 +266,6 @@ pub async fn basic_liquid_staking() {
             alice,
             alice,
             &test_setup.payer_keypair,
-            &test_setup.governance_realm_pda,
             &cortex_stake_reward_mint,
         )
         .await
@@ -279,4 +279,99 @@ pub async fn basic_liquid_staking() {
 
         assert_eq!(balance_after - balance_before, 90_094_938);
     }
+
+    // Move 30d in the future where staking have ended
+    // TODO: For now we don't have clockwork working, so just do one 30 days round
+    {
+        utils::warp_forward(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            utils::days_in_seconds(30),
+        )
+        .await;
+
+        instructions::test_resolve_staking_round(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            alice,
+            &test_setup.payer_keypair,
+            &cortex_stake_reward_mint,
+        )
+        .await
+        .unwrap();
+
+        /*
+        {
+            let nb_round = (utils::days_in_seconds(30) as f64
+                / StakingRound::ROUND_MIN_DURATION_SECONDS as f64)
+                .ceil()
+                .to_u64()
+                .unwrap();
+
+            for _ in 0..nb_round {
+                utils::warp_forward(
+                    &mut test_setup.program_test_ctx.borrow_mut(),
+                    StakingRound::ROUND_MIN_DURATION_SECONDS,
+                )
+                .await;
+
+                instructions::test_resolve_staking_round(
+                    &mut test_setup.program_test_ctx.borrow_mut(),
+                    alice,
+                    alice,
+                    &test_setup.payer_keypair,
+                    &cortex_stake_reward_mint,
+                )
+                .await
+                .unwrap();
+            }
+        }
+        */
+    }
+
+    // Remove the stake without resolving it first should fail
+    assert!(instructions::test_remove_stake(
+        &mut test_setup.program_test_ctx.borrow_mut(),
+        alice,
+        &test_setup.payer_keypair,
+        RemoveStakeParams {
+            remove_liquid_stake: false,
+            amount: None,
+            remove_locked_stake: true,
+            locked_stake_index: Some(0),
+        },
+        &cortex_stake_reward_mint,
+        &test_setup.governance_realm_pda,
+    )
+    .await
+    .is_err());
+
+    // Resolve the locked stake
+    instructions::test_resolve_locked_stakes(
+        &mut test_setup.program_test_ctx.borrow_mut(),
+        alice,
+        alice,
+        &test_setup.payer_keypair,
+        &test_setup.governance_realm_pda,
+    )
+    .await
+    .unwrap();
+
+    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+
+    // Remove the stake
+    instructions::test_remove_stake(
+        &mut test_setup.program_test_ctx.borrow_mut(),
+        alice,
+        &test_setup.payer_keypair,
+        RemoveStakeParams {
+            remove_liquid_stake: false,
+            amount: None,
+            remove_locked_stake: true,
+            locked_stake_index: Some(0),
+        },
+        &cortex_stake_reward_mint,
+        &test_setup.governance_realm_pda,
+    )
+    .await
+    .unwrap();
 }

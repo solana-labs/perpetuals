@@ -81,6 +81,7 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
     );
 
     msg!("Calculate current round's rate");
+
     let current_round_reward_token_amount = math::checked_sub(
         ctx.accounts.stake_reward_token_account.amount,
         cortex.resolved_reward_token_amount,
@@ -88,8 +89,8 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
 
     let current_round_stake_token_amount = cortex.current_staking_round.total_stake;
 
-    msg!("reward_token_amount {}", current_round_reward_token_amount);
-    msg!("stake_token_amount {}", current_round_stake_token_amount);
+    msg!("reward_token_amount: {}", current_round_reward_token_amount);
+    msg!("stake_token_amount: {}", current_round_stake_token_amount);
 
     msg!("updates Cortex.current_staking_round data");
     {
@@ -153,20 +154,20 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
             }
         }
 
-        // now replace the current_round with the next_round, and groom the new current_round data
+        // now replace the current_round with the next_round
         let mut new_current_round = cortex.next_staking_round.clone();
         new_current_round.start_time = ctx.accounts.perpetuals.get_time()?;
-        new_current_round.total_stake = math::checked_add(
-            cortex.next_staking_round.total_stake,
-            cortex.current_staking_round.total_stake,
-        )?;
 
         // and shift the rounds
         cortex.current_staking_round = new_current_round;
-        cortex.next_staking_round = StakingRound::new(0);
-
-        msg!("===> NEW CORTEX SIZE: {}", cortex.size());
+        cortex.next_staking_round = StakingRound {
+            start_time: 0,
+            rate: u64::MIN,
+            total_stake: cortex.next_staking_round.total_stake,
+            total_claim: u64::MIN,
+        };
     }
+
     msg!(
         "Cortex.resolved_staking_rounds after {:?}",
         cortex.resolved_staking_rounds
@@ -179,6 +180,6 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
         "Cortex.next_staking_round after {:?}",
         cortex.next_staking_round
     );
-    // msg!("STATE after {:?}", stake);
+
     Ok(())
 }

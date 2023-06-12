@@ -152,8 +152,6 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
                     round.total_claim =
                         math::checked_add(round.total_claim, liquid_stake_rewards_token_amount)
                             .unwrap();
-                } else {
-                    msg!(">>> NOT ELLIGIBLE");
                 }
             }
 
