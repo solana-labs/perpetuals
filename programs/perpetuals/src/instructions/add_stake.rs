@@ -146,11 +146,12 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
     let cortex = ctx.accounts.cortex.as_mut();
 
     // Add stake to Staking account
-    let amount_with_multiplier = if staking_option.locked_days == 0 {
+    let stake_amount_with_multiplier = if staking_option.is_liquid() {
         //
         // Liquid staking
         //
 
+        // If liquid staking is already ongoing
         // @TODO, make user to not lose current round of reward when adding new tokens to liquid stake
         if staking.liquid_stake.amount > 0 {
             // Claim rewards
@@ -194,7 +195,7 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
         staking.liquid_stake.amount =
             math::checked_add(staking.liquid_stake.amount, params.amount)?;
 
-        let amount_with_multiplier = math::checked_as_u64(math::checked_div(
+        let stake_amount_with_multiplier = math::checked_as_u64(math::checked_div(
             math::checked_mul(
                 staking.liquid_stake.amount,
                 staking_option.base_reward_multiplier as u64,
@@ -206,15 +207,15 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
         staking.liquid_stake.base_reward_multiplier = staking_option.base_reward_multiplier;
         staking.liquid_stake.lm_token_reward_multiplier = staking_option.lm_token_reward_multiplier;
         staking.liquid_stake.vote_multiplier = staking_option.vote_multiplier;
-        staking.liquid_stake.amount_with_multiplier = amount_with_multiplier;
+        staking.liquid_stake.amount_with_multiplier = stake_amount_with_multiplier;
 
-        amount_with_multiplier
+        stake_amount_with_multiplier
     } else {
         //
         // Locked staking
         //
 
-        let amount_with_multiplier = math::checked_as_u64(math::checked_div(
+        let stake_amount_with_multiplier = math::checked_as_u64(math::checked_div(
             math::checked_mul(params.amount, staking_option.base_reward_multiplier as u64)? as u128,
             Perpetuals::BPS_POWER,
         )?)?;
@@ -231,7 +232,7 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
             lm_token_reward_multiplier: staking_option.lm_token_reward_multiplier,
             vote_multiplier: staking_option.vote_multiplier,
 
-            amount_with_multiplier,
+            amount_with_multiplier: stake_amount_with_multiplier,
 
             resolved: false,
         });
@@ -245,7 +246,7 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
             false,
         )?;
 
-        amount_with_multiplier
+        stake_amount_with_multiplier
     };
 
     // transfer newly staked tokens to Stake PDA
@@ -293,7 +294,7 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
         // apply delta to next round taking into account real yield multiplier
         cortex.next_staking_round.total_stake = math::checked_add(
             cortex.next_staking_round.total_stake,
-            amount_with_multiplier,
+            stake_amount_with_multiplier,
         )?;
     }
 

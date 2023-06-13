@@ -267,12 +267,6 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
 
     // Adapt current/next round
     {
-        // remove stake from current staking round
-        /*cortex.current_staking_round.total_stake = math::checked_sub(
-            cortex.current_staking_round.total_stake,
-            stake_amount_with_multiplier,
-        )?;*/
-
         // update resolved stake token amount left, by removing the previously staked amount
         cortex.resolved_stake_token_amount = math::checked_sub(
             cortex.resolved_stake_token_amount,
@@ -282,12 +276,6 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
         // update resolved reward token amount left
         cortex.resolved_reward_token_amount =
             math::checked_sub(cortex.resolved_reward_token_amount, rewards_token_amount)?;
-
-        // add stake to next staking round
-        /*cortex.next_staking_round.total_stake = math::checked_add(
-            cortex.next_staking_round.total_stake,
-            locked_stake.amount_with_multiplier,
-        )?;*/
 
         msg!(
             "cortex.resolved_reward_token_amount after claim stake {:?}",

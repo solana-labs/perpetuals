@@ -117,6 +117,12 @@ pub struct StakingOption {
     pub vote_multiplier: u32,
 }
 
+impl StakingOption {
+    pub fn is_liquid(&self) -> bool {
+        self.locked_days == 0
+    }
+}
+
 // List of valid staking options and the related multipliers
 pub const STAKING_OPTIONS: [&'static StakingOption; 7] = [
     // Liquid staking
