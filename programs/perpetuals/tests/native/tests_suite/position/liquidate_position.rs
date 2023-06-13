@@ -151,6 +151,7 @@ pub async fn liquidate_position() {
                 price: utils::scale(1_350, ETH_DECIMALS),
                 expo: -(ETH_DECIMALS as i32),
                 conf: utils::scale(10, ETH_DECIMALS),
+                ema: utils::scale(1_350, ETH_DECIMALS),
                 publish_time,
             },
             &multisig_signers,

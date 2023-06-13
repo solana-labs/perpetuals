@@ -348,6 +348,7 @@ impl TestSetup {
                         price: custody_param.setup_custody_params.initial_price,
                         expo: -(mint_info.decimals as i32),
                         conf: custody_param.setup_custody_params.initial_conf,
+                        ema: custody_param.setup_custody_params.initial_price,
                         publish_time,
                     },
                     &multisig_signers,
