@@ -126,7 +126,10 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
                 PerpetualsError::InvalidStakingRoundState
             );*/
 
-            cortex.resolved_stake_token_amount = current_round_stake_token_amount;
+            cortex.resolved_stake_token_amount = math::checked_add(
+                cortex.resolved_stake_token_amount,
+                current_round_stake_token_amount as u128,
+            )?;
 
             require!(
                 ctx.accounts.stake_reward_token_account.amount

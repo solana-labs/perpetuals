@@ -205,7 +205,7 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
         cortex.governance_realm = ctx.accounts.governance_realm.key();
         cortex.stake_reward_token_mint = ctx.accounts.stake_reward_token_mint.key();
         cortex.resolved_reward_token_amount = u64::MIN;
-        cortex.resolved_stake_token_amount = u64::MIN;
+        cortex.resolved_stake_token_amount = u128::MIN;
         cortex.stake_token_decimals = ctx.accounts.lm_token_mint.decimals;
         cortex.stake_reward_token_decimals = ctx.accounts.stake_reward_token_mint.decimals;
         // initialize the first staking rounds

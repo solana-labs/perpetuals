@@ -6,7 +6,6 @@ use {
     anchor_lang::prelude::*,
 };
 
-pub const DAYS_PER_YEAR: i64 = 365;
 pub const HOURS_PER_DAY: i64 = 24;
 pub const SECONDS_PER_HOURS: i64 = 3600;
 
@@ -32,7 +31,7 @@ pub struct Cortex {
     // `resolved_reward_token_amount` represents the amount of rewards allocated to resolved rounds, claimable (excluding current/next round)
     pub resolved_reward_token_amount: u64,
     // `resolved_stake_token_amount`represents the amount of staked token locked in resolved rounds, claimable (excluding current/next round)
-    pub resolved_stake_token_amount: u64,
+    pub resolved_stake_token_amount: u128,
     pub current_staking_round: StakingRound,
     pub next_staking_round: StakingRound,
     // must be the last element of the struct for reallocs

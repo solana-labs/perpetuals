@@ -23,7 +23,7 @@
 
 use {
     super::{
-        cortex::{StakingRound, DAYS_PER_YEAR, HOURS_PER_DAY, SECONDS_PER_HOURS},
+        cortex::{StakingRound, HOURS_PER_DAY, SECONDS_PER_HOURS},
         perpetuals::Perpetuals,
     },
     crate::{error::PerpetualsError, math},
@@ -168,8 +168,8 @@ pub const STAKING_OPTIONS: [&'static StakingOption; 7] = [
 impl Staking {
     pub const LEN: usize = 8 + std::mem::size_of::<Staking>();
 
-    // The max age of a Staking account in the system, 365 days
-    pub const MAX_AGE_SECONDS: i64 = DAYS_PER_YEAR * HOURS_PER_DAY * SECONDS_PER_HOURS;
+    // The max age of a Staking account in the system, 20 days
+    pub const MAX_AGE_SECONDS: i64 = 20 * HOURS_PER_DAY * SECONDS_PER_HOURS;
 
     pub fn get_staking_option(&self, locked_days: u32) -> Result<StakingOption> {
         let staking_option = STAKING_OPTIONS

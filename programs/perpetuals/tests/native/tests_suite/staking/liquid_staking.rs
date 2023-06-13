@@ -208,27 +208,8 @@ pub async fn liquid_staking() {
         .unwrap();
     }
 
-    // Use add liquidity to generate rewards for the current round
-    {
-        // Generate platform activity to fill current round' rewards
-        instructions::test_add_liquidity(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            martin,
-            &test_setup.payer_keypair,
-            &test_setup.pool_pda,
-            &eth_mint,
-            &cortex_stake_reward_mint,
-            AddLiquidityParams {
-                amount_in: utils::scale_f64(0.25, ETH_DECIMALS),
-                min_lp_amount_out: 1,
-            },
-        )
-        .await
-        .unwrap();
-    }
-
     // warp to the next round and resolve the current one
-    // this round bear rewards for the new staking at the staking started before the round
+    // this round bear rewards for the liquid stake
     {
         utils::warp_forward(
             &mut test_setup.program_test_ctx.borrow_mut(),
@@ -246,8 +227,6 @@ pub async fn liquid_staking() {
         .await
         .unwrap();
     }
-
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
     // Claim when there is one round worth of rewards to claim
     {
@@ -273,7 +252,45 @@ pub async fn liquid_staking() {
         )
         .await;
 
-        assert_eq!(balance_after - balance_before, 90_094_938);
+        assert_eq!(balance_after - balance_before, 90_072_750);
+    }
+
+    // warp to the next round and resolve the current one
+    {
+        utils::warp_forward(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            StakingRound::ROUND_MIN_DURATION_SECONDS,
+        )
+        .await;
+
+        instructions::test_resolve_staking_round(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            alice,
+            &test_setup.payer_keypair,
+            &cortex_stake_reward_mint,
+        )
+        .await
+        .unwrap();
+    }
+
+    // Use add liquidity to generate rewards for the current round
+    {
+        // Generate platform activity to fill current round' rewards
+        instructions::test_add_liquidity(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            martin,
+            &test_setup.payer_keypair,
+            &test_setup.pool_pda,
+            &eth_mint,
+            &cortex_stake_reward_mint,
+            AddLiquidityParams {
+                amount_in: utils::scale_f64(0.25, ETH_DECIMALS),
+                min_lp_amount_out: 1,
+            },
+        )
+        .await
+        .unwrap();
     }
 
     // Alice: add liquid staking when staking is already pending
@@ -292,6 +309,53 @@ pub async fn liquid_staking() {
     .unwrap();
 
     utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+
+    // warp to the next round and resolve the current one
+    {
+        utils::warp_forward(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            StakingRound::ROUND_MIN_DURATION_SECONDS,
+        )
+        .await;
+
+        instructions::test_resolve_staking_round(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            alice,
+            &test_setup.payer_keypair,
+            &cortex_stake_reward_mint,
+        )
+        .await
+        .unwrap();
+    }
+
+    // Claim rewards - alice should get rewards from her first liquid staking for this round
+    // New staking should start accruing rewards next round only
+    {
+        let balance_before = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice_stake_reward_token_account_address,
+        )
+        .await;
+
+        instructions::test_claim_stakes(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            alice,
+            &test_setup.payer_keypair,
+            &cortex_stake_reward_mint,
+        )
+        .await
+        .unwrap();
+
+        let balance_after = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice_stake_reward_token_account_address,
+        )
+        .await;
+
+        assert_eq!(balance_after - balance_before, 90_000);
+    }
 
     // Remove half the stake
     instructions::test_remove_stake(
