@@ -3,7 +3,7 @@ use {
         error::PerpetualsError,
         math,
         state::{
-            oracle::{OracleParams, OraclePrice, OracleType},
+            oracle::{OracleParams, OracleType},
             perpetuals::{Permissions, Perpetuals},
             position::{Position, Side},
         },
@@ -119,6 +119,7 @@ pub struct PositionStats {
     pub collateral_usd: u64,
     pub size_usd: u64,
     pub locked_amount: u64,
+    pub locked_amount_usd: u64,
     pub weighted_price: u128,
     pub total_quantity: u128,
     pub cumulative_interest_usd: u64,
@@ -420,6 +421,7 @@ impl Custody {
                 unrealized_loss_usd: stats.cumulative_interest_usd,
                 cumulative_interest_snapshot: stats.cumulative_interest_snapshot,
                 locked_amount: stats.locked_amount,
+                locked_amount_usd: stats.locked_amount_usd,
                 ..Position::default()
             })
         } else {
@@ -430,7 +432,6 @@ impl Custody {
     pub fn add_position(
         &mut self,
         position: &Position,
-        token_price: &OraclePrice,
         curtime: i64,
         collateral_custody: Option<&mut Custody>,
     ) -> Result<()> {
@@ -452,6 +453,8 @@ impl Custody {
         stats.open_positions = math::checked_add(stats.open_positions, 1)?;
         stats.size_usd = math::checked_add(stats.size_usd, position.size_usd)?;
         stats.locked_amount = math::checked_add(stats.locked_amount, position.locked_amount)?;
+        stats.locked_amount_usd =
+            math::checked_add(stats.locked_amount_usd, position.locked_amount_usd)?;
 
         let position_price = math::scale_to_exponent(
             position.price,
@@ -470,18 +473,14 @@ impl Custody {
 
         // check limits
         if self.pricing.max_position_locked_usd > 0 {
-            let locked_amount_usd =
-                token_price.get_asset_amount_usd(position.locked_amount, self.decimals)?;
             require!(
-                locked_amount_usd <= self.pricing.max_position_locked_usd,
+                position.locked_amount_usd <= self.pricing.max_position_locked_usd,
                 PerpetualsError::PositionAmountLimit
             );
         }
         if self.pricing.max_total_locked_usd > 0 {
-            let locked_amount_usd =
-                token_price.get_asset_amount_usd(stats.locked_amount, self.decimals)?;
             require!(
-                locked_amount_usd <= self.pricing.max_total_locked_usd,
+                stats.locked_amount_usd <= self.pricing.max_total_locked_usd,
                 PerpetualsError::CustodyAmountLimit
             );
         }
@@ -539,6 +538,8 @@ impl Custody {
         stats.open_positions = math::checked_sub(stats.open_positions, 1)?;
         stats.size_usd = math::checked_sub(stats.size_usd, position.size_usd)?;
         stats.locked_amount = math::checked_sub(stats.locked_amount, position.locked_amount)?;
+        stats.locked_amount_usd =
+            math::checked_sub(stats.locked_amount_usd, position.locked_amount_usd)?;
 
         let position_price = math::scale_to_exponent(
             position.price,

@@ -306,6 +306,7 @@ describe("perpetuals", () => {
         collateralUsd: "0",
         sizeUsd: "0",
         lockedAmount: "0",
+        lockedAmountUsd: "0",
         weightedPrice: "0",
         totalQuantity: "0",
         cumulativeInterestUsd: "0",
@@ -316,6 +317,7 @@ describe("perpetuals", () => {
         collateralUsd: "0",
         sizeUsd: "0",
         lockedAmount: "0",
+        lockedAmountUsd: "0",
         weightedPrice: "0",
         totalQuantity: "0",
         cumulativeInterestUsd: "0",
@@ -488,6 +490,7 @@ describe("perpetuals", () => {
       unrealizedLossUsd: "0",
       cumulativeInterestSnapshot: "0",
       lockedAmount: "7000000000",
+      lockedAmountUsd: "869610000",
       collateralAmount: "1000000000",
       bump: position.bump,
     };

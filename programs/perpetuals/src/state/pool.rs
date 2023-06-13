@@ -645,6 +645,7 @@ impl Pool {
                 };
                 let max_profit_usd = min_collateral_price
                     .get_asset_amount_usd(position.locked_amount, collateral_custody.decimals)?;
+                let max_profit_usd = std::cmp::min(max_profit_usd, position.locked_amount_usd);
                 Ok((
                     std::cmp::min(max_profit_usd, cur_profit_usd),
                     0u64,
@@ -685,6 +686,7 @@ impl Pool {
                 };
                 let max_profit_usd = min_collateral_price
                     .get_asset_amount_usd(position.locked_amount, collateral_custody.decimals)?;
+                let max_profit_usd = std::cmp::min(max_profit_usd, position.locked_amount_usd);
                 Ok((
                     std::cmp::min(max_profit_usd, cur_profit_usd),
                     0u64,

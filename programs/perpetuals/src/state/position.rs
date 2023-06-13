@@ -47,6 +47,7 @@ pub struct Position {
     pub unrealized_loss_usd: u64,
     pub cumulative_interest_snapshot: u128,
     pub locked_amount: u64,
+    pub locked_amount_usd: u64,
     pub collateral_amount: u64,
 
     pub bump: u8,

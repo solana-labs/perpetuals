@@ -248,6 +248,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     position.unrealized_loss_usd = 0;
     position.cumulative_interest_snapshot = collateral_custody.get_cumulative_interest(curtime)?;
     position.locked_amount = locked_amount;
+    position.locked_amount_usd = custody.get_locked_amount(size_usd)?;
     position.collateral_amount = params.collateral;
     position.bump = *ctx
         .bumps
@@ -322,7 +323,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
                 math::checked_add(collateral_custody.trade_stats.oi_short_usd, size_usd)?;
         }
 
-        collateral_custody.add_position(position, &token_ema_price, curtime, None)?;
+        collateral_custody.add_position(position, curtime, None)?;
         collateral_custody.update_borrow_rate(curtime)?;
         *custody = collateral_custody.clone();
     } else {
@@ -339,12 +340,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
                 math::checked_add(custody.trade_stats.oi_short_usd, size_usd)?;
         }
 
-        custody.add_position(
-            position,
-            &token_ema_price,
-            curtime,
-            Some(collateral_custody),
-        )?;
+        custody.add_position(position, curtime, Some(collateral_custody))?;
         collateral_custody.update_borrow_rate(curtime)?;
     }
 
