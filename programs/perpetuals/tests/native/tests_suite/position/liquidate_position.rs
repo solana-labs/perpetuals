@@ -185,7 +185,7 @@ pub async fn liquidate_position() {
 
         assert_eq!(
             martin_eth_balance,
-            utils::scale_f64(1.376624036, ETH_DECIMALS)
+            utils::scale_f64(1.369834721, ETH_DECIMALS)
         );
     }
 }

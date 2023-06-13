@@ -92,12 +92,6 @@ pub fn get_entry_price_and_fee(
         custody.pricing.use_ema,
     )?;
 
-    let max_price = if token_price > token_ema_price {
-        token_price
-    } else {
-        token_ema_price
-    };
-
     let collateral_token_price = OraclePrice::new_from_oracle(
         &ctx.accounts
             .collateral_custody_oracle_account
@@ -121,7 +115,11 @@ pub fn get_entry_price_and_fee(
 
     let entry_price = pool.get_entry_price(&token_price, &token_ema_price, params.side, custody)?;
 
-    let size_usd = max_price.get_asset_amount_usd(params.size, custody.decimals)?;
+    let position_oracle_price = OraclePrice {
+        price: entry_price,
+        exponent: -(Perpetuals::PRICE_DECIMALS as i32),
+    };
+    let size_usd = position_oracle_price.get_asset_amount_usd(params.size, custody.decimals)?;
     let collateral_usd = min_collateral_price
         .get_asset_amount_usd(params.collateral, collateral_custody.decimals)?;
 

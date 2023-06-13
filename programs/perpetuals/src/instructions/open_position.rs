@@ -163,12 +163,6 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         custody.pricing.use_ema,
     )?;
 
-    let max_price = if token_price > token_ema_price {
-        token_price
-    } else {
-        token_ema_price
-    };
-
     let collateral_token_price = OraclePrice::new_from_oracle(
         &ctx.accounts
             .collateral_custody_oracle_account
@@ -209,7 +203,11 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     }
 
     // compute position parameters
-    let size_usd = max_price.get_asset_amount_usd(params.size, custody.decimals)?;
+    let position_oracle_price = OraclePrice {
+        price: position_price,
+        exponent: -(Perpetuals::PRICE_DECIMALS as i32),
+    };
+    let size_usd = position_oracle_price.get_asset_amount_usd(params.size, custody.decimals)?;
     let collateral_usd = min_collateral_price
         .get_asset_amount_usd(params.collateral, collateral_custody.decimals)?;
 
