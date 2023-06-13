@@ -50,6 +50,9 @@ pub async fn test_remove_stake(
     // save account state before tx execution
     let staking_account_before = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
 
+    let owner_staked_token_account_before =
+        utils::get_token_account_balance(program_test_ctx, lm_token_account_address).await;
+
     utils::create_and_execute_perpetuals_ix(
         program_test_ctx,
         perpetuals::accounts::RemoveStake {
@@ -92,16 +95,39 @@ pub async fn test_remove_stake(
 
     let staking_account_after = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
 
-    if params.remove_locked_stake {
-        assert_eq!(
-            staking_account_after.locked_stakes.len(),
-            staking_account_before.locked_stakes.len() - 1,
-        );
-    } else {
-        assert_eq!(
-            staking_account_after.liquid_stake.amount,
-            staking_account_before.liquid_stake.amount - params.amount.unwrap(),
-        );
+    let owner_staked_token_account_after =
+        utils::get_token_account_balance(program_test_ctx, lm_token_account_address).await;
+
+    // Check staking account
+    {
+        if params.remove_locked_stake {
+            assert_eq!(
+                staking_account_after.locked_stakes.len(),
+                staking_account_before.locked_stakes.len() - 1,
+            );
+        } else {
+            assert_eq!(
+                staking_account_after.liquid_stake.amount,
+                staking_account_before.liquid_stake.amount - params.amount.unwrap(),
+            );
+        }
+    }
+
+    // Check owner staked token ATA balance
+    {
+        if params.remove_locked_stake {
+            assert_eq!(
+                owner_staked_token_account_before
+                    + staking_account_before.locked_stakes[params.locked_stake_index.unwrap()]
+                        .amount,
+                owner_staked_token_account_after,
+            );
+        } else {
+            assert_eq!(
+                owner_staked_token_account_before + params.amount.unwrap(),
+                owner_staked_token_account_after,
+            );
+        }
     }
 
     Ok(())

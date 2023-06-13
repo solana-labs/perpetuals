@@ -54,6 +54,8 @@ pub async fn test_add_stake(
     let governance_governing_token_holding_balance_before =
         utils::get_token_account_balance(program_test_ctx, governance_governing_token_holding_pda)
             .await;
+    let funding_account_before =
+        utils::get_token_account_balance(program_test_ctx, lm_token_account_address).await;
 
     utils::create_and_execute_perpetuals_ix(
         program_test_ctx,
@@ -98,6 +100,9 @@ pub async fn test_add_stake(
 
     let staking_account_after = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
 
+    let funding_account_after =
+        utils::get_token_account_balance(program_test_ctx, lm_token_account_address).await;
+
     // Check changes in staking account
     {
         // liquid stake
@@ -112,6 +117,14 @@ pub async fn test_add_stake(
                 staking_account_before.locked_stakes.len() + 1
             );
         }
+    }
+
+    // Check staked token ATA balance
+    {
+        assert_eq!(
+            funding_account_before - params.amount,
+            funding_account_after,
+        );
     }
 
     // Check voting power
