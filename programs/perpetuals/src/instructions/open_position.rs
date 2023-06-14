@@ -214,9 +214,10 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     let locked_amount = if params.side == Side::Short || custody.is_virtual {
         custody.get_locked_amount(
             min_collateral_price.get_token_amount(size_usd, collateral_custody.decimals)?,
+            params.side,
         )?
     } else {
-        custody.get_locked_amount(params.size)?
+        custody.get_locked_amount(params.size, params.side)?
     };
 
     // compute fee

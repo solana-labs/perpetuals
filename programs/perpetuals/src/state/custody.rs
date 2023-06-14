@@ -297,9 +297,14 @@ impl Custody {
         Ok(())
     }
 
-    pub fn get_locked_amount(&self, size: u64) -> Result<u64> {
+    pub fn get_locked_amount(&self, size: u64, side: Side) -> Result<u64> {
+        let max_payoff_mult = if side == Side::Short {
+            std::cmp::min(Perpetuals::BPS_POWER, self.pricing.max_payoff_mult as u128)
+        } else {
+            self.pricing.max_payoff_mult as u128
+        };
         math::checked_as_u64(math::checked_div(
-            math::checked_mul(size as u128, self.pricing.max_payoff_mult as u128)?,
+            math::checked_mul(size as u128, max_payoff_mult)?,
             Perpetuals::BPS_POWER,
         )?)
     }
