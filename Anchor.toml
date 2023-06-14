@@ -1,12 +1,13 @@
 [features]
 seeds = false
+skip-lint = false
 [programs.localnet]
 perpetuals = "Bmr31xzZYYVUdoHmAJL1DAp2anaitW8Tw9YfASS94MKJ"
 [programs.devnet]
 perpetuals = "Bmr31xzZYYVUdoHmAJL1DAp2anaitW8Tw9YfASS94MKJ"
 
 [registry]
-url = "https://anchor.projectserum.com"
+url = "https://api.apr.dev"
 
 [provider]
 cluster = "localnet"
