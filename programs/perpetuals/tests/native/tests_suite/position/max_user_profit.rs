@@ -133,6 +133,7 @@ pub async fn max_user_profit() {
                 price: utils::scale(3_000, ETH_DECIMALS),
                 expo: -(ETH_DECIMALS as i32),
                 conf: utils::scale(10, ETH_DECIMALS),
+                ema: utils::scale(3_000, ETH_DECIMALS),
                 publish_time,
             },
             &multisig_signers,

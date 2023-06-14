@@ -396,6 +396,7 @@ describe("perpetuals", () => {
       price: new BN(123000),
       expo: -3,
       conf: new BN(0),
+      ema: new BN(123000),
       publishTime: oracle.publishTime,
     };
     expect(JSON.stringify(oracle)).to.equal(JSON.stringify(oracleExpected));
