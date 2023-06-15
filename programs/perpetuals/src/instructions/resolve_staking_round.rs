@@ -142,18 +142,52 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
 
             cortex.resolved_reward_token_amount = ctx.accounts.stake_reward_token_account.amount;
             let current_staking_round = cortex.current_staking_round.clone();
+
             cortex.resolved_staking_rounds.push(current_staking_round);
 
-            msg!("realloc cortex size to accomodate for the newly added round");
-            {
-                // realloc Cortex after update to its `stake_rounds` if needed
-                Perpetuals::realloc(
-                    ctx.accounts.caller.to_account_info(),
-                    cortex.clone().to_account_info(),
-                    ctx.accounts.system_program.to_account_info(),
-                    cortex.new_size(1)?,
-                    true,
-                )?;
+            // Safety mesure
+            // If too many resolved staking rounds, drop the oldest
+            // Should never happens as cron should auto-claim on behalf of users, cleaning resolved rounds on the way
+            // Hovever if it does happens, rewards will be redirected to current round (implicit)
+            if cortex.resolved_staking_rounds.len() > StakingRound::MAX_RESOLVED_ROUNDS {
+                let oldest_round = cortex.resolved_staking_rounds.first().unwrap();
+
+                // Remove round from accounting
+                {
+                    let stake_token_elligible_to_rewards =
+                        math::checked_sub(oldest_round.total_stake, oldest_round.total_claim)?;
+
+                    let unclaimed_rewards = math::checked_decimal_mul(
+                        oldest_round.rate,
+                        -(Perpetuals::RATE_DECIMALS as i32),
+                        stake_token_elligible_to_rewards,
+                        -(cortex.stake_token_decimals as i32),
+                        -(cortex.stake_reward_token_decimals as i32),
+                    )?;
+
+                    cortex.resolved_reward_token_amount =
+                        math::checked_sub(cortex.resolved_reward_token_amount, unclaimed_rewards)?;
+
+                    cortex.resolved_stake_token_amount = math::checked_sub(
+                        cortex.resolved_stake_token_amount,
+                        stake_token_elligible_to_rewards as u128,
+                    )?;
+                }
+
+                // Delete the round from array
+                cortex.resolved_staking_rounds.remove(0);
+            } else {
+                msg!("realloc cortex size to accomodate for the newly added round");
+                {
+                    // realloc Cortex after update to its `stake_rounds` if needed
+                    Perpetuals::realloc(
+                        ctx.accounts.caller.to_account_info(),
+                        cortex.clone().to_account_info(),
+                        ctx.accounts.system_program.to_account_info(),
+                        cortex.new_size(1)?,
+                        true,
+                    )?;
+                }
             }
         }
 

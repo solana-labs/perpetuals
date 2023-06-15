@@ -44,10 +44,7 @@ num = "0.4.0"
 pyth-sdk-solana = "0.7.2"
 spl-governance = { tag = "governance-v3.1.0", git = "https://github.com/solana-labs/solana-program-library", features = ["no-entrypoint"] }
 
-#### Failing due to time compilation issue
-#### https://github.com/solana-labs/solana/issues/31528
-#### Cannot find a soluce yet to make `anchor build` to work
-#### clockwork-sdk = { git = "https://github.com/clockwork-xyz/clockwork" }
+clockwork-sdk = "=2.0.17"
 
 [dev-dependencies]
 solana-program-test = "=1.14.16"
