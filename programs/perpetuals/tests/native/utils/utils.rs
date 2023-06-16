@@ -204,6 +204,98 @@ pub async fn warp_forward(ctx: &mut ProgramTestContext, seconds: i64) {
     ctx.last_blockhash = ctx.banks_client.get_latest_blockhash().await.unwrap();
 }
 
+pub async fn add_clockwork_network_program(
+    program_test: &mut ProgramTest,
+    upgrade_authority: &Keypair,
+) {
+    let mut program_bytes = read_file(std::env::current_dir().unwrap().join(Path::new(
+        "tests/native/external_programs_binaries/clockwork_network_program_2_0_17.so",
+    )));
+
+    let program_data_pda = Pubkey::find_program_address(
+        &[clockwork_network_program::ID.as_ref()],
+        &solana_program::bpf_loader_upgradeable::id(),
+    )
+    .0;
+
+    let program = UpgradeableLoaderState::Program {
+        programdata_address: program_data_pda,
+    };
+    let program_data = UpgradeableLoaderState::ProgramData {
+        slot: 1,
+        upgrade_authority_address: Some(upgrade_authority.pubkey()),
+    };
+
+    let serialized_program = bincode::serialize(&program).unwrap();
+
+    let mut serialized_program_data = bincode::serialize(&program_data).unwrap();
+    serialized_program_data.append(&mut program_bytes);
+
+    let program_account = account::Account {
+        lamports: Rent::default().minimum_balance(serialized_program.len()),
+        data: serialized_program,
+        owner: bpf_loader_upgradeable::ID,
+        executable: true,
+        rent_epoch: Epoch::default(),
+    };
+    let program_data_account = account::Account {
+        lamports: Rent::default().minimum_balance(serialized_program_data.len()),
+        data: serialized_program_data,
+        owner: bpf_loader_upgradeable::ID,
+        executable: false,
+        rent_epoch: Epoch::default(),
+    };
+
+    program_test.add_account(clockwork_network_program::ID, program_account);
+    program_test.add_account(program_data_pda, program_data_account);
+}
+
+pub async fn add_clockwork_thread_program(
+    program_test: &mut ProgramTest,
+    upgrade_authority: &Keypair,
+) {
+    let mut program_bytes = read_file(std::env::current_dir().unwrap().join(Path::new(
+        "tests/native/external_programs_binaries/clockwork_thread_program_2_0_17.so",
+    )));
+
+    let program_data_pda = Pubkey::find_program_address(
+        &[clockwork_sdk::ID.as_ref()],
+        &solana_program::bpf_loader_upgradeable::id(),
+    )
+    .0;
+
+    let program = UpgradeableLoaderState::Program {
+        programdata_address: program_data_pda,
+    };
+    let program_data = UpgradeableLoaderState::ProgramData {
+        slot: 1,
+        upgrade_authority_address: Some(upgrade_authority.pubkey()),
+    };
+
+    let serialized_program = bincode::serialize(&program).unwrap();
+
+    let mut serialized_program_data = bincode::serialize(&program_data).unwrap();
+    serialized_program_data.append(&mut program_bytes);
+
+    let program_account = account::Account {
+        lamports: Rent::default().minimum_balance(serialized_program.len()),
+        data: serialized_program,
+        owner: bpf_loader_upgradeable::ID,
+        executable: true,
+        rent_epoch: Epoch::default(),
+    };
+    let program_data_account = account::Account {
+        lamports: Rent::default().minimum_balance(serialized_program_data.len()),
+        data: serialized_program_data,
+        owner: bpf_loader_upgradeable::ID,
+        executable: false,
+        rent_epoch: Epoch::default(),
+    };
+
+    program_test.add_account(clockwork_sdk::ID, program_account);
+    program_test.add_account(program_data_pda, program_data_account);
+}
+
 pub async fn add_spl_governance_program(
     program_test: &mut ProgramTest,
     upgrade_authority: &Keypair,
@@ -228,8 +320,8 @@ pub async fn add_spl_governance_program(
 
     let serialized_program = bincode::serialize(&program).unwrap();
 
-    let mut serialzed_program_data = bincode::serialize(&program_data).unwrap();
-    serialzed_program_data.append(&mut program_bytes);
+    let mut serialized_program_data = bincode::serialize(&program_data).unwrap();
+    serialized_program_data.append(&mut program_bytes);
 
     let program_account = account::Account {
         lamports: Rent::default().minimum_balance(serialized_program.len()),
@@ -239,8 +331,8 @@ pub async fn add_spl_governance_program(
         rent_epoch: Epoch::default(),
     };
     let program_data_account = account::Account {
-        lamports: Rent::default().minimum_balance(serialzed_program_data.len()),
-        data: serialzed_program_data,
+        lamports: Rent::default().minimum_balance(serialized_program_data.len()),
+        data: serialized_program_data,
         owner: bpf_loader_upgradeable::ID,
         executable: false,
         rent_epoch: Epoch::default(),
@@ -272,8 +364,8 @@ pub async fn add_perpetuals_program(program_test: &mut ProgramTest, upgrade_auth
 
     let serialized_program = bincode::serialize(&program).unwrap();
 
-    let mut serialzed_program_data = bincode::serialize(&program_data).unwrap();
-    serialzed_program_data.append(&mut program_bytes);
+    let mut serialized_program_data = bincode::serialize(&program_data).unwrap();
+    serialized_program_data.append(&mut program_bytes);
 
     let program_account = account::Account {
         lamports: Rent::default().minimum_balance(serialized_program.len()),
@@ -283,8 +375,8 @@ pub async fn add_perpetuals_program(program_test: &mut ProgramTest, upgrade_auth
         rent_epoch: Epoch::default(),
     };
     let program_data_account = account::Account {
-        lamports: Rent::default().minimum_balance(serialzed_program_data.len()),
-        data: serialzed_program_data,
+        lamports: Rent::default().minimum_balance(serialized_program_data.len()),
+        data: serialized_program_data,
         owner: bpf_loader_upgradeable::ID,
         executable: false,
         rent_epoch: Epoch::default(),

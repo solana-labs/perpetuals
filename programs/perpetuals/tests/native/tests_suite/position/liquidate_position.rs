@@ -45,6 +45,7 @@ pub async fn liquidate_position() {
         ],
         vec!["admin_a", "admin_b", "admin_c"],
         "usdc",
+        "usdc",
         6,
         "ADRENA",
         "main_pool",

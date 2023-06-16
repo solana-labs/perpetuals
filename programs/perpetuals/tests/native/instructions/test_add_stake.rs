@@ -48,6 +48,9 @@ pub async fn test_add_stake(
             &owner.pubkey(),
         );
 
+    let (staking_thread_authority_pda, _) = pda::get_staking_thread_authority(&owner.pubkey());
+    let thread_address = pda::get_thread_address(&staking_thread_authority_pda, vec![0]);
+
     // // ==== WHEN ==============================================================
     // save account state before tx execution
     let staking_account_before = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
@@ -76,6 +79,9 @@ pub async fn test_add_stake(
             governance_realm_config: governance_realm_config_pda,
             governance_governing_token_holding: governance_governing_token_holding_pda,
             governance_governing_token_owner_record: governance_governing_token_owner_record_pda,
+            thread: thread_address,
+            staking_thread_authority: staking_thread_authority_pda,
+            clockwork_program: clockwork_sdk::ID,
             governance_program: spl_governance_program_adapter::ID,
             perpetuals_program: perpetuals::ID,
             system_program: anchor_lang::system_program::ID,

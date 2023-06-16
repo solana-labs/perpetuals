@@ -40,6 +40,7 @@ pub async fn test_staking_rewards_from_swap() {
         ],
         vec!["admin_a", "admin_b", "admin_c"],
         "usdc",
+        "usdc",
         6,
         "ADRENA",
         "main_pool",

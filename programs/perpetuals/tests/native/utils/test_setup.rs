@@ -116,6 +116,8 @@ impl TestSetup {
         multisig_members_names: Vec<&str>,
         // mint for the payouts of the LM token staking (ADX staking)
         cortex_stake_reward_mint_name: &str,
+        // mint used by clockwork to distribute rewards
+        clockwork_mint_reward_name: &str,
         governance_token_decimals: u8,
         governance_realm_name: &str,
         pool_name: &str,
@@ -196,6 +198,9 @@ impl TestSetup {
         {
             utils::add_perpetuals_program(&mut program_test, program_authority_keypair).await;
             utils::add_spl_governance_program(&mut program_test, program_authority_keypair).await;
+            utils::add_clockwork_network_program(&mut program_test, program_authority_keypair)
+                .await;
+            utils::add_clockwork_thread_program(&mut program_test, program_authority_keypair).await;
         }
 
         // Start the client and connect to localnet validator
@@ -248,6 +253,18 @@ impl TestSetup {
                 governance_realm_name.to_string(),
                 utils::scale(10_000, governance_token_decimals),
                 &gov_token_mint_pda,
+            )
+            .await
+            .unwrap();
+        }
+
+        // Setup clockwork
+        {
+            adapters::clockwork::network::initialize(
+                &mut program_test_ctx.borrow_mut(),
+                root_authority_keypair,
+                payer_keypair,
+                &mints[clockwork_mint_reward_name].pubkey,
             )
             .await
             .unwrap();

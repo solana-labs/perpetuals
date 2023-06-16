@@ -7,12 +7,14 @@ use {
         state::{
             cortex::Cortex,
             perpetuals::Perpetuals,
-            staking::{LockedStake, Staking},
+            staking::{LockedStake, Staking, STAKING_THREAD_AUTHORITY_SEED},
         },
     },
-    anchor_lang::prelude::*,
+    anchor_lang::{prelude::*, InstructionData},
     anchor_spl::token::{Mint, Token, TokenAccount},
-    solana_program::program_error::ProgramError,
+    solana_program::{
+        instruction::Instruction, native_token::LAMPORTS_PER_SOL, program_error::ProgramError,
+    },
 };
 
 #[derive(Accounts)]
@@ -116,6 +118,18 @@ pub struct AddStake<'info> {
     #[account(mut)]
     pub governance_governing_token_owner_record: UncheckedAccount<'info>,
 
+    /// Address to assign to the newly created thread.
+    #[account(mut, address = clockwork_sdk::state::Thread::pubkey(staking_thread_authority.key(), vec![0]))]
+    pub thread: SystemAccount<'info>,
+
+    /// CHECK: empty PDA, authority for threads
+    #[account(
+        seeds = [STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
+        bump = staking.thread_authority_bump
+    )]
+    pub staking_thread_authority: AccountInfo<'info>,
+
+    clockwork_program: Program<'info, clockwork_sdk::ThreadProgram>,
     governance_program: Program<'info, SplGovernanceV3Adapter>,
     perpetuals_program: Program<'info, program::Perpetuals>,
     system_program: Program<'info, System>,
@@ -245,6 +259,67 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
             staking.size(),
             false,
         )?;
+
+        // Create a clockwork thread to auto-resolve the staking when it ends
+        {
+            clockwork_sdk::cpi::thread_create(
+                CpiContext::new_with_signer(
+                    ctx.accounts.clockwork_program.to_account_info(),
+                    clockwork_sdk::cpi::ThreadCreate {
+                        payer: ctx.accounts.owner.to_account_info(),
+                        system_program: ctx.accounts.system_program.to_account_info(),
+                        thread: ctx.accounts.thread.to_account_info(),
+                        authority: ctx.accounts.staking_thread_authority.to_account_info(),
+                    },
+                    &[&[
+                        STAKING_THREAD_AUTHORITY_SEED,
+                        &[ctx.accounts.staking.thread_authority_bump],
+                    ]],
+                ),
+                LAMPORTS_PER_SOL,
+                vec![0],
+                //
+                // Instruction to be executed with the thread
+                vec![Instruction {
+                    program_id: crate::ID,
+                    accounts: crate::cpi::accounts::ResolveLockedStakes {
+                        caller: ctx.accounts.staking_thread_authority.to_account_info(),
+                        owner: ctx.accounts.owner.to_account_info(),
+                        transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
+                        staking: ctx.accounts.staking.to_account_info(),
+                        cortex: cortex.to_account_info(),
+                        perpetuals: perpetuals.to_account_info(),
+                        lm_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+                        governance_token_mint: ctx.accounts.governance_token_mint.to_account_info(),
+                        governance_realm: ctx.accounts.governance_realm.to_account_info(),
+                        governance_realm_config: ctx
+                            .accounts
+                            .governance_realm_config
+                            .to_account_info(),
+                        governance_governing_token_holding: ctx
+                            .accounts
+                            .governance_governing_token_holding
+                            .to_account_info(),
+                        governance_governing_token_owner_record: ctx
+                            .accounts
+                            .governance_governing_token_owner_record
+                            .to_account_info(),
+                        governance_program: ctx.accounts.governance_program.to_account_info(),
+                        perpetuals_program: ctx.accounts.perpetuals_program.to_account_info(),
+                        system_program: ctx.accounts.system_program.to_account_info(),
+                        token_program: ctx.accounts.token_program.to_account_info(),
+                    }
+                    .to_account_metas(Some(true)),
+                    data: crate::instruction::ResolveLockedStakes {}.data(),
+                }
+                .into()],
+                //
+                // Trigger configuration
+                clockwork_sdk::state::Trigger::Timestamp {
+                    unix_ts: staking_option.calculate_end_of_staking(perpetuals.get_time()?)?,
+                },
+            )?;
+        }
 
         stake_amount_with_multiplier
     };

@@ -30,10 +30,13 @@ use {
     anchor_lang::prelude::*,
 };
 
+pub const STAKING_THREAD_AUTHORITY_SEED: &[u8] = b"staking-thread-authority";
+
 #[account]
 #[derive(Default, Debug)]
 pub struct Staking {
     pub bump: u8,
+    pub thread_authority_bump: u8,
 
     pub liquid_stake: LiquidStake,
     pub locked_stakes: Vec<LockedStake>,
@@ -120,6 +123,13 @@ pub struct StakingOption {
 impl StakingOption {
     pub fn is_liquid(&self) -> bool {
         self.locked_days == 0
+    }
+
+    pub fn calculate_end_of_staking(&self, start: i64) -> Result<i64> {
+        math::checked_add(
+            start,
+            math::checked_mul(SECONDS_PER_HOURS * HOURS_PER_DAY, self.locked_days as i64)?,
+        )
     }
 }
 

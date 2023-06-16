@@ -14,14 +14,16 @@ pub async fn test_init_staking(
 ) -> std::result::Result<(Pubkey, u8), BanksClientError> {
     // ==== GIVEN =============================================================
     let (staking_pda, staking_bump) = pda::get_staking_pda(&owner.pubkey());
+    let (staking_thread_authority_pda, _) = pda::get_staking_thread_authority(&owner.pubkey());
 
-    // // ==== WHEN ==============================================================
+    // ==== WHEN ==============================================================
 
     utils::create_and_execute_perpetuals_ix(
         program_test_ctx,
         perpetuals::accounts::InitStaking {
             owner: owner.pubkey(),
             staking: staking_pda,
+            staking_thread_authority: staking_thread_authority_pda,
             system_program: anchor_lang::system_program::ID,
         }
         .to_account_metas(None),
