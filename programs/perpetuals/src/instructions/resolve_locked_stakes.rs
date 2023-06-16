@@ -13,7 +13,7 @@ use {
 #[derive(Accounts)]
 pub struct ResolveLockedStakes<'info> {
     // TODO:
-    // Caller should be the program iself
+    // Caller should be restrained to be the clockwork thread only
     #[account(mut)]
     pub caller: Signer<'info>,
 
