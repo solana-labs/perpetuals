@@ -12,9 +12,7 @@ use {
     },
     anchor_lang::{prelude::*, InstructionData},
     anchor_spl::token::{Mint, Token, TokenAccount},
-    solana_program::{
-        instruction::Instruction, native_token::LAMPORTS_PER_SOL, program_error::ProgramError,
-    },
+    solana_program::{instruction::Instruction, program_error::ProgramError},
 };
 
 #[derive(Accounts)]
@@ -118,9 +116,9 @@ pub struct AddStake<'info> {
     #[account(mut)]
     pub governance_governing_token_owner_record: UncheckedAccount<'info>,
 
-    /// Address to assign to the newly created thread.
-    #[account(mut, address = clockwork_sdk::state::Thread::pubkey(staking_thread_authority.key(), vec![0]))]
-    pub thread: SystemAccount<'info>,
+    /// CHECK: checked by clockwork thread program
+    #[account(mut)]
+    pub thread: UncheckedAccount<'info>,
 
     /// CHECK: empty PDA, authority for threads
     #[account(
@@ -172,7 +170,7 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
             {
                 // recursive program call
                 let cpi_accounts = crate::cpi::accounts::ClaimStakes {
-                    caller: ctx.accounts.owner.to_account_info(),
+                    caller: ctx.accounts.thread.to_account_info(),
                     owner: ctx.accounts.owner.to_account_info(),
                     caller_reward_token_account: ctx
                         .accounts
@@ -273,17 +271,20 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
                     },
                     &[&[
                         STAKING_THREAD_AUTHORITY_SEED,
+                        ctx.accounts.owner.key().as_ref(),
                         &[ctx.accounts.staking.thread_authority_bump],
                     ]],
                 ),
-                LAMPORTS_PER_SOL,
+                // Lamports paid to the clockwork worker executing the thread
+                // 10x SOL transaction fee
+                50_000,
                 vec![0],
                 //
                 // Instruction to be executed with the thread
                 vec![Instruction {
                     program_id: crate::ID,
                     accounts: crate::cpi::accounts::ResolveLockedStakes {
-                        caller: ctx.accounts.staking_thread_authority.to_account_info(),
+                        caller: ctx.accounts.thread.to_account_info(),
                         owner: ctx.accounts.owner.to_account_info(),
                         transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
                         staking: ctx.accounts.staking.to_account_info(),

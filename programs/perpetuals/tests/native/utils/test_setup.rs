@@ -82,9 +82,19 @@ pub struct TestSetup {
     pub lp_token_mint_pda: Pubkey,
     pub lp_token_mint_bump: u8,
     pub custodies_info: Vec<SetupCustodyInfo>,
+
+    pub clockwork_signatory: Keypair,
+    pub clockwork_mint_reward_name: String,
 }
 
 impl TestSetup {
+    // Only use one worker in the tests
+    pub fn get_clockwork_worker(&self) -> Pubkey {
+        let (worker_pda, _) = pda::get_clockwork_network_worker_pda(0);
+
+        worker_pda
+    }
+
     pub fn get_user_keypair_by_name(&self, name: &str) -> &Keypair {
         &self.users.get(&name.to_string()).unwrap()
     }
@@ -132,6 +142,8 @@ impl TestSetup {
             users_param.len() +
             // payer
             1 +
+            // clockwork signatory
+            1+
             // root authority
             1 +
             // program upgrade authority
@@ -145,6 +157,7 @@ impl TestSetup {
         let (
             users_keypairs,
             payer_keypair,
+            clockwork_signatory,
             root_authority_keypair,
             program_authority_keypair,
             multisig_members_keypairs,
@@ -154,8 +167,9 @@ impl TestSetup {
                 keypairs.get(users_param.len()).unwrap(),
                 keypairs.get(users_param.len() + 1).unwrap(),
                 keypairs.get(users_param.len() + 2).unwrap(),
+                keypairs.get(users_param.len() + 3).unwrap(),
                 &keypairs
-                    [users_param.len() + 3..(users_param.len() + 3 + multisig_members_names.len())],
+                    [users_param.len() + 4..(users_param.len() + 4 + multisig_members_names.len())],
             )
         };
 
@@ -263,6 +277,24 @@ impl TestSetup {
             adapters::clockwork::network::initialize(
                 &mut program_test_ctx.borrow_mut(),
                 root_authority_keypair,
+                payer_keypair,
+                &mints[clockwork_mint_reward_name].pubkey,
+            )
+            .await
+            .unwrap();
+
+            adapters::clockwork::network::pool_create(
+                &mut program_test_ctx.borrow_mut(),
+                root_authority_keypair,
+                payer_keypair,
+            )
+            .await
+            .unwrap();
+
+            adapters::clockwork::network::worker_create(
+                &mut program_test_ctx.borrow_mut(),
+                root_authority_keypair,
+                clockwork_signatory,
                 payer_keypair,
                 &mints[clockwork_mint_reward_name].pubkey,
             )
@@ -526,6 +558,8 @@ impl TestSetup {
             lp_token_mint_pda,
             lp_token_mint_bump,
             custodies_info,
+            clockwork_signatory: utils::copy_keypair(clockwork_signatory),
+            clockwork_mint_reward_name: clockwork_mint_reward_name.to_string(),
         }
     }
 }

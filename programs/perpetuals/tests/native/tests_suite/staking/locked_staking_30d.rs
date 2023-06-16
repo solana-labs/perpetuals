@@ -1,10 +1,17 @@
 use {
-    crate::{instructions, utils},
+    crate::{
+        adapters, instructions,
+        utils::{self, pda},
+    },
+    anchor_lang::ToAccountMetas,
+    clockwork_thread_program::state::Thread,
     maplit::hashmap,
     perpetuals::{
+        adapters::spl_governance_program_adapter,
         instructions::{AddLiquidityParams, AddStakeParams, AddVestParams, RemoveStakeParams},
         state::cortex::{Cortex, StakingRound},
     },
+    solana_program::instruction::AccountMeta,
     solana_sdk::signer::Signer,
 };
 
@@ -95,6 +102,8 @@ pub async fn locked_staking_30d() {
     let multisig_signers = test_setup.get_multisig_signers();
 
     let eth_mint = &test_setup.get_mint_by_name("eth");
+
+    let clockwork_worker = test_setup.get_clockwork_worker();
 
     // Prep work: Alice get 2 governance tokens using vesting
     {
@@ -346,6 +355,91 @@ pub async fn locked_staking_30d() {
     .await
     .is_err());
 
+    // Trigger clockwork thread execution manually
+    {
+        let (thread_authority, _) = pda::get_staking_thread_authority(&alice.pubkey());
+
+        adapters::clockwork::thread::thread_kickoff(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            &clockwork_worker,
+            &test_setup.payer_keypair,
+            &test_setup.clockwork_signatory,
+            &thread_authority,
+            vec![0],
+        )
+        .await
+        .unwrap();
+
+        {
+            let transfer_authority_pda = pda::get_transfer_authority_pda().0;
+            let staking_pda = pda::get_staking_pda(&alice.pubkey()).0;
+            let perpetuals_pda = pda::get_perpetuals_pda().0;
+            let cortex_pda = pda::get_cortex_pda().0;
+            let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+            let governance_token_mint_pda = pda::get_governance_token_mint_pda().0;
+
+            let governance_governing_token_holding_pda =
+                pda::get_governance_governing_token_holding_pda(
+                    &test_setup.governance_realm_pda,
+                    &governance_token_mint_pda,
+                );
+
+            let governance_realm_config_pda =
+                pda::get_governance_realm_config_pda(&test_setup.governance_realm_pda);
+
+            let governance_governing_token_owner_record_pda =
+                pda::get_governance_governing_token_owner_record_pda(
+                    &test_setup.governance_realm_pda,
+                    &governance_token_mint_pda,
+                    &alice.pubkey(),
+                );
+
+            let (thread_pda, _) = pda::get_clockwork_thread_pda(&thread_authority, vec![0]);
+
+            let remaining_accounts = perpetuals::accounts::ResolveLockedStakes {
+                caller: thread_pda,
+                owner: alice.pubkey(),
+                transfer_authority: transfer_authority_pda,
+                staking: staking_pda,
+                cortex: cortex_pda,
+                perpetuals: perpetuals_pda,
+                lm_token_mint: lm_token_mint_pda,
+                governance_realm: test_setup.governance_realm_pda,
+                governance_realm_config: governance_realm_config_pda,
+                governance_governing_token_holding: governance_governing_token_holding_pda,
+                governance_governing_token_owner_record:
+                    governance_governing_token_owner_record_pda,
+                governance_program: spl_governance_program_adapter::ID,
+                perpetuals_program: perpetuals::ID,
+                system_program: anchor_lang::system_program::ID,
+                token_program: anchor_spl::token::ID,
+                governance_token_mint: governance_token_mint_pda,
+            }
+            .to_account_metas(Some(false))
+            .into_iter()
+            .map(|x| AccountMeta {
+                pubkey: x.pubkey,
+                is_signer: false,
+                is_writable: x.is_writable,
+            })
+            .collect();
+
+            adapters::clockwork::thread::thread_exec(
+                &mut test_setup.program_test_ctx.borrow_mut(),
+                &clockwork_worker,
+                &test_setup.payer_keypair,
+                &test_setup.clockwork_signatory,
+                &thread_authority,
+                vec![0],
+                remaining_accounts,
+                vec![],
+            )
+            .await
+            .unwrap();
+        }
+    }
+
+    /*
     // Resolve the locked stake
     instructions::test_resolve_locked_stakes(
         &mut test_setup.program_test_ctx.borrow_mut(),
@@ -356,6 +450,7 @@ pub async fn locked_staking_30d() {
     )
     .await
     .unwrap();
+    */
 
     utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 

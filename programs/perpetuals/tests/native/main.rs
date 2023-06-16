@@ -16,8 +16,8 @@ pub async fn test_integration() {
     // tests_suite::position::max_user_profit().await;
 
     // tests_suite::staking::staking_rewards_generation().await;
-    tests_suite::staking::liquid_staking().await;
-    // tests_suite::staking::locked_staking_30d().await;
+    // tests_suite::staking::liquid_staking().await;
+    tests_suite::staking::locked_staking_30d().await;
 
     // Long test
     // tests_suite::staking::resolved_round_overflow().await;
