@@ -152,6 +152,11 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
             if cortex.resolved_staking_rounds.len() > StakingRound::MAX_RESOLVED_ROUNDS {
                 let oldest_round = cortex.resolved_staking_rounds.first().unwrap();
 
+                msg!(
+                    "MAX_RESOLVED_ROUNDS ({}) have been reached, drop oldest round",
+                    StakingRound::MAX_RESOLVED_ROUNDS
+                );
+
                 // Remove round from accounting
                 {
                     let stake_token_elligible_to_rewards =
