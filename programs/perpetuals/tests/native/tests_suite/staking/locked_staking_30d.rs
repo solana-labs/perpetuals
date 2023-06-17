@@ -353,7 +353,7 @@ pub async fn locked_staking_30d() {
     .is_err());
 
     // Trigger clockwork thread execution manually
-    utils::execute_resolve_locked_stakes_thread(
+    utils::execute_resolve_locked_stake_thread(
         &mut test_setup.program_test_ctx.borrow_mut(),
         &clockwork_worker,
         &test_setup.clockwork_signatory,

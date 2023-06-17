@@ -1,8 +1,9 @@
-//! ResolveLockedStakes instruction handler
+//! ResolveLockedStake instruction handler
 
 use {
     crate::{
         adapters::SplGovernanceV3Adapter,
+        error::PerpetualsError,
         math, program,
         state::{cortex::Cortex, perpetuals::Perpetuals, staking::Staking},
     },
@@ -11,7 +12,7 @@ use {
 };
 
 #[derive(Accounts)]
-pub struct ResolveLockedStakes<'info> {
+pub struct ResolveLockedStake<'info> {
     // TODO:
     // Caller should be restrained to be the clockwork thread only
     #[account(mut)]
@@ -79,89 +80,100 @@ pub struct ResolveLockedStakes<'info> {
     /// Account owned by governance storing user informations
     #[account(mut)]
     pub governance_governing_token_owner_record: UncheckedAccount<'info>,
-
     governance_program: Program<'info, SplGovernanceV3Adapter>,
     perpetuals_program: Program<'info, program::Perpetuals>,
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
+pub struct ResolveLockedStakeParams {
+    pub thread_id: u64,
+}
+
 // Resolving a stake means cancelling the governing power related to the stake and stopping to accrue rewards
 // A stake can be resolved when its locking period have ended
 // After a stake is resolved, it can be removed by the user to retrieve its tokens
-pub fn resolve_locked_stakes(ctx: Context<ResolveLockedStakes>) -> Result<()> {
+pub fn resolve_locked_stake(
+    ctx: Context<ResolveLockedStake>,
+    params: &ResolveLockedStakeParams,
+) -> Result<()> {
     let staking = ctx.accounts.staking.as_mut();
     let perpetuals = ctx.accounts.perpetuals.as_mut();
     let cortex = ctx.accounts.cortex.as_mut();
 
     let current_time = perpetuals.get_time()?;
 
-    for mut locked_stake in staking.locked_stakes.iter_mut() {
-        if locked_stake.has_ended(current_time) && !locked_stake.resolved {
-            // Revoke governing power allocated to the stake
-            {
-                let voting_power = math::checked_as_u64(math::checked_div(
-                    math::checked_mul(locked_stake.amount, locked_stake.vote_multiplier as u64)?
-                        as u128,
-                    Perpetuals::BPS_POWER,
-                )?)?;
+    let locked_stake = staking
+        .locked_stakes
+        .iter_mut()
+        .find(|stake| stake.thread_id == params.thread_id)
+        .ok_or(PerpetualsError::CannotFoundStake)?;
 
-                perpetuals.remove_governing_power(
-                    ctx.accounts.transfer_authority.to_account_info(),
-                    ctx.accounts.owner.to_account_info(),
-                    ctx.accounts
-                        .governance_governing_token_owner_record
-                        .to_account_info(),
-                    ctx.accounts.governance_token_mint.to_account_info(),
-                    ctx.accounts.governance_realm.to_account_info(),
-                    ctx.accounts.governance_realm_config.to_account_info(),
-                    ctx.accounts
-                        .governance_governing_token_holding
-                        .to_account_info(),
-                    ctx.accounts.governance_program.to_account_info(),
-                    voting_power,
-                )?;
-            }
+    // Checks
+    {
+        require!(
+            locked_stake.has_ended(current_time),
+            PerpetualsError::InvalidStakeState
+        );
 
-            // forfeit current round participation
-            cortex.current_staking_round.total_stake = math::checked_sub(
-                cortex.current_staking_round.total_stake,
-                locked_stake.amount_with_multiplier,
-            )?;
-
-            msg!(
-                "cortex.next_staking_round.total_stake: {}",
-                cortex.next_staking_round.total_stake
-            );
-
-            // remove staked tokens from next round
-            cortex.next_staking_round.total_stake = math::checked_sub(
-                cortex.next_staking_round.total_stake,
-                locked_stake.amount_with_multiplier,
-            )?;
-
-            msg!(
-                "Cortex.resolved_staking_rounds after remove stake {:?}",
-                cortex.resolved_staking_rounds
-            );
-            msg!(
-                "Cortex.current_staking_round after remove stake {:?}",
-                cortex.current_staking_round
-            );
-            msg!(
-                "Cortex.next_staking_round after remove stake {:?}",
-                cortex.next_staking_round
-            );
-
-            msg!(
-                ">>>> locked_stake: lock_duration: {}, stake_time: {} ",
-                locked_stake.lock_duration,
-                locked_stake.stake_time
-            );
-
-            locked_stake.resolved = true;
-        }
+        require!(!locked_stake.resolved, PerpetualsError::InvalidStakeState);
     }
+
+    // Revoke governing power allocated to the stake
+    {
+        let voting_power = math::checked_as_u64(math::checked_div(
+            math::checked_mul(locked_stake.amount, locked_stake.vote_multiplier as u64)? as u128,
+            Perpetuals::BPS_POWER,
+        )?)?;
+
+        perpetuals.remove_governing_power(
+            ctx.accounts.transfer_authority.to_account_info(),
+            ctx.accounts.owner.to_account_info(),
+            ctx.accounts
+                .governance_governing_token_owner_record
+                .to_account_info(),
+            ctx.accounts.governance_token_mint.to_account_info(),
+            ctx.accounts.governance_realm.to_account_info(),
+            ctx.accounts.governance_realm_config.to_account_info(),
+            ctx.accounts
+                .governance_governing_token_holding
+                .to_account_info(),
+            ctx.accounts.governance_program.to_account_info(),
+            voting_power,
+        )?;
+    }
+
+    // forfeit current round participation
+    cortex.current_staking_round.total_stake = math::checked_sub(
+        cortex.current_staking_round.total_stake,
+        locked_stake.amount_with_multiplier,
+    )?;
+
+    // remove staked tokens from next round
+    cortex.next_staking_round.total_stake = math::checked_sub(
+        cortex.next_staking_round.total_stake,
+        locked_stake.amount_with_multiplier,
+    )?;
+
+    locked_stake.resolved = true;
+
+    msg!(
+        "cortex.next_staking_round.total_stake: {}",
+        cortex.next_staking_round.total_stake
+    );
+    msg!(
+        "cortex.resolved_staking_rounds after remove stake {:?}",
+        cortex.resolved_staking_rounds
+    );
+    msg!(
+        "cortex.current_staking_round after remove stake {:?}",
+        cortex.current_staking_round
+    );
+    msg!(
+        "cortex.next_staking_round after remove stake {:?}",
+        cortex.next_staking_round
+    );
 
     Ok(())
 }

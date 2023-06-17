@@ -10,7 +10,7 @@ use {
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 
-pub async fn execute_resolve_locked_stakes_thread(
+pub async fn execute_resolve_locked_stake_thread(
     program_test_ctx: &mut ProgramTestContext,
     clockwork_worker: &Pubkey,
     clockwork_signatory: &Keypair,
@@ -60,7 +60,7 @@ pub async fn execute_resolve_locked_stakes_thread(
     .await
     .unwrap();
 
-    let remaining_accounts = perpetuals::accounts::ResolveLockedStakes {
+    let remaining_accounts = perpetuals::accounts::ResolveLockedStake {
         caller: thread_pda,
         owner: owner.pubkey(),
         transfer_authority: transfer_authority_pda,
@@ -99,6 +99,22 @@ pub async fn execute_resolve_locked_stakes_thread(
     )
     .await
     .unwrap();
+
+    let thread =
+        utils::get_account::<clockwork_thread_program::state::Thread>(program_test_ctx, thread_pda)
+            .await;
+
+    println!(">>>>>>>>>>>>>>>>>> THREAD INFOS");
+    println!(">>>>>>>>>>>>>>>>>> created_at: {:?}", thread.created_at);
+    println!(">>>>>>>>>>>>>>>>>> exec_context: {:?}", thread.exec_context);
+    println!(">>>>>>>>>>>>>>>>>> fee: {:?}", thread.fee);
+    println!(">>>>>>>>>>>>>>>>>> id: {:?}", thread.id);
+    println!(">>>>>>>>>>>>>>>>>> instructions: {:?}", thread.instructions);
+    println!(">>>>>>>>>>>>>>>>>> name: {:?}", thread.name);
+    println!(
+        ">>>>>>>>>>>>>>>>>> next_instruction: {:?}",
+        thread.next_instruction
+    );
 
     Ok(())
 }

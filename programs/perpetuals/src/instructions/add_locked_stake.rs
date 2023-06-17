@@ -3,6 +3,7 @@
 use {
     crate::{
         adapters::SplGovernanceV3Adapter,
+        instructions::ResolveLockedStakeParams,
         math, program,
         state::{
             cortex::Cortex,
@@ -220,7 +221,7 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
                 // Instruction to be executed with the thread
                 vec![Instruction {
                     program_id: crate::ID,
-                    accounts: crate::cpi::accounts::ResolveLockedStakes {
+                    accounts: crate::cpi::accounts::ResolveLockedStake {
                         caller: ctx.accounts.thread.to_account_info(),
                         owner: ctx.accounts.owner.to_account_info(),
                         transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
@@ -248,7 +249,12 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
                         token_program: ctx.accounts.token_program.to_account_info(),
                     }
                     .to_account_metas(Some(true)),
-                    data: crate::instruction::ResolveLockedStakes {}.data(),
+                    data: crate::instruction::ResolveLockedStake {
+                        params: ResolveLockedStakeParams {
+                            thread_id: params.thread_id,
+                        },
+                    }
+                    .data(),
                 }
                 .into()],
                 //

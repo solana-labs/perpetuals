@@ -280,8 +280,11 @@ pub mod perpetuals {
         instructions::claim_stakes(ctx)
     }
 
-    pub fn resolve_locked_stakes(ctx: Context<ResolveLockedStakes>) -> Result<()> {
-        instructions::resolve_locked_stakes(ctx)
+    pub fn resolve_locked_stake(
+        ctx: Context<ResolveLockedStake>,
+        params: ResolveLockedStakeParams,
+    ) -> Result<()> {
+        instructions::resolve_locked_stake(ctx, &params)
     }
 
     pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {

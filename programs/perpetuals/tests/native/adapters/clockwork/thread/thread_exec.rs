@@ -29,13 +29,7 @@ pub async fn thread_exec(
     }
     .to_account_metas(None);
 
-    for ele in accounts_meta.as_slice() {
-        println!("ACCOUNT: {:?}", ele);
-    }
-
     for remaining_account in remaining_accounts {
-        println!("REMAINING ACCOUNT: {:?}", remaining_account);
-
         accounts_meta.push(remaining_account);
     }
 
