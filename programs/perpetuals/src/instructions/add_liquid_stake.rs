@@ -4,11 +4,7 @@ use {
     crate::{
         adapters::SplGovernanceV3Adapter,
         math, program,
-        state::{
-            cortex::Cortex,
-            perpetuals::Perpetuals,
-            staking::{Staking, STAKING_THREAD_AUTHORITY_SEED},
-        },
+        state::{cortex::Cortex, perpetuals::Perpetuals, staking::Staking},
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
@@ -116,18 +112,6 @@ pub struct AddLiquidStake<'info> {
     #[account(mut)]
     pub governance_governing_token_owner_record: UncheckedAccount<'info>,
 
-    /// CHECK: checked by clockwork thread program
-    #[account(mut)]
-    pub thread: UncheckedAccount<'info>,
-
-    /// CHECK: empty PDA, authority for threads
-    #[account(
-        seeds = [STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
-        bump = staking.thread_authority_bump
-    )]
-    pub staking_thread_authority: AccountInfo<'info>,
-
-    clockwork_program: Program<'info, clockwork_sdk::ThreadProgram>,
     governance_program: Program<'info, SplGovernanceV3Adapter>,
     perpetuals_program: Program<'info, program::Perpetuals>,
     system_program: Program<'info, System>,
@@ -161,7 +145,7 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
             {
                 // recursive program call
                 let cpi_accounts = crate::cpi::accounts::ClaimStakes {
-                    caller: ctx.accounts.thread.to_account_info(),
+                    caller: ctx.accounts.owner.to_account_info(),
                     owner: ctx.accounts.owner.to_account_info(),
                     caller_reward_token_account: ctx
                         .accounts
