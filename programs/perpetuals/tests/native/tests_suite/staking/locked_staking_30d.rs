@@ -3,7 +3,7 @@ use {
     maplit::hashmap,
     perpetuals::{
         instructions::{
-            AddLiquidityParams, AddLockedStakeParams, AddVestParams, RemoveStakeParams,
+            AddLiquidityParams, AddLockedStakeParams, AddVestParams, RemoveLockedStakeParams,
         },
         state::cortex::{Cortex, StakingRound},
     },
@@ -339,15 +339,12 @@ pub async fn locked_staking_30d() {
     }
 
     // Remove the stake without resolving it first should fail
-    assert!(instructions::test_remove_stake(
+    assert!(instructions::test_remove_locked_stake(
         &mut test_setup.program_test_ctx.borrow_mut(),
         alice,
         &test_setup.payer_keypair,
-        RemoveStakeParams {
-            remove_liquid_stake: false,
-            amount: None,
-            remove_locked_stake: true,
-            locked_stake_index: Some(0),
+        RemoveLockedStakeParams {
+            locked_stake_index: 0,
         },
         &cortex_stake_reward_mint,
         &test_setup.governance_realm_pda,
@@ -384,15 +381,12 @@ pub async fn locked_staking_30d() {
     utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
     // Remove the stake
-    instructions::test_remove_stake(
+    instructions::test_remove_locked_stake(
         &mut test_setup.program_test_ctx.borrow_mut(),
         alice,
         &test_setup.payer_keypair,
-        RemoveStakeParams {
-            remove_liquid_stake: false,
-            amount: None,
-            remove_locked_stake: true,
-            locked_stake_index: Some(0),
+        RemoveLockedStakeParams {
+            locked_stake_index: 0,
         },
         &cortex_stake_reward_mint,
         &test_setup.governance_realm_pda,

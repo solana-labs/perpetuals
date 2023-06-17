@@ -262,8 +262,18 @@ pub mod perpetuals {
         instructions::add_locked_stake(ctx, &params)
     }
 
-    pub fn remove_stake(ctx: Context<RemoveStake>, params: RemoveStakeParams) -> Result<()> {
-        instructions::remove_stake(ctx, &params)
+    pub fn remove_liquid_stake(
+        ctx: Context<RemoveLiquidStake>,
+        params: RemoveLiquidStakeParams,
+    ) -> Result<()> {
+        instructions::remove_liquid_stake(ctx, &params)
+    }
+
+    pub fn remove_locked_stake(
+        ctx: Context<RemoveLockedStake>,
+        params: RemoveLockedStakeParams,
+    ) -> Result<()> {
+        instructions::remove_locked_stake(ctx, &params)
     }
 
     pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {

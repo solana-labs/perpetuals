@@ -1,4 +1,4 @@
-//! RemoveStake instruction handler
+//! RemoveLiquidStake instruction handler
 
 use {
     crate::{
@@ -13,7 +13,7 @@ use {
 };
 
 #[derive(Accounts)]
-pub struct RemoveStake<'info> {
+pub struct RemoveLiquidStake<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
 
@@ -120,36 +120,17 @@ pub struct RemoveStake<'info> {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
-pub struct RemoveStakeParams {
-    // Liquid staking
-    pub remove_liquid_stake: bool,
-    pub amount: Option<u64>,
-
-    // Locked staking
-    pub remove_locked_stake: bool,
-    pub locked_stake_index: Option<usize>,
+pub struct RemoveLiquidStakeParams {
+    pub amount: u64,
 }
 
-// Remove one stake at a time
-pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Result<()> {
+pub fn remove_liquid_stake(
+    ctx: Context<RemoveLiquidStake>,
+    params: &RemoveLiquidStakeParams,
+) -> Result<()> {
     // validate inputs
     {
-        msg!("Validate inputs");
-
-        // Only one staking to end at a time
-        if (params.remove_liquid_stake && params.remove_locked_stake)
-            || (!params.remove_liquid_stake && !params.remove_locked_stake)
-        {
-            return Err(ProgramError::InvalidArgument.into());
-        }
-
-        // missing index when removing locked stake
-        if params.remove_locked_stake && params.locked_stake_index.is_none() {
-            return Err(ProgramError::InvalidArgument.into());
-        }
-
-        // missing amount when removing liquid stake
-        if params.remove_liquid_stake && (params.amount.is_none() || params.amount.unwrap() == 0) {
+        if params.amount == 0 {
             return Err(ProgramError::InvalidArgument.into());
         }
     }
@@ -179,29 +160,17 @@ pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Re
     let perpetuals = ctx.accounts.perpetuals.as_mut();
     let cortex = ctx.accounts.cortex.as_mut();
 
-    let token_amount_to_unstake = if params.remove_liquid_stake {
-        //
-        // Handle Liquid Staking
-        //
-
-        let token_amount_to_unstake = params.amount.unwrap();
-
+    {
         // verify user staked balance
         {
             require!(
-                staking.liquid_stake.amount >= token_amount_to_unstake,
+                staking.liquid_stake.amount >= params.amount,
                 PerpetualsError::InvalidStakeState
             );
         }
 
-        // Revoke governing power allocated to the stake
+        // Revoke 1:1 governing power allocated to the stake
         {
-            let voting_power = math::checked_as_u64(math::checked_div(
-                math::checked_mul(token_amount_to_unstake, staking.liquid_stake.amount as u64)?
-                    as u128,
-                Perpetuals::BPS_POWER,
-            )?)?;
-
             perpetuals.remove_governing_power(
                 ctx.accounts.transfer_authority.to_account_info(),
                 ctx.accounts.owner.to_account_info(),
@@ -215,65 +184,29 @@ pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Re
                     .governance_governing_token_holding
                     .to_account_info(),
                 ctx.accounts.governance_program.to_account_info(),
-                voting_power,
+                params.amount,
             )?;
         }
 
         // apply delta to user stake
         staking.liquid_stake.amount =
-            math::checked_sub(staking.liquid_stake.amount, token_amount_to_unstake)?;
+            math::checked_sub(staking.liquid_stake.amount, params.amount)?;
 
         // Apply delta to current and next round
         {
-            let unstake_amount = math::checked_as_u64(math::checked_div(
-                math::checked_mul(token_amount_to_unstake, staking.liquid_stake.amount as u64)?
-                    as u128,
-                Perpetuals::BPS_POWER,
-            )?)?;
-
             // forfeit current round participation, if any
             if staking
                 .liquid_stake
                 .qualifies_for_rewards_from(&cortex.current_staking_round)
             {
                 cortex.current_staking_round.total_stake =
-                    math::checked_sub(cortex.current_staking_round.total_stake, unstake_amount)?;
+                    math::checked_sub(cortex.current_staking_round.total_stake, params.amount)?;
             }
 
             // apply delta to next round
             cortex.next_staking_round.total_stake =
-                math::checked_sub(cortex.next_staking_round.total_stake, unstake_amount)?;
+                math::checked_sub(cortex.next_staking_round.total_stake, params.amount)?;
         }
-
-        token_amount_to_unstake
-    } else {
-        //
-        // Handle Locked Staking
-        //
-
-        let locked_stake = staking
-            .locked_stakes
-            .get(params.locked_stake_index.unwrap())
-            .ok_or(PerpetualsError::CannotFoundStake)?;
-
-        // Check the stake have ended and have been resolved
-        {
-            let current_time = ctx.accounts.perpetuals.get_time()?;
-
-            require!(
-                locked_stake.has_ended(current_time) && locked_stake.resolved,
-                PerpetualsError::UnresolvedStake
-            );
-        }
-
-        let token_amount_to_unstake = locked_stake.amount;
-
-        // Remove the stake from the list
-        staking
-            .locked_stakes
-            .remove(params.locked_stake_index.unwrap());
-
-        token_amount_to_unstake
     };
 
     // Unstake owner's tokens
@@ -286,7 +219,7 @@ pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Re
             ctx.accounts.lm_token_account.to_account_info(),
             ctx.accounts.transfer_authority.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
-            token_amount_to_unstake,
+            params.amount,
         )?;
     }
 

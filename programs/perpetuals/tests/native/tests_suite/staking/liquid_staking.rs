@@ -3,7 +3,7 @@ use {
     maplit::hashmap,
     perpetuals::{
         instructions::{
-            AddLiquidStakeParams, AddLiquidityParams, AddVestParams, RemoveStakeParams,
+            AddLiquidStakeParams, AddLiquidityParams, AddVestParams, RemoveLiquidStakeParams,
         },
         state::cortex::{Cortex, StakingRound},
     },
@@ -365,15 +365,12 @@ pub async fn liquid_staking() {
     */
 
     // Remove half the stake
-    instructions::test_remove_stake(
+    instructions::test_remove_liquid_stake(
         &mut test_setup.program_test_ctx.borrow_mut(),
         alice,
         &test_setup.payer_keypair,
-        RemoveStakeParams {
-            remove_liquid_stake: true,
-            amount: Some(utils::scale(1, Cortex::LM_DECIMALS)),
-            remove_locked_stake: false,
-            locked_stake_index: None,
+        RemoveLiquidStakeParams {
+            amount: utils::scale(1, Cortex::LM_DECIMALS),
         },
         &cortex_stake_reward_mint,
         &test_setup.governance_realm_pda,
@@ -384,15 +381,12 @@ pub async fn liquid_staking() {
     utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
     // Try & remove more than possible should fail
-    assert!(instructions::test_remove_stake(
+    assert!(instructions::test_remove_liquid_stake(
         &mut test_setup.program_test_ctx.borrow_mut(),
         alice,
         &test_setup.payer_keypair,
-        RemoveStakeParams {
-            remove_liquid_stake: true,
-            amount: Some(utils::scale(42, Cortex::LM_DECIMALS)),
-            remove_locked_stake: false,
-            locked_stake_index: None,
+        RemoveLiquidStakeParams {
+            amount: utils::scale(42, Cortex::LM_DECIMALS),
         },
         &cortex_stake_reward_mint,
         &test_setup.governance_realm_pda,
@@ -401,16 +395,11 @@ pub async fn liquid_staking() {
     .is_err());
 
     // Try & remove 0 tokens should fail
-    assert!(instructions::test_remove_stake(
+    assert!(instructions::test_remove_liquid_stake(
         &mut test_setup.program_test_ctx.borrow_mut(),
         alice,
         &test_setup.payer_keypair,
-        RemoveStakeParams {
-            remove_liquid_stake: true,
-            amount: Some(0),
-            remove_locked_stake: false,
-            locked_stake_index: None,
-        },
+        RemoveLiquidStakeParams { amount: 0 },
         &cortex_stake_reward_mint,
         &test_setup.governance_realm_pda,
     )
@@ -418,15 +407,12 @@ pub async fn liquid_staking() {
     .is_err());
 
     // Remove the other half of the stake
-    instructions::test_remove_stake(
+    instructions::test_remove_liquid_stake(
         &mut test_setup.program_test_ctx.borrow_mut(),
         alice,
         &test_setup.payer_keypair,
-        RemoveStakeParams {
-            remove_liquid_stake: true,
-            amount: Some(utils::scale(1, Cortex::LM_DECIMALS)),
-            remove_locked_stake: false,
-            locked_stake_index: None,
+        RemoveLiquidStakeParams {
+            amount: utils::scale(1, Cortex::LM_DECIMALS),
         },
         &cortex_stake_reward_mint,
         &test_setup.governance_realm_pda,
