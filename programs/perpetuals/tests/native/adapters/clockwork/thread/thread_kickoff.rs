@@ -14,7 +14,7 @@ pub async fn thread_kickoff(
     thread_authority: &Pubkey,
     thread_id: Vec<u8>,
 ) -> std::result::Result<(), BanksClientError> {
-    let (thread_pda, _) = pda::get_clockwork_thread_pda(thread_authority, thread_id);
+    let thread_pda = pda::get_clockwork_thread_pda(thread_authority, thread_id).0;
 
     let thread =
         utils::get_account::<clockwork_thread_program::state::Thread>(program_test_ctx, thread_pda)

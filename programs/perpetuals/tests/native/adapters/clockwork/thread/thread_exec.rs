@@ -16,9 +16,9 @@ pub async fn thread_exec(
     remaining_accounts: Vec<AccountMeta>,
     extra_signers: Vec<&Keypair>,
 ) -> std::result::Result<(), BanksClientError> {
-    let (fee_pda, _) = pda::get_clockwork_network_fee_pda(worker_pda);
+    let fee_pda = pda::get_clockwork_network_fee_pda(worker_pda).0;
     let pool_pda = clockwork_network_program::state::Pool::pubkey(0);
-    let (thread_pda, _) = pda::get_clockwork_thread_pda(thread_authority, thread_id);
+    let thread_pda = pda::get_clockwork_thread_pda(thread_authority, thread_id).0;
 
     let mut accounts_meta = clockwork_thread_program::accounts::ThreadExec {
         fee: fee_pda,

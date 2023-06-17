@@ -14,7 +14,7 @@ pub async fn test_init_staking(
 ) -> std::result::Result<(Pubkey, u8), BanksClientError> {
     // ==== GIVEN =============================================================
     let (staking_pda, staking_bump) = pda::get_staking_pda(&owner.pubkey());
-    let (staking_thread_authority_pda, _) = pda::get_staking_thread_authority(&owner.pubkey());
+    let staking_thread_authority_pda = pda::get_staking_thread_authority(&owner.pubkey()).0;
 
     // ==== WHEN ==============================================================
 

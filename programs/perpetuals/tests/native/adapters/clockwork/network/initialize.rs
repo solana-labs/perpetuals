@@ -12,9 +12,9 @@ pub async fn initialize(
     payer: &Keypair,
     mint: &Pubkey,
 ) -> std::result::Result<(), BanksClientError> {
-    let (config_pda, _) = pda::get_clockwork_network_config_pda();
-    let (registry_pda, _) = pda::get_clockwork_network_registry_pda();
-    let (snapshot_pda, _) = pda::get_clockwork_network_snapshot_pda();
+    let config_pda = pda::get_clockwork_network_config_pda().0;
+    let registry_pda = pda::get_clockwork_network_registry_pda().0;
+    let snapshot_pda = pda::get_clockwork_network_snapshot_pda().0;
 
     let ix = Instruction {
         program_id: clockwork_network_program::ID,

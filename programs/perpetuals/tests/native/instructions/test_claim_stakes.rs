@@ -14,7 +14,7 @@ pub async fn test_claim_stakes(
 ) -> std::result::Result<(), BanksClientError> {
     // ==== GIVEN =============================================================
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
-    let (staking_pda, _) = pda::get_staking_pda(&owner.pubkey());
+    let staking_pda = pda::get_staking_pda(&owner.pubkey()).0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
     let stake_reward_token_account_pda = pda::get_stake_reward_token_account_pda().0;

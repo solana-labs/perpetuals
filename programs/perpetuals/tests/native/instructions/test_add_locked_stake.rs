@@ -21,7 +21,7 @@ pub async fn test_add_locked_stake(
 ) -> std::result::Result<(), BanksClientError> {
     // ==== GIVEN =============================================================
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
-    let (staking_pda, _) = pda::get_staking_pda(&owner.pubkey());
+    let staking_pda = pda::get_staking_pda(&owner.pubkey()).0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
     let stake_token_account_pda = pda::get_stake_token_account_pda().0;
@@ -48,7 +48,7 @@ pub async fn test_add_locked_stake(
             &owner.pubkey(),
         );
 
-    let (staking_thread_authority_pda, _) = pda::get_staking_thread_authority(&owner.pubkey());
+    let staking_thread_authority_pda = pda::get_staking_thread_authority(&owner.pubkey()).0;
     let thread_address = pda::get_thread_address(
         &staking_thread_authority_pda,
         params.thread_id.try_to_vec().unwrap(),

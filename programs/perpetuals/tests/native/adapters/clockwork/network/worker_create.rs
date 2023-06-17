@@ -14,16 +14,16 @@ pub async fn worker_create(
     payer: &Keypair,
     mint: &Pubkey,
 ) -> std::result::Result<(), BanksClientError> {
-    let (config_pda, _) = pda::get_clockwork_network_config_pda();
-    let (registry_pda, _) = pda::get_clockwork_network_registry_pda();
+    let config_pda = pda::get_clockwork_network_config_pda().0;
+    let registry_pda = pda::get_clockwork_network_registry_pda().0;
 
     let registry = utils::get_account::<Registry>(program_test_ctx, registry_pda).await;
 
-    let (worker_pda, _) = pda::get_clockwork_network_worker_pda(registry.total_workers);
+    let worker_pda = pda::get_clockwork_network_worker_pda(registry.total_workers).0;
 
-    let (fee_pda, _) = pda::get_clockwork_network_fee_pda(&worker_pda);
-    let (penalty_pda, _) = pda::get_clockwork_network_penalty_pda(&worker_pda);
-    let (worker_tokens_ata, _) = utils::find_associated_token_account(&worker_pda, mint);
+    let fee_pda = pda::get_clockwork_network_fee_pda(&worker_pda).0;
+    let penalty_pda = pda::get_clockwork_network_penalty_pda(&worker_pda).0;
+    let worker_tokens_ata = utils::find_associated_token_account(&worker_pda, mint).0;
 
     let ix = Instruction {
         program_id: clockwork_network_program::ID,

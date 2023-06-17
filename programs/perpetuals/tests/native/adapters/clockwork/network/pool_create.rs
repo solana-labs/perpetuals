@@ -11,8 +11,8 @@ pub async fn pool_create(
     admin: &Keypair,
     payer: &Keypair,
 ) -> std::result::Result<(), BanksClientError> {
-    let (config_pda, _) = pda::get_clockwork_network_config_pda();
-    let (registry_pda, _) = pda::get_clockwork_network_registry_pda();
+    let config_pda = pda::get_clockwork_network_config_pda().0;
+    let registry_pda = pda::get_clockwork_network_registry_pda().0;
     let pool_pda = clockwork_network_program::state::Pool::pubkey(0);
 
     let ix = Instruction {

@@ -90,9 +90,7 @@ pub struct TestSetup {
 impl TestSetup {
     // Only use one worker in the tests
     pub fn get_clockwork_worker(&self) -> Pubkey {
-        let (worker_pda, _) = pda::get_clockwork_network_worker_pda(0);
-
-        worker_pda
+        pda::get_clockwork_network_worker_pda(0).0
     }
 
     pub fn get_user_keypair_by_name(&self, name: &str) -> &Keypair {
@@ -333,7 +331,7 @@ impl TestSetup {
                     let mint = mints.get(&mint_name.to_string()).unwrap().pubkey;
                     let user = users.get(&user_param.name.to_string()).unwrap().pubkey();
 
-                    let (ata, _) = utils::find_associated_token_account(&user, &mint);
+                    let ata = utils::find_associated_token_account(&user, &mint).0;
 
                     utils::mint_tokens(
                         &mut program_test_ctx.borrow_mut(),

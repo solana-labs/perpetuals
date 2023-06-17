@@ -40,14 +40,14 @@ pub async fn execute_resolve_locked_stakes_thread(
             &owner.pubkey(),
         );
 
-    let (thread_authority, _) = pda::get_staking_thread_authority(&owner.pubkey());
+    let thread_authority = pda::get_staking_thread_authority(&owner.pubkey()).0;
 
     let staking_account = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
 
     let thread_id = staking_account.locked_stakes[locked_stake_index].thread_id;
 
-    let (thread_pda, _) =
-        pda::get_clockwork_thread_pda(&thread_authority, thread_id.try_to_vec().unwrap());
+    let thread_pda =
+        pda::get_clockwork_thread_pda(&thread_authority, thread_id.try_to_vec().unwrap()).0;
 
     adapters::clockwork::thread::thread_kickoff(
         program_test_ctx,
