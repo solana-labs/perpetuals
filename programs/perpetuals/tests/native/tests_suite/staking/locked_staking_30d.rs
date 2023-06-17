@@ -3,14 +3,17 @@ use {
         adapters, instructions,
         utils::{self, pda},
     },
-    anchor_lang::ToAccountMetas,
+    anchor_lang::{AnchorSerialize, ToAccountMetas},
     maplit::hashmap,
     perpetuals::{
         adapters::spl_governance_program_adapter,
         instructions::{
             AddLiquidityParams, AddLockedStakeParams, AddVestParams, RemoveStakeParams,
         },
-        state::cortex::{Cortex, StakingRound},
+        state::{
+            cortex::{Cortex, StakingRound},
+            staking::Staking,
+        },
     },
     solana_program::instruction::AccountMeta,
     solana_sdk::signer::Signer,
@@ -159,6 +162,10 @@ pub async fn locked_staking_30d() {
 
         utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
+        let thread_id =
+            utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
+                as u64;
+
         instructions::test_add_locked_stake(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
@@ -166,6 +173,7 @@ pub async fn locked_staking_30d() {
             AddLockedStakeParams {
                 amount: utils::scale(1, Cortex::LM_DECIMALS),
                 locked_days: 30,
+                thread_id,
             },
             &cortex_stake_reward_mint,
             &test_setup.governance_realm_pda,
@@ -359,6 +367,18 @@ pub async fn locked_staking_30d() {
     // Trigger clockwork thread execution manually
     {
         let (thread_authority, _) = pda::get_staking_thread_authority(&alice.pubkey());
+        let staking_pda = pda::get_staking_pda(&alice.pubkey()).0;
+
+        let staking_account = utils::get_account::<Staking>(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            staking_pda,
+        )
+        .await;
+
+        let thread_id = staking_account.locked_stakes[0]
+            .thread_id
+            .try_to_vec()
+            .unwrap();
 
         adapters::clockwork::thread::thread_kickoff(
             &mut test_setup.program_test_ctx.borrow_mut(),
@@ -366,14 +386,13 @@ pub async fn locked_staking_30d() {
             &test_setup.payer_keypair,
             &test_setup.clockwork_signatory,
             &thread_authority,
-            vec![0],
+            thread_id.clone(),
         )
         .await
         .unwrap();
 
         {
             let transfer_authority_pda = pda::get_transfer_authority_pda().0;
-            let staking_pda = pda::get_staking_pda(&alice.pubkey()).0;
             let perpetuals_pda = pda::get_perpetuals_pda().0;
             let cortex_pda = pda::get_cortex_pda().0;
             let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
@@ -395,7 +414,8 @@ pub async fn locked_staking_30d() {
                     &alice.pubkey(),
                 );
 
-            let (thread_pda, _) = pda::get_clockwork_thread_pda(&thread_authority, vec![0]);
+            let (thread_pda, _) =
+                pda::get_clockwork_thread_pda(&thread_authority, thread_id.clone());
 
             let remaining_accounts = perpetuals::accounts::ResolveLockedStakes {
                 caller: thread_pda,
@@ -431,7 +451,7 @@ pub async fn locked_staking_30d() {
                 &test_setup.payer_keypair,
                 &test_setup.clockwork_signatory,
                 &thread_authority,
-                vec![0],
+                thread_id.clone(),
                 remaining_accounts,
                 vec![],
             )

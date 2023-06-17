@@ -1,6 +1,6 @@
 use {
     crate::utils::{self, pda},
-    anchor_lang::{prelude::Pubkey, ToAccountMetas},
+    anchor_lang::{prelude::Pubkey, AnchorSerialize, ToAccountMetas},
     perpetuals::{
         adapters::spl_governance_program_adapter,
         instructions::AddLockedStakeParams,
@@ -49,7 +49,10 @@ pub async fn test_add_locked_stake(
         );
 
     let (staking_thread_authority_pda, _) = pda::get_staking_thread_authority(&owner.pubkey());
-    let thread_address = pda::get_thread_address(&staking_thread_authority_pda, vec![0]);
+    let thread_address = pda::get_thread_address(
+        &staking_thread_authority_pda,
+        params.thread_id.try_to_vec().unwrap(),
+    );
 
     // // ==== WHEN ==============================================================
     // save account state before tx execution
@@ -90,6 +93,7 @@ pub async fn test_add_locked_stake(
         .to_account_metas(None),
         perpetuals::instruction::AddLockedStake {
             params: AddLockedStakeParams {
+                thread_id: params.thread_id,
                 amount: params.amount,
                 locked_days: params.locked_days,
             },

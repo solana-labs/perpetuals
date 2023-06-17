@@ -74,6 +74,8 @@ pub struct LockedStake {
     // locked stake needs to be resolved before removing it
     // doesn't apply to liquid stake (lock_duration == 0)
     pub resolved: bool,
+
+    pub thread_id: u64,
 }
 
 impl LiquidStake {

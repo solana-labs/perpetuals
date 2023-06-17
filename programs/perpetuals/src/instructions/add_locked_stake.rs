@@ -136,6 +136,8 @@ pub struct AddLockedStake<'info> {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub struct AddLockedStakeParams {
+    pub thread_id: u64,
+
     pub amount: u64,
 
     // Amount of days to be locked for
@@ -181,6 +183,7 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
             amount_with_multiplier: stake_amount_with_multiplier,
 
             resolved: false,
+            thread_id: params.thread_id,
         });
 
         // Adapt the size of the staking account
@@ -212,7 +215,7 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
                 // Lamports paid to the clockwork worker executing the thread
                 // 10x SOL transaction fee
                 50_000,
-                vec![0],
+                params.thread_id.try_to_vec().unwrap(),
                 //
                 // Instruction to be executed with the thread
                 vec![Instruction {
