@@ -4,11 +4,12 @@ use {
         utils::{self, pda},
     },
     anchor_lang::ToAccountMetas,
-    clockwork_thread_program::state::Thread,
     maplit::hashmap,
     perpetuals::{
         adapters::spl_governance_program_adapter,
-        instructions::{AddLiquidityParams, AddStakeParams, AddVestParams, RemoveStakeParams},
+        instructions::{
+            AddLiquidityParams, AddLockedStakeParams, AddVestParams, RemoveStakeParams,
+        },
         state::cortex::{Cortex, StakingRound},
     },
     solana_program::instruction::AccountMeta,
@@ -158,11 +159,11 @@ pub async fn locked_staking_30d() {
 
         utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
-        instructions::test_add_stake(
+        instructions::test_add_locked_stake(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,
-            AddStakeParams {
+            AddLockedStakeParams {
                 amount: utils::scale(1, Cortex::LM_DECIMALS),
                 locked_days: 30,
             },

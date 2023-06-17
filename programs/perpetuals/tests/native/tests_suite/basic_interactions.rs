@@ -3,7 +3,7 @@ use {
     maplit::hashmap,
     perpetuals::{
         instructions::{
-            AddStakeParams, AddVestParams, ClosePositionParams, OpenPositionParams,
+            AddLiquidStakeParams, AddVestParams, ClosePositionParams, OpenPositionParams,
             RemoveLiquidityParams, RemoveStakeParams, SwapParams,
         },
         state::{
@@ -256,13 +256,12 @@ pub async fn basic_interactions() {
         .unwrap();
 
         // Alice: add liquid stake
-        instructions::test_add_stake(
+        instructions::test_add_liquid_stake(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,
-            AddStakeParams {
+            AddLiquidStakeParams {
                 amount: utils::scale(1, Cortex::LM_DECIMALS),
-                locked_days: 0,
             },
             &cortex_stake_reward_mint,
             &test_setup.governance_realm_pda,

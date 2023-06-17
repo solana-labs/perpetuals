@@ -19,8 +19,9 @@ pub mod test_init;
 
 // public instructions
 pub mod add_collateral;
+pub mod add_liquid_stake;
 pub mod add_liquidity;
-pub mod add_stake;
+pub mod add_locked_stake;
 pub mod claim_stakes;
 pub mod claim_vest;
 pub mod close_position;
@@ -47,14 +48,15 @@ pub mod swap;
 
 // bring everything in scope
 pub use {
-    add_collateral::*, add_custody::*, add_liquidity::*, add_pool::*, add_stake::*, add_vest::*,
-    claim_stakes::*, claim_vest::*, close_position::*, get_add_liquidity_amount_and_fee::*,
-    get_assets_under_management::*, get_entry_price_and_fee::*, get_exit_price_and_fee::*,
-    get_liquidation_price::*, get_liquidation_state::*, get_lp_token_price::*, get_oracle_price::*,
-    get_pnl::*, get_remove_liquidity_amount_and_fee::*, get_swap_amount_and_fees::*, init::*,
-    init_staking::*, liquidate::*, open_position::*, remove_collateral::*, remove_custody::*,
-    remove_liquidity::*, remove_pool::*, remove_stake::*, resolve_locked_stakes::*,
-    resolve_staking_round::*, set_admin_signers::*, set_custody_config::*,
-    set_custom_oracle_price::*, set_permissions::*, set_test_time::*, swap::*, test_init::*,
-    upgrade_custody::*, withdraw_fees::*, withdraw_sol_fees::*,
+    add_collateral::*, add_custody::*, add_liquid_stake::*, add_liquidity::*, add_locked_stake::*,
+    add_pool::*, add_vest::*, claim_stakes::*, claim_vest::*, close_position::*,
+    get_add_liquidity_amount_and_fee::*, get_assets_under_management::*,
+    get_entry_price_and_fee::*, get_exit_price_and_fee::*, get_liquidation_price::*,
+    get_liquidation_state::*, get_lp_token_price::*, get_oracle_price::*, get_pnl::*,
+    get_remove_liquidity_amount_and_fee::*, get_swap_amount_and_fees::*, init::*, init_staking::*,
+    liquidate::*, open_position::*, remove_collateral::*, remove_custody::*, remove_liquidity::*,
+    remove_pool::*, remove_stake::*, resolve_locked_stakes::*, resolve_staking_round::*,
+    set_admin_signers::*, set_custody_config::*, set_custom_oracle_price::*, set_permissions::*,
+    set_test_time::*, swap::*, test_init::*, upgrade_custody::*, withdraw_fees::*,
+    withdraw_sol_fees::*,
 };

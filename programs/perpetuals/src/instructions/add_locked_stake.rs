@@ -1,4 +1,4 @@
-//! AddStake instruction handler
+//! AddLockedStake instruction handler
 
 use {
     crate::{
@@ -16,7 +16,7 @@ use {
 };
 
 #[derive(Accounts)]
-pub struct AddStake<'info> {
+pub struct AddLockedStake<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
 
@@ -135,14 +135,14 @@ pub struct AddStake<'info> {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
-pub struct AddStakeParams {
+pub struct AddLockedStakeParams {
     pub amount: u64,
 
     // Amount of days to be locked for
     pub locked_days: u32,
 }
 
-pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> {
+pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakeParams) -> Result<()> {
     let staking_option = {
         msg!("Validate inputs");
 
@@ -150,7 +150,9 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
             return Err(ProgramError::InvalidArgument.into());
         }
 
-        ctx.accounts.staking.get_staking_option(params.locked_days)
+        ctx.accounts
+            .staking
+            .get_locked_staking_option(params.locked_days)
     }?;
 
     let staking = ctx.accounts.staking.as_mut();
@@ -158,75 +160,7 @@ pub fn add_stake(ctx: Context<AddStake>, params: &AddStakeParams) -> Result<()> 
     let cortex = ctx.accounts.cortex.as_mut();
 
     // Add stake to Staking account
-    let stake_amount_with_multiplier = if staking_option.is_liquid() {
-        //
-        // Liquid staking
-        //
-
-        // If liquid staking is already ongoing
-        // @TODO, make user to not lose current round of reward when adding new tokens to liquid stake
-        if staking.liquid_stake.amount > 0 {
-            // Claim rewards
-            {
-                // recursive program call
-                let cpi_accounts = crate::cpi::accounts::ClaimStakes {
-                    caller: ctx.accounts.thread.to_account_info(),
-                    owner: ctx.accounts.owner.to_account_info(),
-                    caller_reward_token_account: ctx
-                        .accounts
-                        .owner_reward_token_account
-                        .to_account_info(),
-                    owner_reward_token_account: ctx
-                        .accounts
-                        .owner_reward_token_account
-                        .to_account_info(),
-                    stake_reward_token_account: ctx
-                        .accounts
-                        .stake_reward_token_account
-                        .to_account_info(),
-                    transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
-                    staking: staking.to_account_info(),
-                    cortex: cortex.to_account_info(),
-                    perpetuals: perpetuals.to_account_info(),
-                    stake_reward_token_mint: ctx.accounts.stake_reward_token_mint.to_account_info(),
-                    system_program: ctx.accounts.system_program.to_account_info(),
-                    token_program: ctx.accounts.token_program.to_account_info(),
-                };
-
-                let cpi_program = ctx.accounts.perpetuals_program.to_account_info();
-                crate::cpi::claim_stakes(CpiContext::new(cpi_program, cpi_accounts))?
-            }
-
-            // Drop rewards for current round, start accruing reward at next round
-            cortex.current_staking_round.total_stake = math::checked_sub(
-                cortex.current_staking_round.total_stake,
-                staking.liquid_stake.amount_with_multiplier,
-            )?;
-        }
-
-        staking.liquid_stake.amount =
-            math::checked_add(staking.liquid_stake.amount, params.amount)?;
-
-        let stake_amount_with_multiplier = math::checked_as_u64(math::checked_div(
-            math::checked_mul(
-                staking.liquid_stake.amount,
-                staking_option.base_reward_multiplier as u64,
-            )? as u128,
-            Perpetuals::BPS_POWER,
-        )?)?;
-
-        staking.liquid_stake.stake_time = perpetuals.get_time()?;
-        staking.liquid_stake.base_reward_multiplier = staking_option.base_reward_multiplier;
-        staking.liquid_stake.lm_token_reward_multiplier = staking_option.lm_token_reward_multiplier;
-        staking.liquid_stake.vote_multiplier = staking_option.vote_multiplier;
-        staking.liquid_stake.amount_with_multiplier = stake_amount_with_multiplier;
-
-        stake_amount_with_multiplier
-    } else {
-        //
-        // Locked staking
-        //
-
+    let stake_amount_with_multiplier = {
         let stake_amount_with_multiplier = math::checked_as_u64(math::checked_div(
             math::checked_mul(params.amount, staking_option.base_reward_multiplier as u64)? as u128,
             Perpetuals::BPS_POWER,

@@ -197,10 +197,8 @@ pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Re
         // Revoke governing power allocated to the stake
         {
             let voting_power = math::checked_as_u64(math::checked_div(
-                math::checked_mul(
-                    token_amount_to_unstake,
-                    staking.liquid_stake.vote_multiplier as u64,
-                )? as u128,
+                math::checked_mul(token_amount_to_unstake, staking.liquid_stake.amount as u64)?
+                    as u128,
                 Perpetuals::BPS_POWER,
             )?)?;
 
@@ -228,10 +226,8 @@ pub fn remove_stake(ctx: Context<RemoveStake>, params: &RemoveStakeParams) -> Re
         // Apply delta to current and next round
         {
             let unstake_amount = math::checked_as_u64(math::checked_div(
-                math::checked_mul(
-                    token_amount_to_unstake,
-                    staking.liquid_stake.base_reward_multiplier as u64,
-                )? as u128,
+                math::checked_mul(token_amount_to_unstake, staking.liquid_stake.amount as u64)?
+                    as u128,
                 Perpetuals::BPS_POWER,
             )?)?;
 

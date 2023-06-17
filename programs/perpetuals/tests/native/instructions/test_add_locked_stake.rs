@@ -3,7 +3,7 @@ use {
     anchor_lang::{prelude::Pubkey, ToAccountMetas},
     perpetuals::{
         adapters::spl_governance_program_adapter,
-        instructions::AddStakeParams,
+        instructions::AddLockedStakeParams,
         math,
         state::{perpetuals::Perpetuals, staking::Staking},
     },
@@ -11,11 +11,11 @@ use {
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 
-pub async fn test_add_stake(
+pub async fn test_add_locked_stake(
     program_test_ctx: &mut ProgramTestContext,
     owner: &Keypair,
     payer: &Keypair,
-    params: AddStakeParams,
+    params: AddLockedStakeParams,
     stake_reward_token_mint: &Pubkey,
     governance_realm_pda: &Pubkey,
 ) -> std::result::Result<(), BanksClientError> {
@@ -62,7 +62,7 @@ pub async fn test_add_stake(
 
     utils::create_and_execute_perpetuals_ix(
         program_test_ctx,
-        perpetuals::accounts::AddStake {
+        perpetuals::accounts::AddLockedStake {
             owner: owner.pubkey(),
             funding_account: lm_token_account_address,
             owner_reward_token_account: stake_reward_token_account_address,
@@ -88,8 +88,8 @@ pub async fn test_add_stake(
             token_program: anchor_spl::token::ID,
         }
         .to_account_metas(None),
-        perpetuals::instruction::AddStake {
-            params: AddStakeParams {
+        perpetuals::instruction::AddLockedStake {
+            params: AddLockedStakeParams {
                 amount: params.amount,
                 locked_days: params.locked_days,
             },
@@ -111,18 +111,10 @@ pub async fn test_add_stake(
 
     // Check changes in staking account
     {
-        // liquid stake
-        if params.locked_days == 0 {
-            assert!(
-                staking_account_after.liquid_stake.amount
-                    > staking_account_before.liquid_stake.amount,
-            );
-        } else {
-            assert_eq!(
-                staking_account_after.locked_stakes.len(),
-                staking_account_before.locked_stakes.len() + 1
-            );
-        }
+        assert_eq!(
+            staking_account_after.locked_stakes.len(),
+            staking_account_before.locked_stakes.len() + 1
+        );
     }
 
     // Check staked token ATA balance
@@ -137,7 +129,7 @@ pub async fn test_add_stake(
     {
         // Depending on the lock duration, vote multiplier will differ
         let staking_option = staking_account_after
-            .get_staking_option(params.locked_days)
+            .get_locked_staking_option(params.locked_days)
             .unwrap();
 
         let additional_voting_power = math::checked_as_u64(

@@ -248,8 +248,18 @@ pub mod perpetuals {
         instructions::init_staking(ctx)
     }
 
-    pub fn add_stake(ctx: Context<AddStake>, params: AddStakeParams) -> Result<()> {
-        instructions::add_stake(ctx, &params)
+    pub fn add_liquid_stake(
+        ctx: Context<AddLiquidStake>,
+        params: AddLiquidStakeParams,
+    ) -> Result<()> {
+        instructions::add_liquid_stake(ctx, &params)
+    }
+
+    pub fn add_locked_stake(
+        ctx: Context<AddLockedStake>,
+        params: AddLockedStakeParams,
+    ) -> Result<()> {
+        instructions::add_locked_stake(ctx, &params)
     }
 
     pub fn remove_stake(ctx: Context<RemoveStake>, params: RemoveStakeParams) -> Result<()> {

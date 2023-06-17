@@ -5,7 +5,7 @@ use {
     },
     maplit::hashmap,
     perpetuals::{
-        instructions::{AddLiquidityParams, AddStakeParams, AddVestParams},
+        instructions::{AddLiquidStakeParams, AddLiquidityParams, AddVestParams},
         state::cortex::{Cortex, StakingRound},
     },
 };
@@ -135,13 +135,12 @@ pub async fn resolved_round_overflow() {
     .unwrap();
 
     // Alice: add liquid staking
-    instructions::test_add_stake(
+    instructions::test_add_liquid_stake(
         &mut test_setup.program_test_ctx.borrow_mut(),
         alice,
         &test_setup.payer_keypair,
-        AddStakeParams {
+        AddLiquidStakeParams {
             amount: utils::scale(1, Cortex::LM_DECIMALS),
-            locked_days: 0,
         },
         &cortex_stake_reward_mint,
         &test_setup.governance_realm_pda,

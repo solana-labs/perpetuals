@@ -149,7 +149,7 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
                 // Stake is elligible for rewards
                 if staking.liquid_stake.qualifies_for_rewards_from(round) {
                     let liquid_rewards_token_amount = math::checked_decimal_mul(
-                        staking.liquid_stake.amount_with_multiplier,
+                        staking.liquid_stake.amount,
                         -stake_token_decimals,
                         round.rate,
                         -(Perpetuals::RATE_DECIMALS as i32),
@@ -168,7 +168,7 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
 
                     stake_amount_with_multiplier = math::checked_add(
                         stake_amount_with_multiplier,
-                        staking.liquid_stake.amount_with_multiplier,
+                        staking.liquid_stake.amount,
                     )
                     .unwrap();
                 } else {

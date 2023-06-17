@@ -49,15 +49,6 @@ pub struct LiquidStake {
 
     // Time used for claim purpose, to know wherever the stake is elligible for round reward
     pub claim_time: i64,
-
-    // In BPS
-    pub base_reward_multiplier: u32,
-    pub lm_token_reward_multiplier: u32,
-    pub vote_multiplier: u32,
-
-    // Persisted data to save-up computation during claim etc.
-    // amount with base reward multiplier applied to it
-    pub amount_with_multiplier: u64,
 }
 
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Debug)]
@@ -113,18 +104,14 @@ impl LockedStake {
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub struct StakingOption {
+pub struct LockedStakingOption {
     pub locked_days: u32,
     pub base_reward_multiplier: u32,
     pub lm_token_reward_multiplier: u32,
     pub vote_multiplier: u32,
 }
 
-impl StakingOption {
-    pub fn is_liquid(&self) -> bool {
-        self.locked_days == 0
-    }
-
+impl LockedStakingOption {
     pub fn calculate_end_of_staking(&self, start: i64) -> Result<i64> {
         math::checked_add(
             start,
@@ -133,47 +120,39 @@ impl StakingOption {
     }
 }
 
-// List of valid staking options and the related multipliers
-pub const STAKING_OPTIONS: [&'static StakingOption; 7] = [
-    // Liquid staking
-    &StakingOption {
-        locked_days: 0,
-        base_reward_multiplier: Perpetuals::BPS_POWER as u32,
-        lm_token_reward_multiplier: 0,
-        vote_multiplier: Perpetuals::BPS_POWER as u32,
-    },
-    // Locked stakings
-    &StakingOption {
+// List of valid locked staking options and the related multipliers
+pub const LOCKED_STAKING_OPTIONS: [&'static LockedStakingOption; 6] = [
+    &LockedStakingOption {
         locked_days: 30,
         base_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.25) as u32,
         lm_token_reward_multiplier: Perpetuals::BPS_POWER as u32,
         vote_multiplier: (Perpetuals::BPS_POWER as f64 * 1.21) as u32,
     },
-    &StakingOption {
+    &LockedStakingOption {
         locked_days: 60,
         base_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.56) as u32,
         lm_token_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.25) as u32,
         vote_multiplier: (Perpetuals::BPS_POWER as f64 * 1.33) as u32,
     },
-    &StakingOption {
+    &LockedStakingOption {
         locked_days: 90,
         base_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.95) as u32,
         lm_token_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.56) as u32,
         vote_multiplier: (Perpetuals::BPS_POWER as f64 * 1.46) as u32,
     },
-    &StakingOption {
+    &LockedStakingOption {
         locked_days: 180,
         base_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 2.44) as u32,
         lm_token_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.95) as u32,
         vote_multiplier: (Perpetuals::BPS_POWER as f64 * 1.61) as u32,
     },
-    &StakingOption {
+    &LockedStakingOption {
         locked_days: 360,
         base_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 3.05) as u32,
         lm_token_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 2.44) as u32,
         vote_multiplier: (Perpetuals::BPS_POWER as f64 * 1.78) as u32,
     },
-    &StakingOption {
+    &LockedStakingOption {
         locked_days: 720,
         base_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 3.81) as u32,
         lm_token_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 3.05) as u32,
@@ -187,8 +166,8 @@ impl Staking {
     // The max age of a Staking account in the system, 20 days
     pub const MAX_AGE_SECONDS: i64 = 20 * HOURS_PER_DAY * SECONDS_PER_HOURS;
 
-    pub fn get_staking_option(&self, locked_days: u32) -> Result<StakingOption> {
-        let staking_option = STAKING_OPTIONS
+    pub fn get_locked_staking_option(&self, locked_days: u32) -> Result<LockedStakingOption> {
+        let staking_option = LOCKED_STAKING_OPTIONS
             .into_iter()
             .find(|period| period.locked_days == locked_days);
 
@@ -213,50 +192,3 @@ impl Staking {
         )?)
     }
 }
-
-/*
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    fn get_fixture_stake(stake_time: i64) -> Stake {
-        Stake {
-            amount: 0,
-            bump: 255,
-            stake_time,
-        }
-    }
-
-    #[test]
-    fn test_get_claim_stake_caller_reward_token_amounts() {
-        let reward_token_amount = 100; // native units
-
-        // out of the bounty period
-        let time = 69_420;
-        let stake = get_fixture_stake(time);
-        let current_time = time + 0;
-        let bounty_amount = stake
-            .get_claim_stake_caller_reward_token_amounts(reward_token_amount, current_time)
-            .unwrap();
-        assert_eq!(bounty_amount, 0);
-
-        // in of the bounty period phase one
-        let time = 69_420;
-        let stake = get_fixture_stake(time);
-        let current_time = time + 28_386_000; //90% of a year
-        let bounty_amount_phase_one = stake
-            .get_claim_stake_caller_reward_token_amounts(reward_token_amount, current_time)
-            .unwrap();
-        assert_ne!(bounty_amount_phase_one, 0);
-
-        // in of the bounty period phase two
-        let time = 69_420;
-        let stake = get_fixture_stake(time);
-        let current_time = time + 29_979_079; // 95% of a year
-        let bounty_amount_phase_two = stake
-            .get_claim_stake_caller_reward_token_amounts(reward_token_amount, current_time)
-            .unwrap();
-        assert!(bounty_amount_phase_one < bounty_amount_phase_two);
-    }
-}
-*/
