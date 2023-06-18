@@ -1,6 +1,6 @@
 use {
     crate::utils::{self, pda},
-    anchor_lang::{prelude::Pubkey, ToAccountMetas},
+    anchor_lang::{prelude::Pubkey, AnchorSerialize, ToAccountMetas},
     perpetuals::{
         adapters::spl_governance_program_adapter, instructions::RemoveLiquidStakeParams,
         state::staking::Staking,
@@ -46,12 +46,22 @@ pub async fn test_remove_liquid_stake(
             &owner.pubkey(),
         );
 
+    let staking_thread_authority_pda = pda::get_staking_thread_authority(&owner.pubkey()).0;
+
     // // ==== WHEN ==============================================================
     // save account state before tx execution
     let staking_account_before = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
 
     let owner_staked_token_account_before =
         utils::get_token_account_balance(program_test_ctx, lm_token_account_address).await;
+
+    let stakes_claim_cron_thread_address = pda::get_thread_address(
+        &staking_thread_authority_pda,
+        staking_account_before
+            .stakes_claim_cron_thread_id
+            .try_to_vec()
+            .unwrap(),
+    );
 
     utils::create_and_execute_perpetuals_ix(
         program_test_ctx,
@@ -71,6 +81,9 @@ pub async fn test_remove_liquid_stake(
             governance_realm_config: governance_realm_config_pda,
             governance_governing_token_holding: governance_governing_token_holding_pda,
             governance_governing_token_owner_record: governance_governing_token_owner_record_pda,
+            stakes_claim_cron_thread: stakes_claim_cron_thread_address,
+            staking_thread_authority: staking_thread_authority_pda,
+            clockwork_program: clockwork_sdk::ID,
             governance_program: spl_governance_program_adapter::ID,
             perpetuals_program: perpetuals::ID,
             system_program: anchor_lang::system_program::ID,

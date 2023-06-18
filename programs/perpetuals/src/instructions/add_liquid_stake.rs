@@ -4,7 +4,11 @@ use {
     crate::{
         adapters::SplGovernanceV3Adapter,
         math, program,
-        state::{cortex::Cortex, perpetuals::Perpetuals, staking::Staking},
+        state::{
+            cortex::Cortex,
+            perpetuals::Perpetuals,
+            staking::{Staking, STAKING_THREAD_AUTHORITY_SEED},
+        },
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
@@ -112,6 +116,18 @@ pub struct AddLiquidStake<'info> {
     #[account(mut)]
     pub governance_governing_token_owner_record: UncheckedAccount<'info>,
 
+    /// CHECK: checked by clockwork thread program
+    #[account(mut)]
+    pub stakes_claim_cron_thread: Box<Account<'info, clockwork_sdk::state::Thread>>,
+
+    /// CHECK: empty PDA, authority for threads
+    #[account(
+        seeds = [STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
+        bump = staking.thread_authority_bump
+    )]
+    pub staking_thread_authority: AccountInfo<'info>,
+
+    clockwork_program: Program<'info, clockwork_sdk::ThreadProgram>,
     governance_program: Program<'info, SplGovernanceV3Adapter>,
     perpetuals_program: Program<'info, program::Perpetuals>,
     system_program: Program<'info, System>,
@@ -147,10 +163,6 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
                 let cpi_accounts = crate::cpi::accounts::ClaimStakes {
                     caller: ctx.accounts.owner.to_account_info(),
                     owner: ctx.accounts.owner.to_account_info(),
-                    caller_reward_token_account: ctx
-                        .accounts
-                        .owner_reward_token_account
-                        .to_account_info(),
                     owner_reward_token_account: ctx
                         .accounts
                         .owner_reward_token_account
@@ -224,6 +236,24 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
         // apply delta to next round taking into account real yield multiplier
         cortex.next_staking_round.total_stake =
             math::checked_add(cortex.next_staking_round.total_stake, params.amount)?;
+    }
+
+    // If auto claim thread is paused, resume it
+    {
+        if ctx.accounts.stakes_claim_cron_thread.paused {
+            clockwork_sdk::cpi::thread_resume(CpiContext::new_with_signer(
+                ctx.accounts.clockwork_program.to_account_info(),
+                clockwork_sdk::cpi::ThreadResume {
+                    authority: ctx.accounts.staking_thread_authority.to_account_info(),
+                    thread: ctx.accounts.stakes_claim_cron_thread.to_account_info(),
+                },
+                &[&[
+                    STAKING_THREAD_AUTHORITY_SEED,
+                    ctx.accounts.owner.key().as_ref(),
+                    &[ctx.accounts.staking.thread_authority_bump],
+                ]],
+            ))?;
+        }
     }
 
     Ok(())

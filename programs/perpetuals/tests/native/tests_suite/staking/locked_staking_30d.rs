@@ -143,10 +143,18 @@ pub async fn locked_staking_30d() {
 
     // Alice: start 30d locked staking
     {
+        let stakes_claim_cron_thread_id =
+            utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
+                as u64;
+
         instructions::test_init_staking(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,
+            &cortex_stake_reward_mint,
+            perpetuals::instructions::InitStakingParams {
+                stakes_claim_cron_thread_id,
+            },
         )
         .await
         .unwrap();

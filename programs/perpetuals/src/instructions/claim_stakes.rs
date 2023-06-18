@@ -13,22 +13,12 @@ use {
 
 #[derive(Accounts)]
 pub struct ClaimStakes<'info> {
-    // TODO:
-    // Caller should be either the program iself, or the owner, cannot be third party
     #[account(mut)]
     pub caller: Signer<'info>,
 
     /// CHECK: verified through the `stake` account seed derivation
     #[account(mut)]
     pub owner: AccountInfo<'info>,
-
-    // reward token account for the caller if elligible
-    #[account(
-            mut,
-            token::mint = stake_reward_token_mint,
-            constraint = caller_reward_token_account.owner == caller.key()
-        )]
-    pub caller_reward_token_account: Box<Account<'info, TokenAccount>>,
 
     // reward token account of the stake owner
     #[account(
@@ -221,33 +211,13 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
 
         let perpetuals = ctx.accounts.perpetuals.as_mut();
 
-        let (owner_rewards_token_amount, caller_reward_token_amount) = {
-            if !ctx.accounts.caller.key().eq(&ctx.accounts.owner.key()) {
-                //
-                // TODO: Apply fees to rewards because the claimor is the program
-                //
-            }
-
-            (rewards_token_amount, 0)
-        };
-
         perpetuals.transfer_tokens(
             ctx.accounts.stake_reward_token_account.to_account_info(),
             ctx.accounts.owner_reward_token_account.to_account_info(),
             ctx.accounts.transfer_authority.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
-            owner_rewards_token_amount,
+            rewards_token_amount,
         )?;
-
-        if !caller_reward_token_amount.is_zero() {
-            perpetuals.transfer_tokens(
-                ctx.accounts.stake_reward_token_account.to_account_info(),
-                ctx.accounts.caller_reward_token_account.to_account_info(),
-                ctx.accounts.transfer_authority.to_account_info(),
-                ctx.accounts.token_program.to_account_info(),
-                caller_reward_token_amount,
-            )?;
-        }
     }
 
     // Update stakes claim time

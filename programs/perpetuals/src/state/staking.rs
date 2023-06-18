@@ -38,6 +38,8 @@ pub struct Staking {
     pub bump: u8,
     pub thread_authority_bump: u8,
 
+    pub stakes_claim_cron_thread_id: u64,
+
     pub liquid_stake: LiquidStake,
     pub locked_stakes: Vec<LockedStake>,
 }
@@ -167,6 +169,15 @@ impl Staking {
 
     // The max age of a Staking account in the system, 20 days
     pub const MAX_AGE_SECONDS: i64 = 20 * HOURS_PER_DAY * SECONDS_PER_HOURS;
+
+    // Run cron every 18 days, leaving 3 days of buffering in case cron doesn't execute as it should have
+    pub const AUTO_CLAIM_CRON_DAYS_PERIODICITY: u8 = 18;
+
+    // Cover ~10 years of auto-claim fees (210 calls * 18 days between calls = 3780 days covered ~= 10.3448275862 years)
+    pub const AUTO_CLAIM_FEE_COVERED_CALLS: u64 = 210;
+
+    // Fee paid for the execution of one automated action using clockwork
+    pub const AUTOMATION_EXEC_FEE: u64 = 1_000;
 
     pub fn get_locked_staking_option(&self, locked_days: u32) -> Result<LockedStakingOption> {
         let staking_option = LOCKED_STAKING_OPTIONS

@@ -63,6 +63,14 @@ pub async fn test_add_locked_stake(
     let funding_account_before =
         utils::get_token_account_balance(program_test_ctx, lm_token_account_address).await;
 
+    let stakes_claim_cron_thread_address = pda::get_thread_address(
+        &staking_thread_authority_pda,
+        staking_account_before
+            .stakes_claim_cron_thread_id
+            .try_to_vec()
+            .unwrap(),
+    );
+
     utils::create_and_execute_perpetuals_ix(
         program_test_ctx,
         perpetuals::accounts::AddLockedStake {
@@ -83,6 +91,7 @@ pub async fn test_add_locked_stake(
             governance_governing_token_holding: governance_governing_token_holding_pda,
             governance_governing_token_owner_record: governance_governing_token_owner_record_pda,
             stake_resolution_thread: locked_stake_resolution_thread_address,
+            stakes_claim_cron_thread: stakes_claim_cron_thread_address,
             staking_thread_authority: staking_thread_authority_pda,
             clockwork_program: clockwork_sdk::ID,
             governance_program: spl_governance_program_adapter::ID,

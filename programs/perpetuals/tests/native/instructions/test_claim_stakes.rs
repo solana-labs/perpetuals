@@ -21,8 +21,6 @@ pub async fn test_claim_stakes(
 
     let owner_stake_reward_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), &stake_reward_token_mint).0;
-    let caller_stake_reward_token_account_address =
-        utils::find_associated_token_account(&caller.pubkey(), &stake_reward_token_mint).0;
 
     // ==== WHEN ==============================================================
 
@@ -31,7 +29,6 @@ pub async fn test_claim_stakes(
         perpetuals::accounts::ClaimStakes {
             caller: caller.pubkey(),
             owner: owner.pubkey(),
-            caller_reward_token_account: caller_stake_reward_token_account_address,
             owner_reward_token_account: owner_stake_reward_token_account_address,
             stake_reward_token_account: stake_reward_token_account_pda,
             transfer_authority: transfer_authority_pda,

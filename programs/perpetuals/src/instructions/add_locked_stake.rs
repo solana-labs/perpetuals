@@ -121,6 +121,10 @@ pub struct AddLockedStake<'info> {
     #[account(mut)]
     pub stake_resolution_thread: UncheckedAccount<'info>,
 
+    /// CHECK: checked by clockwork thread program
+    #[account(mut)]
+    pub stakes_claim_cron_thread: Box<Account<'info, clockwork_sdk::state::Thread>>,
+
     /// CHECK: empty PDA, authority for threads
     #[account(
         seeds = [STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
@@ -214,8 +218,11 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
                     ]],
                 ),
                 // Lamports paid to the clockwork worker executing the thread
-                // 10x SOL transaction fee
-                50_000,
+                math::checked_add(
+                    Staking::AUTOMATION_EXEC_FEE,
+                    // Provide enough for the thread account to be rent exempt
+                    Rent::get()?.minimum_balance(ctx.accounts.stake_resolution_thread.data_len()),
+                )?,
                 params.stake_resolution_thread_id.try_to_vec().unwrap(),
                 //
                 // Instruction to be executed with the thread
@@ -315,6 +322,24 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
             cortex.next_staking_round.total_stake,
             stake_amount_with_multiplier,
         )?;
+    }
+
+    // If auto claim thread is paused, resume it
+    {
+        if ctx.accounts.stakes_claim_cron_thread.paused {
+            clockwork_sdk::cpi::thread_resume(CpiContext::new_with_signer(
+                ctx.accounts.clockwork_program.to_account_info(),
+                clockwork_sdk::cpi::ThreadResume {
+                    authority: ctx.accounts.staking_thread_authority.to_account_info(),
+                    thread: ctx.accounts.stakes_claim_cron_thread.to_account_info(),
+                },
+                &[&[
+                    STAKING_THREAD_AUTHORITY_SEED,
+                    ctx.accounts.owner.key().as_ref(),
+                    &[ctx.accounts.staking.thread_authority_bump],
+                ]],
+            ))?;
+        }
     }
 
     Ok(())
