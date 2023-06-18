@@ -75,7 +75,7 @@ pub struct LockedStake {
     // doesn't apply to liquid stake (lock_duration == 0)
     pub resolved: bool,
 
-    pub thread_id: u64,
+    pub stake_resolution_thread_id: u64,
 }
 
 impl LiquidStake {

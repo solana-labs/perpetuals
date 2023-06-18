@@ -153,7 +153,7 @@ pub async fn locked_staking_30d() {
 
         utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
-        let thread_id =
+        let stake_resolution_thread_id =
             utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
                 as u64;
 
@@ -164,7 +164,7 @@ pub async fn locked_staking_30d() {
             AddLockedStakeParams {
                 amount: utils::scale(1, Cortex::LM_DECIMALS),
                 locked_days: 30,
-                thread_id,
+                stake_resolution_thread_id,
             },
             &cortex_stake_reward_mint,
             &test_setup.governance_realm_pda,

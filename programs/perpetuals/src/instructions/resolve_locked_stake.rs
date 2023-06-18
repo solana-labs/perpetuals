@@ -107,7 +107,7 @@ pub fn resolve_locked_stake(
     let locked_stake = staking
         .locked_stakes
         .iter_mut()
-        .find(|stake| stake.thread_id == params.thread_id)
+        .find(|stake| stake.stake_resolution_thread_id == params.thread_id)
         .ok_or(PerpetualsError::CannotFoundStake)?;
 
     // Checks

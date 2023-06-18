@@ -44,10 +44,14 @@ pub async fn execute_resolve_locked_stake_thread(
 
     let staking_account = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
 
-    let thread_id = staking_account.locked_stakes[locked_stake_index].thread_id;
+    let stake_resolution_thread_id =
+        staking_account.locked_stakes[locked_stake_index].stake_resolution_thread_id;
 
-    let thread_pda =
-        pda::get_clockwork_thread_pda(&thread_authority, thread_id.try_to_vec().unwrap()).0;
+    let stake_resolution_thread_pda = pda::get_clockwork_thread_pda(
+        &thread_authority,
+        stake_resolution_thread_id.try_to_vec().unwrap(),
+    )
+    .0;
 
     adapters::clockwork::thread::thread_kickoff(
         program_test_ctx,
@@ -55,13 +59,13 @@ pub async fn execute_resolve_locked_stake_thread(
         &payer,
         clockwork_signatory,
         &thread_authority,
-        thread_id.try_to_vec().unwrap(),
+        stake_resolution_thread_id.try_to_vec().unwrap(),
     )
     .await
     .unwrap();
 
     let remaining_accounts = perpetuals::accounts::ResolveLockedStake {
-        caller: thread_pda,
+        caller: stake_resolution_thread_pda,
         owner: owner.pubkey(),
         transfer_authority: transfer_authority_pda,
         staking: staking_pda,
@@ -93,16 +97,18 @@ pub async fn execute_resolve_locked_stake_thread(
         payer,
         clockwork_signatory,
         &thread_authority,
-        thread_id.try_to_vec().unwrap(),
+        stake_resolution_thread_id.try_to_vec().unwrap(),
         remaining_accounts,
         vec![],
     )
     .await
     .unwrap();
 
-    let thread =
-        utils::get_account::<clockwork_thread_program::state::Thread>(program_test_ctx, thread_pda)
-            .await;
+    let thread = utils::get_account::<clockwork_thread_program::state::Thread>(
+        program_test_ctx,
+        stake_resolution_thread_pda,
+    )
+    .await;
 
     println!(">>>>>>>>>>>>>>>>>> THREAD INFOS");
     println!(">>>>>>>>>>>>>>>>>> created_at: {:?}", thread.created_at);

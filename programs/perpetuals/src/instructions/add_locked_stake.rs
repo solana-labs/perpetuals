@@ -119,7 +119,7 @@ pub struct AddLockedStake<'info> {
 
     /// CHECK: checked by clockwork thread program
     #[account(mut)]
-    pub thread: UncheckedAccount<'info>,
+    pub stake_resolution_thread: UncheckedAccount<'info>,
 
     /// CHECK: empty PDA, authority for threads
     #[account(
@@ -137,7 +137,7 @@ pub struct AddLockedStake<'info> {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub struct AddLockedStakeParams {
-    pub thread_id: u64,
+    pub stake_resolution_thread_id: u64,
 
     pub amount: u64,
 
@@ -184,7 +184,7 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
             amount_with_multiplier: stake_amount_with_multiplier,
 
             resolved: false,
-            thread_id: params.thread_id,
+            stake_resolution_thread_id: params.stake_resolution_thread_id,
         });
 
         // Adapt the size of the staking account
@@ -204,7 +204,7 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
                     clockwork_sdk::cpi::ThreadCreate {
                         payer: ctx.accounts.owner.to_account_info(),
                         system_program: ctx.accounts.system_program.to_account_info(),
-                        thread: ctx.accounts.thread.to_account_info(),
+                        thread: ctx.accounts.stake_resolution_thread.to_account_info(),
                         authority: ctx.accounts.staking_thread_authority.to_account_info(),
                     },
                     &[&[
@@ -216,13 +216,13 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
                 // Lamports paid to the clockwork worker executing the thread
                 // 10x SOL transaction fee
                 50_000,
-                params.thread_id.try_to_vec().unwrap(),
+                params.stake_resolution_thread_id.try_to_vec().unwrap(),
                 //
                 // Instruction to be executed with the thread
                 vec![Instruction {
                     program_id: crate::ID,
                     accounts: crate::cpi::accounts::ResolveLockedStake {
-                        caller: ctx.accounts.thread.to_account_info(),
+                        caller: ctx.accounts.stake_resolution_thread.to_account_info(),
                         owner: ctx.accounts.owner.to_account_info(),
                         transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
                         staking: ctx.accounts.staking.to_account_info(),
@@ -251,7 +251,7 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
                     .to_account_metas(Some(true)),
                     data: crate::instruction::ResolveLockedStake {
                         params: ResolveLockedStakeParams {
-                            thread_id: params.thread_id,
+                            thread_id: params.stake_resolution_thread_id,
                         },
                     }
                     .data(),

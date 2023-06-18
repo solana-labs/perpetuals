@@ -49,9 +49,9 @@ pub async fn test_add_locked_stake(
         );
 
     let staking_thread_authority_pda = pda::get_staking_thread_authority(&owner.pubkey()).0;
-    let thread_address = pda::get_thread_address(
+    let locked_stake_resolution_thread_address = pda::get_thread_address(
         &staking_thread_authority_pda,
-        params.thread_id.try_to_vec().unwrap(),
+        params.stake_resolution_thread_id.try_to_vec().unwrap(),
     );
 
     // // ==== WHEN ==============================================================
@@ -82,7 +82,7 @@ pub async fn test_add_locked_stake(
             governance_realm_config: governance_realm_config_pda,
             governance_governing_token_holding: governance_governing_token_holding_pda,
             governance_governing_token_owner_record: governance_governing_token_owner_record_pda,
-            thread: thread_address,
+            stake_resolution_thread: locked_stake_resolution_thread_address,
             staking_thread_authority: staking_thread_authority_pda,
             clockwork_program: clockwork_sdk::ID,
             governance_program: spl_governance_program_adapter::ID,
@@ -93,7 +93,7 @@ pub async fn test_add_locked_stake(
         .to_account_metas(None),
         perpetuals::instruction::AddLockedStake {
             params: AddLockedStakeParams {
-                thread_id: params.thread_id,
+                stake_resolution_thread_id: params.stake_resolution_thread_id,
                 amount: params.amount,
                 locked_days: params.locked_days,
             },
