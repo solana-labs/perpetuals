@@ -13,7 +13,7 @@ use {
 };
 
 #[allow(clippy::too_many_arguments)]
-pub async fn test_add_custody(
+pub async fn add_custody(
     program_test_ctx: &mut ProgramTestContext,
     admin: &Keypair,
     payer: &Keypair,

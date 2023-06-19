@@ -13,7 +13,7 @@ use {
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 
-pub async fn test_add_vest(
+pub async fn add_vest(
     program_test_ctx: &mut ProgramTestContext,
     // Admin must be a part of the multisig
     admin: &Keypair,

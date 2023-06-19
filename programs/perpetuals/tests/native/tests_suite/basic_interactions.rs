@@ -1,5 +1,5 @@
 use {
-    crate::{instructions, utils},
+    crate::{test_instructions, utils},
     maplit::hashmap,
     perpetuals::{
         instructions::{
@@ -114,7 +114,7 @@ pub async fn basic_interactions() {
     // Simple open/close position
     {
         // Martin: Open 0.1 ETH position
-        let position_pda = instructions::test_open_position(
+        let position_pda = test_instructions::open_position(
             &mut test_setup.program_test_ctx.borrow_mut(),
             martin,
             &test_setup.payer_keypair,
@@ -134,7 +134,7 @@ pub async fn basic_interactions() {
         .0;
 
         // Martin: Close the ETH position
-        instructions::test_close_position(
+        test_instructions::close_position(
             &mut test_setup.program_test_ctx.borrow_mut(),
             martin,
             &test_setup.payer_keypair,
@@ -154,7 +154,7 @@ pub async fn basic_interactions() {
     // Simple swap
     {
         // Paul: Swap 150 USDC for ETH
-        instructions::test_swap(
+        test_instructions::swap(
             &mut test_setup.program_test_ctx.borrow_mut(),
             paul,
             &test_setup.payer_keypair,
@@ -189,7 +189,7 @@ pub async fn basic_interactions() {
         .await;
 
         // Alice: Remove 100% of provided liquidity (1k USDC less fees)
-        instructions::test_remove_liquidity(
+        test_instructions::remove_liquidity(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,
@@ -211,7 +211,7 @@ pub async fn basic_interactions() {
             utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await;
 
         // Alice: vest 2 token, unlock period from now to in 7 days
-        instructions::test_add_vest(
+        test_instructions::add_vest(
             &mut test_setup.program_test_ctx.borrow_mut(),
             admin_a,
             &test_setup.payer_keypair,
@@ -235,7 +235,7 @@ pub async fn basic_interactions() {
         .await;
 
         // Alice: claim vest
-        instructions::test_claim_vest(
+        test_instructions::claim_vest(
             &mut test_setup.program_test_ctx.borrow_mut(),
             &test_setup.payer_keypair,
             alice,
@@ -251,7 +251,7 @@ pub async fn basic_interactions() {
             utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
                 as u64;
 
-        instructions::test_init_staking(
+        test_instructions::init_staking(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,
@@ -264,7 +264,7 @@ pub async fn basic_interactions() {
         .unwrap();
 
         // Alice: add liquid stake
-        instructions::test_add_liquid_stake(
+        test_instructions::add_liquid_stake(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,
@@ -278,7 +278,7 @@ pub async fn basic_interactions() {
         .unwrap();
 
         // Alice: claim stake (nothing to be claimed yet)
-        instructions::test_claim_stakes(
+        test_instructions::claim_stakes(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             alice,
@@ -289,7 +289,7 @@ pub async fn basic_interactions() {
         .unwrap();
 
         // Alice: remove liquid staking
-        instructions::test_remove_liquid_stake(
+        test_instructions::remove_liquid_stake(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,
@@ -309,7 +309,7 @@ pub async fn basic_interactions() {
         )
         .await;
 
-        instructions::test_resolve_staking_round(
+        test_instructions::resolve_staking_round(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             alice,

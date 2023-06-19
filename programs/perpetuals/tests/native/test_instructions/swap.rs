@@ -7,7 +7,7 @@ use {
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 
-pub async fn test_swap(
+pub async fn swap(
     program_test_ctx: &mut ProgramTestContext,
     owner: &Keypair,
     payer: &Keypair,

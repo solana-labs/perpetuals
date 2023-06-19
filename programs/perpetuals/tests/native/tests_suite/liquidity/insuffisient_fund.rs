@@ -1,5 +1,5 @@
 use {
-    crate::{instructions, utils},
+    crate::{test_instructions, utils},
     maplit::hashmap,
     perpetuals::instructions::{AddLiquidityParams, RemoveLiquidityParams},
     solana_sdk::signer::Signer,
@@ -82,7 +82,7 @@ pub async fn insuffisient_fund() {
     let eth_mint = &test_setup.get_mint_by_name("eth");
 
     // Trying to add more USDC than owned should fail
-    assert!(instructions::test_add_liquidity(
+    assert!(test_instructions::add_liquidity(
         &mut test_setup.program_test_ctx.borrow_mut(),
         alice,
         &test_setup.payer_keypair,
@@ -99,7 +99,7 @@ pub async fn insuffisient_fund() {
 
     // Alice: add 15k USDC and 10 ETH liquidity
     {
-        instructions::test_add_liquidity(
+        test_instructions::add_liquidity(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,
@@ -114,7 +114,7 @@ pub async fn insuffisient_fund() {
         .await
         .unwrap();
 
-        instructions::test_add_liquidity(
+        test_instructions::add_liquidity(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,
@@ -140,7 +140,7 @@ pub async fn insuffisient_fund() {
     .await;
 
     // Trying to remove more LP token than owned should fail
-    assert!(instructions::test_remove_liquidity(
+    assert!(test_instructions::remove_liquidity(
         &mut test_setup.program_test_ctx.borrow_mut(),
         alice,
         &test_setup.payer_keypair,
@@ -156,7 +156,7 @@ pub async fn insuffisient_fund() {
     .is_err());
 
     // Trying to remove more asset than owned by the pool should fail
-    assert!(instructions::test_remove_liquidity(
+    assert!(test_instructions::remove_liquidity(
         &mut test_setup.program_test_ctx.borrow_mut(),
         alice,
         &test_setup.payer_keypair,

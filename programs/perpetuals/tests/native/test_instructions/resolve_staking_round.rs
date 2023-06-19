@@ -5,7 +5,7 @@ use {
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 
-pub async fn test_resolve_staking_round(
+pub async fn resolve_staking_round(
     program_test_ctx: &mut ProgramTestContext,
     caller: &Keypair,
     _owner: &Keypair,

@@ -1,5 +1,5 @@
 use {
-    crate::{instructions, utils},
+    crate::{test_instructions, utils},
     maplit::hashmap,
     perpetuals::instructions::SetCustomOraclePriceParams,
 };
@@ -79,7 +79,7 @@ pub async fn lp_token_price() {
 
     // Check LP token price after pool setup
     assert_eq!(
-        instructions::test_get_lp_token_price(
+        test_instructions::get_lp_token_price(
             &mut test_setup.program_test_ctx.borrow_mut(),
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
@@ -101,7 +101,7 @@ pub async fn lp_token_price() {
                 utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut())
                     .await;
 
-            instructions::test_set_custom_oracle_price(
+            test_instructions::set_custom_oracle_price(
                 &mut test_setup.program_test_ctx.borrow_mut(),
                 admin_a,
                 &test_setup.payer_keypair,
@@ -121,7 +121,7 @@ pub async fn lp_token_price() {
         }
 
         assert_eq!(
-            instructions::test_get_lp_token_price(
+            test_instructions::get_lp_token_price(
                 &mut test_setup.program_test_ctx.borrow_mut(),
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
@@ -144,7 +144,7 @@ pub async fn lp_token_price() {
                 utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut())
                     .await;
 
-            instructions::test_set_custom_oracle_price(
+            test_instructions::set_custom_oracle_price(
                 &mut test_setup.program_test_ctx.borrow_mut(),
                 admin_a,
                 &test_setup.payer_keypair,
@@ -164,7 +164,7 @@ pub async fn lp_token_price() {
         }
 
         assert_eq!(
-            instructions::test_get_lp_token_price(
+            test_instructions::get_lp_token_price(
                 &mut test_setup.program_test_ctx.borrow_mut(),
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,

@@ -9,7 +9,7 @@ use {
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 
-pub async fn test_add_liquid_stake(
+pub async fn add_liquid_stake(
     program_test_ctx: &mut ProgramTestContext,
     owner: &Keypair,
     payer: &Keypair,

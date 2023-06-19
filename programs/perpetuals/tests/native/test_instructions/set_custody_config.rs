@@ -5,28 +5,24 @@ use {
         ToAccountMetas,
     },
     perpetuals::{
-        instructions::SetCustomOraclePriceParams,
-        state::{multisig::Multisig, oracle::CustomOracle},
+        instructions::SetCustodyConfigParams,
+        state::{custody::Custody, multisig::Multisig},
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 
-#[allow(clippy::too_many_arguments)]
-pub async fn test_set_custom_oracle_price(
+pub async fn set_custody_config(
     program_test_ctx: &mut ProgramTestContext,
     admin: &Keypair,
     payer: &Keypair,
     pool_pda: &Pubkey,
     custody_pda: &Pubkey,
-    oracle_pda: &Pubkey,
-    params: SetCustomOraclePriceParams,
+    params: SetCustodyConfigParams,
     multisig_signers: &[&Keypair],
 ) -> std::result::Result<(), BanksClientError> {
     // ==== WHEN ==============================================================
     let multisig_pda = pda::get_multisig_pda().0;
-    let perpetuals_pda = pda::get_perpetuals_pda().0;
-
     let multisig_account = utils::get_account::<Multisig>(program_test_ctx, multisig_pda).await;
 
     // One Tx per multisig signer
@@ -34,14 +30,11 @@ pub async fn test_set_custom_oracle_price(
         let signer: &Keypair = multisig_signers[i as usize];
 
         let accounts_meta = {
-            let accounts = perpetuals::accounts::SetCustomOraclePrice {
+            let accounts = perpetuals::accounts::SetCustodyConfig {
                 admin: admin.pubkey(),
                 multisig: multisig_pda,
-                perpetuals: perpetuals_pda,
                 pool: *pool_pda,
                 custody: *custody_pda,
-                oracle_account: *oracle_pda,
-                system_program: anchor_lang::system_program::ID,
             };
 
             let mut accounts_meta = accounts.to_account_metas(None);
@@ -58,7 +51,9 @@ pub async fn test_set_custom_oracle_price(
         utils::create_and_execute_perpetuals_ix(
             program_test_ctx,
             accounts_meta,
-            perpetuals::instruction::SetCustomOraclePrice { params },
+            perpetuals::instruction::SetCustodyConfig {
+                params: params.clone(),
+            },
             Some(&payer.pubkey()),
             &[admin, payer, signer],
         )
@@ -66,13 +61,17 @@ pub async fn test_set_custom_oracle_price(
     }
 
     // ==== THEN ==============================================================
-    let test_oracle_account =
-        utils::get_account::<CustomOracle>(program_test_ctx, *oracle_pda).await;
+    let custody_account = utils::get_account::<Custody>(program_test_ctx, *custody_pda).await;
 
-    assert_eq!(test_oracle_account.price, params.price);
-    assert_eq!(test_oracle_account.expo, params.expo);
-    assert_eq!(test_oracle_account.conf, params.conf);
-    assert_eq!(test_oracle_account.publish_time, params.publish_time);
+    // Check custody account
+    {
+        assert_eq!(custody_account.pool, *pool_pda);
+        assert_eq!(custody_account.is_stable, params.is_stable);
+        assert_eq!(custody_account.oracle, params.oracle);
+        assert_eq!(custody_account.pricing, params.pricing);
+        assert_eq!(custody_account.permissions, params.permissions);
+        assert_eq!(custody_account.fees, params.fees);
+    }
 
     Ok(())
 }

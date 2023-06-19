@@ -1,6 +1,6 @@
 use {
     super::get_program_data_pda,
-    crate::instructions,
+    crate::test_instructions,
     anchor_lang::{prelude::*, InstructionData},
     anchor_spl::token::spl_token,
     bonfida_test_utils::ProgramTestContextExt,
@@ -521,7 +521,7 @@ pub async fn set_custody_ratios(
 ) {
     let custody_account = get_account::<Custody>(program_test_ctx, *custody_pda).await;
 
-    instructions::test_set_custody_config(
+    test_instructions::set_custody_config(
         program_test_ctx,
         custody_admin,
         payer,

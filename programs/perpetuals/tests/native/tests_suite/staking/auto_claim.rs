@@ -1,5 +1,5 @@
 use {
-    crate::{instructions, utils},
+    crate::{test_instructions, utils},
     maplit::hashmap,
     perpetuals::{
         instructions::{AddLiquidStakeParams, AddLiquidityParams, AddVestParams},
@@ -96,7 +96,7 @@ pub async fn auto_claim() {
         let current_time =
             utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await;
 
-        instructions::test_add_vest(
+        test_instructions::add_vest(
             &mut test_setup.program_test_ctx.borrow_mut(),
             admin_a,
             &test_setup.payer_keypair,
@@ -119,7 +119,7 @@ pub async fn auto_claim() {
         )
         .await;
 
-        instructions::test_claim_vest(
+        test_instructions::claim_vest(
             &mut test_setup.program_test_ctx.borrow_mut(),
             &test_setup.payer_keypair,
             alice,
@@ -133,7 +133,7 @@ pub async fn auto_claim() {
         utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
             as u64;
 
-    instructions::test_init_staking(
+    test_instructions::init_staking(
         &mut test_setup.program_test_ctx.borrow_mut(),
         alice,
         &test_setup.payer_keypair,
@@ -146,7 +146,7 @@ pub async fn auto_claim() {
     .unwrap();
 
     // Alice: add liquid staking
-    instructions::test_add_liquid_stake(
+    test_instructions::add_liquid_stake(
         &mut test_setup.program_test_ctx.borrow_mut(),
         alice,
         &test_setup.payer_keypair,
@@ -176,7 +176,7 @@ pub async fn auto_claim() {
     for i in 0..100 {
         // Generate platform activity to fill current round' rewards
         {
-            instructions::test_add_liquidity(
+            test_instructions::add_liquidity(
                 &mut test_setup.program_test_ctx.borrow_mut(),
                 alice,
                 &test_setup.payer_keypair,
@@ -200,7 +200,7 @@ pub async fn auto_claim() {
             )
             .await;
 
-            instructions::test_resolve_staking_round(
+            test_instructions::resolve_staking_round(
                 &mut test_setup.program_test_ctx.borrow_mut(),
                 alice,
                 alice,

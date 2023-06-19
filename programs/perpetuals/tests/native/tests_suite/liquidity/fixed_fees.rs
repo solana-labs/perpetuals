@@ -1,5 +1,5 @@
 use {
-    crate::{instructions, utils},
+    crate::{test_instructions, utils},
     maplit::hashmap,
     perpetuals::{
         instructions::{AddLiquidityParams, RemoveLiquidityParams},
@@ -54,7 +54,7 @@ pub async fn fixed_fees() {
 
     // Check add liquidity fee
     {
-        instructions::test_add_liquidity(
+        test_instructions::add_liquidity(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,
@@ -100,7 +100,7 @@ pub async fn fixed_fees() {
 
     // Check remove liquidity fee
     {
-        instructions::test_remove_liquidity(
+        test_instructions::remove_liquidity(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,

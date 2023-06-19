@@ -1,5 +1,5 @@
 use {
-    crate::{instructions, utils},
+    crate::{test_instructions, utils},
     maplit::hashmap,
     perpetuals::instructions::SwapParams,
 };
@@ -95,7 +95,7 @@ pub async fn test_staking_rewards_from_swap() {
     // Swap with not enough collateral should fail
     {
         // Martin: Swap 5k USDC for ETH
-        assert!(instructions::test_swap(
+        assert!(test_instructions::swap(
             &mut test_setup.program_test_ctx.borrow_mut(),
             martin,
             &test_setup.payer_keypair,
@@ -116,7 +116,7 @@ pub async fn test_staking_rewards_from_swap() {
     // Swap for more token that the pool own should fail
     {
         // Martin: Swap 10 ETH for (15k) USDC
-        assert!(instructions::test_swap(
+        assert!(test_instructions::swap(
             &mut test_setup.program_test_ctx.borrow_mut(),
             martin,
             &test_setup.payer_keypair,

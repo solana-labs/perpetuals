@@ -10,7 +10,7 @@ use {
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 
-pub async fn test_claim_vest(
+pub async fn claim_vest(
     program_test_ctx: &mut ProgramTestContext,
     payer: &Keypair,
     owner: &Keypair,

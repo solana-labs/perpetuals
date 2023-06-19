@@ -10,7 +10,7 @@ use {
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 
-pub async fn test_liquidate(
+pub async fn liquidate(
     program_test_ctx: &mut ProgramTestContext,
     liquidator: &Keypair,
     payer: &Keypair,

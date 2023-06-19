@@ -11,7 +11,7 @@ use {
     std::str::FromStr,
 };
 
-pub async fn test_init_staking(
+pub async fn init_staking(
     program_test_ctx: &mut ProgramTestContext,
     owner: &Keypair,
     payer: &Keypair,

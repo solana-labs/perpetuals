@@ -1,5 +1,5 @@
 use {
-    crate::{instructions, utils},
+    crate::{test_instructions, utils},
     maplit::hashmap,
     perpetuals::{
         instructions::OpenPositionParams,
@@ -100,7 +100,7 @@ pub async fn min_max_leverage() {
 
     // Martin: Open 1 ETH long position x10 should fail
     // Fails because fees increase ETH entry price
-    assert!(instructions::test_open_position(
+    assert!(test_instructions::open_position(
         &mut test_setup.program_test_ctx.borrow_mut(),
         martin,
         &test_setup.payer_keypair,
@@ -119,7 +119,7 @@ pub async fn min_max_leverage() {
     .is_err());
 
     // Martin: Open 1 ETH long position x0.5 should fail
-    assert!(instructions::test_open_position(
+    assert!(test_instructions::open_position(
         &mut test_setup.program_test_ctx.borrow_mut(),
         martin,
         &test_setup.payer_keypair,

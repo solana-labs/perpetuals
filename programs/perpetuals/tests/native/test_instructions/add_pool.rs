@@ -13,7 +13,7 @@ use {
     std::str::FromStr,
 };
 
-pub async fn test_add_pool(
+pub async fn add_pool(
     program_test_ctx: &mut ProgramTestContext,
     // Admin must be a part of the multisig
     admin: &Keypair,

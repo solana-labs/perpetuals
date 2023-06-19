@@ -6,23 +6,24 @@ use {
     },
     bonfida_test_utils::ProgramTestContextExt,
     perpetuals::{
-        instructions::AddLiquidityParams,
+        instructions::RemoveLiquidityParams,
         state::{custody::Custody, pool::Pool},
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 
-pub async fn test_add_liquidity(
+pub async fn remove_liquidity(
     program_test_ctx: &mut ProgramTestContext,
     owner: &Keypair,
     payer: &Keypair,
     pool_pda: &Pubkey,
     custody_token_mint: &Pubkey,
     stake_reward_token_mint: &Pubkey,
-    params: AddLiquidityParams,
+    params: RemoveLiquidityParams,
 ) -> std::result::Result<(), BanksClientError> {
     // ==== WHEN ==============================================================
+
     // Prepare PDA and addresses
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
@@ -33,7 +34,7 @@ pub async fn test_add_liquidity(
     let cortex_pda = pda::get_cortex_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
 
-    let funding_account_address =
+    let receiving_account_address =
         utils::find_associated_token_account(&owner.pubkey(), custody_token_mint).0;
     let lp_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), &lp_token_mint_pda).0;
@@ -53,8 +54,8 @@ pub async fn test_add_liquidity(
     let srt_custody_oracle_account_address = srt_custody_account.oracle.oracle_account;
 
     // Save account state before tx execution
-    let owner_funding_account_before = program_test_ctx
-        .get_token_account(funding_account_address)
+    let owner_receiving_account_before = program_test_ctx
+        .get_token_account(receiving_account_address)
         .await
         .unwrap();
     let owner_lp_token_account_before = program_test_ctx
@@ -71,9 +72,9 @@ pub async fn test_add_liquidity(
         .unwrap();
 
     let accounts_meta = {
-        let accounts = perpetuals::accounts::AddLiquidity {
+        let accounts = perpetuals::accounts::RemoveLiquidity {
             owner: owner.pubkey(),
-            funding_account: funding_account_address,
+            receiving_account: receiving_account_address,
             lp_token_account: lp_token_account_address,
             lm_token_account: lm_token_account_address,
             transfer_authority: transfer_authority_pda,
@@ -124,15 +125,15 @@ pub async fn test_add_liquidity(
     utils::create_and_execute_perpetuals_ix(
         program_test_ctx,
         accounts_meta,
-        perpetuals::instruction::AddLiquidity { params },
+        perpetuals::instruction::RemoveLiquidity { params },
         Some(&payer.pubkey()),
         &[owner, payer],
     )
     .await?;
 
     // ==== THEN ==============================================================
-    let owner_funding_account_after = program_test_ctx
-        .get_token_account(funding_account_address)
+    let owner_receiving_account_after = program_test_ctx
+        .get_token_account(receiving_account_address)
         .await
         .unwrap();
     let owner_lp_token_account_after = program_test_ctx
@@ -148,10 +149,10 @@ pub async fn test_add_liquidity(
         .await
         .unwrap();
 
-    assert!(owner_funding_account_after.amount < owner_funding_account_before.amount);
-    assert!(owner_lp_token_account_after.amount > owner_lp_token_account_before.amount);
+    assert!(owner_receiving_account_after.amount > owner_receiving_account_before.amount);
+    assert!(owner_lp_token_account_after.amount < owner_lp_token_account_before.amount);
     assert!(owner_lm_token_account_after.amount > owner_lm_token_account_before.amount);
-    assert!(custody_token_account_after.amount > custody_token_account_before.amount);
+    assert!(custody_token_account_after.amount < custody_token_account_before.amount);
 
     Ok(())
 }

@@ -1,7 +1,7 @@
 use {
     super::{pda, SetupCustodyInfo},
     crate::{
-        adapters, instructions,
+        adapters, test_instructions,
         utils::{self, fixtures},
     },
     bonfida_test_utils::ProgramTestExt,
@@ -241,7 +241,7 @@ impl TestSetup {
         let gov_token_mint_pda = pda::get_governance_token_mint_pda().0;
 
         // Execute the initialize transaction
-        instructions::test_init(
+        test_instructions::init(
             &mut program_test_ctx.borrow_mut(),
             program_authority_keypair,
             fixtures::init_params_permissions_full(1),
@@ -341,7 +341,7 @@ impl TestSetup {
 
         // Setup the pool
         let (pool_pda, pool_bump, lp_token_mint_pda, lp_token_mint_bump) =
-            instructions::test_add_pool(
+            test_instructions::add_pool(
                 &mut program_test_ctx.borrow_mut(),
                 &multisig_members_keypairs[0],
                 payer_keypair,
@@ -408,7 +408,7 @@ impl TestSetup {
                         ratios: ratios.clone(),
                     };
 
-                    instructions::test_add_custody(
+                    test_instructions::add_custody(
                         &mut program_test_ctx.borrow_mut(),
                         &multisig_members_keypairs[0],
                         payer_keypair,
@@ -426,7 +426,7 @@ impl TestSetup {
                 let publish_time =
                     utils::get_current_unix_timestamp(&mut program_test_ctx.borrow_mut()).await;
 
-                instructions::test_set_custom_oracle_price(
+                test_instructions::set_custom_oracle_price(
                     &mut program_test_ctx.borrow_mut(),
                     &multisig_members_keypairs[0],
                     payer_keypair,
@@ -485,7 +485,7 @@ impl TestSetup {
             );
 
             if custody_param.liquidity_amount > 0 {
-                instructions::test_add_liquidity(
+                test_instructions::add_liquidity(
                     &mut program_test_ctx.borrow_mut(),
                     liquidity_provider,
                     payer_keypair,

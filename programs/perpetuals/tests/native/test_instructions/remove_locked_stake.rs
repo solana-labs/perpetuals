@@ -2,18 +2,18 @@ use {
     crate::utils::{self, pda},
     anchor_lang::{prelude::Pubkey, AnchorSerialize, ToAccountMetas},
     perpetuals::{
-        adapters::spl_governance_program_adapter, instructions::RemoveLiquidStakeParams,
+        adapters::spl_governance_program_adapter, instructions::RemoveLockedStakeParams,
         state::staking::Staking,
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 
-pub async fn test_remove_liquid_stake(
+pub async fn remove_locked_stake(
     program_test_ctx: &mut ProgramTestContext,
     owner: &Keypair,
     payer: &Keypair,
-    params: RemoveLiquidStakeParams,
+    params: RemoveLockedStakeParams,
     stake_reward_token_mint: &Pubkey,
     governance_realm_pda: &Pubkey,
 ) -> std::result::Result<(), BanksClientError> {
@@ -30,7 +30,7 @@ pub async fn test_remove_liquid_stake(
     let lm_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), &lm_token_mint_pda).0;
     let stake_reward_token_account_address =
-        utils::find_associated_token_account(&owner.pubkey(), &stake_reward_token_mint).0;
+        utils::find_associated_token_account(&owner.pubkey(), stake_reward_token_mint).0;
 
     let governance_governing_token_holding_pda = pda::get_governance_governing_token_holding_pda(
         governance_realm_pda,
@@ -65,7 +65,7 @@ pub async fn test_remove_liquid_stake(
 
     utils::create_and_execute_perpetuals_ix(
         program_test_ctx,
-        perpetuals::accounts::RemoveLiquidStake {
+        perpetuals::accounts::RemoveLockedStake {
             owner: owner.pubkey(),
             lm_token_account: lm_token_account_address,
             owner_reward_token_account: stake_reward_token_account_address,
@@ -91,9 +91,9 @@ pub async fn test_remove_liquid_stake(
             governance_token_mint: governance_token_mint_pda,
         }
         .to_account_metas(None),
-        perpetuals::instruction::RemoveLiquidStake {
-            params: RemoveLiquidStakeParams {
-                amount: params.amount,
+        perpetuals::instruction::RemoveLockedStake {
+            params: RemoveLockedStakeParams {
+                locked_stake_index: params.locked_stake_index,
             },
         },
         Some(&payer.pubkey()),
@@ -111,15 +111,16 @@ pub async fn test_remove_liquid_stake(
     // Check staking account
     {
         assert_eq!(
-            staking_account_after.liquid_stake.amount,
-            staking_account_before.liquid_stake.amount - params.amount,
+            staking_account_after.locked_stakes.len(),
+            staking_account_before.locked_stakes.len() - 1,
         );
     }
 
     // Check owner staked token ATA balance
     {
         assert_eq!(
-            owner_staked_token_account_before + params.amount,
+            owner_staked_token_account_before
+                + staking_account_before.locked_stakes[params.locked_stake_index].amount,
             owner_staked_token_account_after,
         );
     }

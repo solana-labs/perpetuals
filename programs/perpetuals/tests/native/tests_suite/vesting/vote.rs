@@ -1,5 +1,5 @@
 use {
-    crate::{adapters, instructions, utils},
+    crate::{adapters, test_instructions, utils},
     maplit::hashmap,
     perpetuals::{instructions::AddVestParams, state::cortex::Cortex},
 };
@@ -53,7 +53,7 @@ pub async fn vote() {
     let current_time =
         utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await;
 
-    let alice_vest_pda = instructions::test_add_vest(
+    let alice_vest_pda = test_instructions::add_vest(
         &mut test_setup.program_test_ctx.borrow_mut(),
         admin_a,
         &test_setup.payer_keypair,
@@ -143,7 +143,7 @@ pub async fn vote() {
     .unwrap();
 
     // Alice: claim vest
-    instructions::test_claim_vest(
+    test_instructions::claim_vest(
         &mut test_setup.program_test_ctx.borrow_mut(),
         &test_setup.payer_keypair,
         alice,

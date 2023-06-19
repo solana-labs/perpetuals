@@ -17,7 +17,7 @@ use {
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 
-pub async fn test_init(
+pub async fn init(
     program_test_ctx: &mut ProgramTestContext,
     upgrade_authority: &Keypair,
     params: InitParams,

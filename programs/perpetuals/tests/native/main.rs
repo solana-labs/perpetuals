@@ -1,5 +1,5 @@
 pub mod adapters;
-pub mod instructions;
+pub mod test_instructions;
 pub mod tests_suite;
 pub mod utils;
 

@@ -1,6 +1,6 @@
 use {
     crate::{
-        instructions,
+        test_instructions,
         utils::{self, pda},
     },
     maplit::hashmap,
@@ -107,7 +107,7 @@ pub async fn staking_rewards_generation() {
         let current_time =
             utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await;
 
-        instructions::test_add_vest(
+        test_instructions::add_vest(
             &mut test_setup.program_test_ctx.borrow_mut(),
             admin_a,
             &test_setup.payer_keypair,
@@ -130,7 +130,7 @@ pub async fn staking_rewards_generation() {
         )
         .await;
 
-        instructions::test_claim_vest(
+        test_instructions::claim_vest(
             &mut test_setup.program_test_ctx.borrow_mut(),
             &test_setup.payer_keypair,
             alice,
@@ -151,7 +151,7 @@ pub async fn staking_rewards_generation() {
         .await;
 
         // Generate platform activity to fill current round' rewards
-        instructions::test_add_liquidity(
+        test_instructions::add_liquidity(
             &mut test_setup.program_test_ctx.borrow_mut(),
             martin,
             &test_setup.payer_keypair,
@@ -192,7 +192,7 @@ pub async fn staking_rewards_generation() {
         .await;
 
         // Martin: Open 0.1 ETH long position x1
-        let position_pda = instructions::test_open_position(
+        let position_pda = test_instructions::open_position(
             &mut test_setup.program_test_ctx.borrow_mut(),
             &martin,
             &test_setup.payer_keypair,
@@ -239,7 +239,7 @@ pub async fn staking_rewards_generation() {
         .await;
 
         // Martin: Close the ETH position
-        instructions::test_close_position(
+        test_instructions::close_position(
             &mut test_setup.program_test_ctx.borrow_mut(),
             martin,
             &test_setup.payer_keypair,
@@ -281,7 +281,7 @@ pub async fn staking_rewards_generation() {
         .await;
 
         // Martin: Swap 150 USDC for ETH
-        instructions::test_swap(
+        test_instructions::swap(
             &mut test_setup.program_test_ctx.borrow_mut(),
             martin,
             &test_setup.payer_keypair,
@@ -329,7 +329,7 @@ pub async fn staking_rewards_generation() {
         .await;
 
         // Generate platform activity to fill current round' rewards
-        instructions::test_remove_liquidity(
+        test_instructions::remove_liquidity(
             &mut test_setup.program_test_ctx.borrow_mut(),
             martin,
             &test_setup.payer_keypair,
