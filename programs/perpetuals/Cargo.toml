@@ -54,5 +54,5 @@ bonfida-test-utils = "0.2.1"
 bincode = "1.3.3"
 proptest = "1.1.0"
 clockwork-thread-program = { version = "=2.0.17" } 
-clockwork-network-program = { version = "=2.0.17" } 
+clockwork-network-program = { version = "=2.0.17" }
 maplit = "1.0.2"

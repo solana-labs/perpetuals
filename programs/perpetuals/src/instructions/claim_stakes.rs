@@ -2,7 +2,7 @@
 
 use {
     crate::{
-        math,
+        math, program,
         state::{cortex::Cortex, perpetuals::Perpetuals, staking::Staking},
     },
     anchor_lang::prelude::*,
@@ -15,6 +15,10 @@ use {
 pub struct ClaimStakes<'info> {
     #[account(mut)]
     pub caller: Signer<'info>,
+
+    // Pay for realloc
+    #[account(mut)]
+    pub payer: Signer<'info>,
 
     /// CHECK: verified through the `stake` account seed derivation
     #[account(mut)]
@@ -69,8 +73,9 @@ pub struct ClaimStakes<'info> {
     #[account()]
     pub stake_reward_token_mint: Box<Account<'info, Mint>>,
 
-    pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, Token>,
+    perpetuals_program: Program<'info, program::Perpetuals>,
+    system_program: Program<'info, System>,
+    token_program: Program<'info, Token>,
 }
 
 pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
@@ -121,9 +126,11 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
                             math::checked_add(rewards_token_amount, locked_rewards_token_amount)
                                 .unwrap();
 
-                        round.total_claim =
-                            math::checked_add(round.total_claim, locked_rewards_token_amount)
-                                .unwrap();
+                        round.total_claim = math::checked_add(
+                            round.total_claim,
+                            locked_stake.amount_with_multiplier,
+                        )
+                        .unwrap();
 
                         stake_amount_with_multiplier = math::checked_add(
                             stake_amount_with_multiplier,
@@ -154,7 +161,7 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
                             .unwrap();
 
                     round.total_claim =
-                        math::checked_add(round.total_claim, liquid_rewards_token_amount).unwrap();
+                        math::checked_add(round.total_claim, staking.liquid_stake.amount).unwrap();
 
                     stake_amount_with_multiplier = math::checked_add(
                         stake_amount_with_multiplier,
@@ -182,11 +189,13 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
 
             if !staking_rounds_delta.is_zero() {
                 msg!("Realloc Cortex");
+
+                // TODO: ADD PAYER ACCOUNT FOR CLAIM AND USE THE CLOCKWORK DELEGATED PAYER PUBKEY: C1ockworkPayer11111111111111111111111111111
                 Perpetuals::realloc(
-                    ctx.accounts.caller.to_account_info(),
-                    cortex.clone().to_account_info(),
+                    ctx.accounts.payer.to_account_info(),
+                    cortex.to_account_info(),
                     ctx.accounts.system_program.to_account_info(),
-                    cortex.new_size(staking_rounds_delta)?,
+                    cortex.size(),
                     true,
                 )?;
             }

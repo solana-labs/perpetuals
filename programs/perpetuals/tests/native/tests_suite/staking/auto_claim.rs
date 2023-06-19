@@ -1,19 +1,17 @@
 use {
-    crate::{
-        instructions,
-        utils::{self, pda},
-    },
+    crate::{instructions, utils},
     maplit::hashmap,
     perpetuals::{
         instructions::{AddLiquidStakeParams, AddLiquidityParams, AddVestParams},
         state::cortex::{Cortex, StakingRound},
     },
+    solana_sdk::signer::Signer,
 };
 
 const USDC_DECIMALS: u8 = 6;
 const ETH_DECIMALS: u8 = 9;
 
-pub async fn resolved_round_overflow() {
+pub async fn auto_claim() {
     let test_setup = utils::TestSetup::new(
         vec![utils::UserParam {
             name: "alice",
@@ -82,11 +80,16 @@ pub async fn resolved_round_overflow() {
     let alice = test_setup.get_user_keypair_by_name("alice");
 
     let eth_mint = test_setup.get_mint_by_name("eth");
+    let usdc_mint = test_setup.get_mint_by_name("usdc");
 
     let admin_a = test_setup.get_multisig_member_keypair_by_name("admin_a");
 
     let cortex_stake_reward_mint = test_setup.get_cortex_stake_reward_mint();
     let multisig_signers = test_setup.get_multisig_signers();
+
+    let clockwork_worker = test_setup.get_clockwork_worker();
+
+    let alice_usdc_ata = utils::find_associated_token_account(&alice.pubkey(), &usdc_mint).0;
 
     // Prep work: Alice get 2 governance tokens using vesting
     {
@@ -158,28 +161,21 @@ pub async fn resolved_round_overflow() {
 
     utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
-    let cortex_pda = pda::get_cortex_pda().0;
-
-    // Check initial state of resolved rounds
-    {
-        let cortex =
-            utils::get_account::<Cortex>(&mut test_setup.program_test_ctx.borrow_mut(), cortex_pda)
-                .await;
-
-        assert_eq!(cortex.resolved_staking_rounds.len(), 0);
-        assert_eq!(cortex.resolved_reward_token_amount, 0);
-        assert_eq!(cortex.resolved_stake_token_amount, 0);
-    }
-
+    // Simulate rounds being created and auto-claim cron getting triggered
     //
-    // During the test, never trigger auto-claim cron to simulate claim default
-    //
+    // User should receive rewards on the way automatically, and resolved_rounds array should never overflow
+    let alice_usdc_balance_before = utils::get_token_account_balance(
+        &mut test_setup.program_test_ctx.borrow_mut(),
+        alice_usdc_ata,
+    )
+    .await;
 
-    // Fill resolved rounds to the max
-    for _ in 0..(StakingRound::MAX_RESOLVED_ROUNDS + 1) {
-        // Use add liquidity to generate rewards for the current round to be able to differentiate rounds
+    // Store the index of the round where cron has been executed
+    let mut cron_executions: Vec<u64> = Vec::new();
+
+    for i in 0..100 {
+        // Generate platform activity to fill current round' rewards
         {
-            // Generate platform activity to fill current round' rewards
             instructions::test_add_liquidity(
                 &mut test_setup.program_test_ctx.borrow_mut(),
                 alice,
@@ -196,6 +192,7 @@ pub async fn resolved_round_overflow() {
             .unwrap();
         }
 
+        // Resolve current round
         {
             utils::warp_forward(
                 &mut test_setup.program_test_ctx.borrow_mut(),
@@ -212,58 +209,42 @@ pub async fn resolved_round_overflow() {
             )
             .await
             .unwrap();
+
+            utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
         }
-    }
 
-    // Add one more round and check it doesn't overflow
-    {
-        let cortex_before =
-            utils::get_account::<Cortex>(&mut test_setup.program_test_ctx.borrow_mut(), cortex_pda)
-                .await;
-
+        // Check if cron claim can trigger
         {
-            utils::warp_forward(
+            let has_cron_be_executed = utils::execute_claim_stakes_thread(
                 &mut test_setup.program_test_ctx.borrow_mut(),
-                StakingRound::ROUND_MIN_DURATION_SECONDS,
-            )
-            .await;
-
-            instructions::test_resolve_staking_round(
-                &mut test_setup.program_test_ctx.borrow_mut(),
-                alice,
+                &clockwork_worker,
+                &test_setup.clockwork_signatory,
                 alice,
                 &test_setup.payer_keypair,
                 &cortex_stake_reward_mint,
             )
             .await
             .unwrap();
+
+            if has_cron_be_executed {
+                cron_executions.push(i);
+            }
         }
-
-        let cortex_after =
-            utils::get_account::<Cortex>(&mut test_setup.program_test_ctx.borrow_mut(), cortex_pda)
-                .await;
-
-        assert_eq!(
-            cortex_before.resolved_staking_rounds.len(),
-            StakingRound::MAX_RESOLVED_ROUNDS,
-        );
-
-        assert_eq!(
-            cortex_after.resolved_staking_rounds.len(),
-            StakingRound::MAX_RESOLVED_ROUNDS
-        );
-
-        // rounds should be the same except the last one
-        for i in 0..(StakingRound::MAX_RESOLVED_ROUNDS - 1) {
-            assert_eq!(
-                cortex_before.resolved_staking_rounds[i + 1],
-                cortex_after.resolved_staking_rounds[i],
-            );
-        }
-
-        assert_eq!(
-            cortex_before.resolved_staking_rounds.len(),
-            StakingRound::MAX_RESOLVED_ROUNDS,
-        );
     }
+
+    let alice_usdc_balance_after = utils::get_token_account_balance(
+        &mut test_setup.program_test_ctx.borrow_mut(),
+        alice_usdc_ata,
+    )
+    .await;
+
+    // Check that alice received rewards on the way
+    assert!(alice_usdc_balance_before < alice_usdc_balance_after);
+
+    // Check number of time cron has been executed
+    // Cron execution is not deterministic as hour/min/sec impact trigger conditions, depends on when tests are runned
+    // cron execution may trigger on different rounds
+    assert!(cron_executions.len() >= 1 && cron_executions.len() <= 2);
+
+    println!("Cron executions: {:?}", cron_executions);
 }

@@ -3,7 +3,10 @@ use {
     anchor_lang::{prelude::Pubkey, InstructionData, ToAccountMetas},
     solana_program::instruction::{AccountMeta, Instruction},
     solana_program_test::{BanksClientError, ProgramTestContext},
-    solana_sdk::signer::{keypair::Keypair, Signer},
+    solana_sdk::{
+        compute_budget::ComputeBudgetInstruction,
+        signer::{keypair::Keypair, Signer},
+    },
 };
 
 pub async fn thread_exec(
@@ -20,6 +23,13 @@ pub async fn thread_exec(
     let pool_pda = clockwork_network_program::state::Pool::pubkey(0);
     let thread_pda = pda::get_clockwork_thread_pda(thread_authority, thread_id).0;
 
+    println!(">>>>> fee: {}", fee_pda);
+    println!(">>>>> pool: {}", pool_pda);
+    println!(">>>>> signatory: {}", signatory.pubkey());
+    println!(">>>>> thread: {}", thread_pda);
+    println!(">>>>> worker: {}", worker_pda);
+    println!(">>>>> payer: {}", payer.pubkey());
+
     let mut accounts_meta = clockwork_thread_program::accounts::ThreadExec {
         fee: fee_pda,
         pool: pool_pda,
@@ -29,19 +39,27 @@ pub async fn thread_exec(
     }
     .to_account_metas(None);
 
+    for ele in accounts_meta.as_slice() {
+        println!(">>>>> ACCOUNT: {:?}", ele);
+    }
+
     for remaining_account in remaining_accounts {
+        println!(">>>>> REMAINING ACCOUNT: {:?}", remaining_account);
+
         accounts_meta.push(remaining_account);
     }
 
     let ix = Instruction {
         program_id: clockwork_thread_program::ID,
-
         accounts: accounts_meta,
         data: clockwork_thread_program::instruction::ThreadExec {}.data(),
     };
 
     let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[ix],
+        &[
+            ComputeBudgetInstruction::set_compute_unit_limit(1_600_000u32),
+            ix,
+        ],
         Some(&payer.pubkey()),
         &[&[payer, signatory], extra_signers.as_slice()].concat(),
         program_test_ctx.last_blockhash,

@@ -32,6 +32,8 @@ use {
 
 pub const STAKING_THREAD_AUTHORITY_SEED: &[u8] = b"staking-thread-authority";
 
+pub const CLOCKWORK_PAYER_PUBKEY: &str = "C1ockworkPayer11111111111111111111111111111";
+
 #[account]
 #[derive(Default, Debug)]
 pub struct Staking {

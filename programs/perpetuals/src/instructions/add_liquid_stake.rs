@@ -162,6 +162,7 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
                 // recursive program call
                 let cpi_accounts = crate::cpi::accounts::ClaimStakes {
                     caller: ctx.accounts.owner.to_account_info(),
+                    payer: ctx.accounts.owner.to_account_info(),
                     owner: ctx.accounts.owner.to_account_info(),
                     owner_reward_token_account: ctx
                         .accounts
@@ -176,6 +177,7 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
                     cortex: cortex.to_account_info(),
                     perpetuals: perpetuals.to_account_info(),
                     stake_reward_token_mint: ctx.accounts.stake_reward_token_mint.to_account_info(),
+                    perpetuals_program: ctx.accounts.perpetuals_program.to_account_info(),
                     system_program: ctx.accounts.system_program.to_account_info(),
                     token_program: ctx.accounts.token_program.to_account_info(),
                 };

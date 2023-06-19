@@ -20,17 +20,7 @@ pub async fn thread_kickoff(
         utils::get_account::<clockwork_thread_program::state::Thread>(program_test_ctx, thread_pda)
             .await;
 
-    println!(">>>>>>>>>>>>>>>>>> THREAD INFOS");
-    println!(">>>>>>>>>>>>>>>>>> created_at: {:?}", thread.created_at);
-    println!(">>>>>>>>>>>>>>>>>> exec_context: {:?}", thread.exec_context);
-    println!(">>>>>>>>>>>>>>>>>> fee: {:?}", thread.fee);
-    println!(">>>>>>>>>>>>>>>>>> id: {:?}", thread.id);
-    println!(">>>>>>>>>>>>>>>>>> instructions: {:?}", thread.instructions);
-    println!(">>>>>>>>>>>>>>>>>> name: {:?}", thread.name);
-    println!(
-        ">>>>>>>>>>>>>>>>>> next_instruction: {:?}",
-        thread.next_instruction
-    );
+    println!("thread: {:?}", thread);
 
     let ix = Instruction {
         program_id: clockwork_thread_program::ID,
@@ -58,3 +48,6 @@ pub async fn thread_kickoff(
 
     Ok(())
 }
+
+// Original Time: epoch = 897, timestamp = 1689860597
+// New Time: epoch = 912, timestamp = 1689882197

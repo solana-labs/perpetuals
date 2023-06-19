@@ -29,6 +29,7 @@ pub async fn test_claim_stakes(
         perpetuals::accounts::ClaimStakes {
             caller: caller.pubkey(),
             owner: owner.pubkey(),
+            payer: payer.pubkey(),
             owner_reward_token_account: owner_stake_reward_token_account_address,
             stake_reward_token_account: stake_reward_token_account_pda,
             transfer_authority: transfer_authority_pda,
@@ -36,6 +37,7 @@ pub async fn test_claim_stakes(
             cortex: cortex_pda,
             perpetuals: perpetuals_pda,
             stake_reward_token_mint: *stake_reward_token_mint,
+            perpetuals_program: perpetuals::ID,
             system_program: anchor_lang::system_program::ID,
             token_program: anchor_spl::token::ID,
         }

@@ -123,14 +123,6 @@ impl Cortex {
             + self.resolved_staking_rounds.len() * StakingRound::LEN;
     }
 
-    // returns the new size of the structure after adding/removing some staking rounds
-    pub fn new_size(&self, staking_rounds_delta: i32) -> Result<usize> {
-        math::checked_as_usize(math::checked_add(
-            self.size() as i32,
-            math::checked_mul(staking_rounds_delta, StakingRound::LEN as i32)?,
-        )?)
-    }
-
     pub fn current_staking_round_is_resolvable(&self, current_time: i64) -> Result<bool> {
         Ok(current_time
             >= math::checked_add(
@@ -142,8 +134,9 @@ impl Cortex {
 
 #[cfg(test)]
 mod test {
-    use {super::*, num_traits::Zero, proptest::prelude::*};
+    use {super::*, proptest::prelude::*};
 
+    /*
     fn get_fixture_staking_round() -> StakingRound {
         StakingRound {
             start_time: 0,
@@ -177,31 +170,7 @@ mod test {
             ],
         }
     }
-
-    #[test]
-    fn test_new_size() {
-        proptest!(|(staking_rounds_count in usize::MIN..StakingRound::MAX_RESOLVED_ROUNDS, staking_rounds_delta in -(StakingRound::MAX_RESOLVED_ROUNDS as i32)..(StakingRound::MAX_RESOLVED_ROUNDS as i32))| {
-            prop_assume!(staking_rounds_delta.abs() as usize <= staking_rounds_count);
-            let cortex = get_fixture_cortex(staking_rounds_count);
-            let size = cortex.size();
-           let new_size = cortex.new_size(staking_rounds_delta).unwrap();
-
-            if staking_rounds_delta.is_negative() {
-            assert_eq!(
-                new_size, size - StakingRound::LEN * staking_rounds_delta.abs() as usize
-            );
-            } else if staking_rounds_delta.is_positive() {
-                            assert_eq!(
-                new_size, size + StakingRound::LEN * staking_rounds_delta.abs() as usize
-            );
-            } else if staking_rounds_delta.is_zero() {
-                            assert_eq!(
-                new_size, size
-            );
-            }
-
-        });
-    }
+    */
 
     #[test]
     fn test_get_emission_rate() {

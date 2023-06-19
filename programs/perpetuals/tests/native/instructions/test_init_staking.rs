@@ -1,10 +1,14 @@
 use {
     crate::utils::{self, pda},
     anchor_lang::{AnchorSerialize, ToAccountMetas},
-    perpetuals::{instructions::InitStakingParams, state::staking::Staking},
+    perpetuals::{
+        instructions::InitStakingParams,
+        state::staking::{Staking, CLOCKWORK_PAYER_PUBKEY},
+    },
     solana_program::pubkey::Pubkey,
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
+    std::str::FromStr,
 };
 
 pub async fn test_init_staking(
@@ -41,9 +45,11 @@ pub async fn test_init_staking(
             transfer_authority: transfer_authority_pda,
             staking_thread_authority: staking_thread_authority_pda,
             stakes_claim_cron_thread: stakes_claim_cron_thread_address,
+            stakes_claim_payer: Pubkey::from_str(CLOCKWORK_PAYER_PUBKEY).unwrap(),
             cortex: cortex_pda,
             perpetuals: perpetuals_pda,
             stake_reward_token_mint: *stake_reward_token_mint,
+            perpetuals_program: perpetuals::ID,
             clockwork_program: clockwork_sdk::ID,
             system_program: anchor_lang::system_program::ID,
             token_program: anchor_spl::token::ID,

@@ -187,9 +187,9 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
                     // realloc Cortex after update to its `stake_rounds` if needed
                     Perpetuals::realloc(
                         ctx.accounts.caller.to_account_info(),
-                        cortex.clone().to_account_info(),
+                        cortex.to_account_info(),
                         ctx.accounts.system_program.to_account_info(),
-                        cortex.new_size(1)?,
+                        cortex.size(),
                         true,
                     )?;
                 }

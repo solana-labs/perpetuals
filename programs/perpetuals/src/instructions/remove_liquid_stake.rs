@@ -155,6 +155,7 @@ pub fn remove_liquid_stake(
     {
         let cpi_accounts = crate::cpi::accounts::ClaimStakes {
             caller: ctx.accounts.owner.to_account_info(),
+            payer: ctx.accounts.owner.to_account_info(),
             owner: ctx.accounts.owner.to_account_info(),
             owner_reward_token_account: ctx.accounts.owner_reward_token_account.to_account_info(),
             stake_reward_token_account: ctx.accounts.stake_reward_token_account.to_account_info(),
@@ -163,6 +164,7 @@ pub fn remove_liquid_stake(
             cortex: ctx.accounts.cortex.to_account_info(),
             perpetuals: ctx.accounts.perpetuals.to_account_info(),
             stake_reward_token_mint: ctx.accounts.stake_reward_token_mint.to_account_info(),
+            perpetuals_program: ctx.accounts.perpetuals_program.to_account_info(),
             system_program: ctx.accounts.system_program.to_account_info(),
             token_program: ctx.accounts.token_program.to_account_info(),
         };
