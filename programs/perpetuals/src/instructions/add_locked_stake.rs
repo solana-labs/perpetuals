@@ -200,6 +200,16 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
             false,
         )?;
 
+        msg!("BEFORE THREAD CREATION");
+        msg!(
+            "ctx.accounts.stake_resolution_thread.key(): {}",
+            ctx.accounts.stake_resolution_thread.key()
+        );
+        msg!(
+            "ctx.accounts.staking_thread_authority.key(): {}",
+            ctx.accounts.staking_thread_authority.key()
+        );
+
         // Create a clockwork thread to auto-resolve the staking when it ends
         {
             clockwork_sdk::cpi::thread_create(

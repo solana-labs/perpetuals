@@ -18,6 +18,7 @@ pub async fn test_integration() {
     tests_suite::staking::staking_rewards_generation().await;
     tests_suite::staking::liquid_staking().await;
     tests_suite::staking::locked_staking_30d().await;
+    tests_suite::staking::multiple_stakers_get_correct_rewards().await;
 
     tests_suite::lp_token::lp_token_price().await;
 
