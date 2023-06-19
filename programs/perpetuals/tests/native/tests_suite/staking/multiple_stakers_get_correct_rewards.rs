@@ -1,5 +1,8 @@
 use {
-    crate::{test_instructions, utils},
+    crate::{
+        test_instructions,
+        utils::{self, pda},
+    },
     maplit::hashmap,
     perpetuals::{
         instructions::{AddLiquidStakeParams, AddLockedStakeParams, AddVestParams},
@@ -357,5 +360,17 @@ pub async fn multiple_stakers_get_correct_rewards() {
 
             assert_eq!(balance_after - balance_before, 31_682_861);
         }
+    }
+
+    // Assert all rewards got distributed
+    {
+        let cortex_pda = pda::get_cortex_pda().0;
+
+        let cortex_account =
+            utils::get_account::<Cortex>(&mut test_setup.program_test_ctx.borrow_mut(), cortex_pda)
+                .await;
+
+        // Accept dust due to precision loss
+        assert!(cortex_account.resolved_reward_token_amount <= 100);
     }
 }
