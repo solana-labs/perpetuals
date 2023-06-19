@@ -13,9 +13,8 @@ use {
 
 #[derive(Accounts)]
 pub struct ResolveLockedStake<'info> {
-    // TODO:
-    // Caller should be restrained to be the clockwork thread only
-    #[account(mut)]
+    // Caller is restrained to be the clockwork thread only
+    #[account(mut, owner = clockwork_sdk::ID)]
     pub caller: Signer<'info>,
 
     /// CHECK: verified through the `stake` account seed derivation
