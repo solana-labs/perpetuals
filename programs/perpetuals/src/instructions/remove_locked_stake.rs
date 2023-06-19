@@ -210,7 +210,7 @@ pub fn remove_locked_stake(
     {
         if !ctx.accounts.stakes_claim_cron_thread.paused
             && staking.liquid_stake.amount == 0
-            && staking.locked_stakes.len() == 0
+            && staking.locked_stakes.is_empty()
         {
             clockwork_sdk::cpi::thread_pause(CpiContext::new_with_signer(
                 ctx.accounts.clockwork_program.to_account_info(),

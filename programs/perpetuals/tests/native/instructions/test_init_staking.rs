@@ -26,7 +26,7 @@ pub async fn test_init_staking(
     let staking_thread_authority_pda = pda::get_staking_thread_authority(&owner.pubkey()).0;
     let stake_reward_token_account_pda = pda::get_stake_reward_token_account_pda().0;
     let stake_reward_token_account_address =
-        utils::find_associated_token_account(&owner.pubkey(), &stake_reward_token_mint).0;
+        utils::find_associated_token_account(&owner.pubkey(), stake_reward_token_mint).0;
 
     let stakes_claim_cron_thread_address = pda::get_thread_address(
         &staking_thread_authority_pda,

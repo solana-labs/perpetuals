@@ -56,7 +56,7 @@ pub async fn execute_resolve_locked_stake_thread(
     adapters::clockwork::thread::thread_kickoff(
         program_test_ctx,
         clockwork_worker,
-        &payer,
+        payer,
         clockwork_signatory,
         &thread_authority,
         stake_resolution_thread_id.try_to_vec().unwrap(),
@@ -93,7 +93,7 @@ pub async fn execute_resolve_locked_stake_thread(
 
     adapters::clockwork::thread::thread_exec(
         program_test_ctx,
-        &clockwork_worker,
+        clockwork_worker,
         payer,
         clockwork_signatory,
         &thread_authority,

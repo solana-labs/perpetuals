@@ -94,11 +94,11 @@ impl TestSetup {
     }
 
     pub fn get_user_keypair_by_name(&self, name: &str) -> &Keypair {
-        &self.users.get(&name.to_string()).unwrap()
+        self.users.get(&name.to_string()).unwrap()
     }
 
     pub fn get_multisig_member_keypair_by_name(&self, name: &str) -> &Keypair {
-        &self.multisig_members.get(&name.to_string()).unwrap()
+        self.multisig_members.get(&name.to_string()).unwrap()
     }
 
     pub fn get_multisig_signers(&self) -> Vec<&Keypair> {
@@ -173,13 +173,11 @@ impl TestSetup {
 
         let users = {
             let mut users: HashMap<String, Keypair> = HashMap::new();
-            let mut i = 0;
-            for user_param in users_param.as_slice() {
+            for (i, user_param) in users_param.as_slice().iter().enumerate() {
                 users.insert(
                     user_param.name.to_string(),
                     utils::copy_keypair(&users_keypairs[i]),
                 );
-                i += 1;
             }
 
             users
@@ -222,13 +220,11 @@ impl TestSetup {
         // Initialize multisig
         let multisig_members = {
             let mut multisig_members: HashMap<String, Keypair> = HashMap::new();
-            let mut i: usize = 0;
-            for multisig_member_name in multisig_members_names {
+            for (i, multisig_member_name) in multisig_members_names.into_iter().enumerate() {
                 multisig_members.insert(
                     multisig_member_name.to_string(),
                     utils::copy_keypair(&multisig_members_keypairs[i]),
                 );
-                i += 1;
             }
 
             multisig_members
@@ -250,7 +246,7 @@ impl TestSetup {
             program_authority_keypair,
             fixtures::init_params_permissions_full(1),
             &governance_realm_pda,
-            &cortex_stake_reward_mint,
+            cortex_stake_reward_mint,
             &multisig_signers,
         )
         .await
@@ -304,14 +300,12 @@ impl TestSetup {
 
         // Initialize users token accounts for each mints
         {
-            let mints_infos: Vec<&MintInfo> = mints.values().collect();
-            let mut mints_pubkeys: Vec<Pubkey> =
-                mints_infos.into_iter().map(|info| info.pubkey).collect();
+            let mut mints_pubkeys: Vec<Pubkey> = mints.values().map(|info| info.pubkey).collect();
 
             mints_pubkeys.push(lm_token_mint);
 
-            let users_keypairs: Vec<&Keypair> = users.values().collect();
-            let users_pubkeys: Vec<Pubkey> = users_keypairs
+            let users_pubkeys: Vec<Pubkey> = users
+                .values()
                 .into_iter()
                 .map(|keypair| keypair.pubkey())
                 .collect();

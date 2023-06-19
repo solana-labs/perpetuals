@@ -29,7 +29,7 @@ pub fn get_lm_token_mint_pda() -> (Pubkey, u8) {
 pub fn get_clockwork_thread_pda(thread_authority: &Pubkey, thread_id: Vec<u8>) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[
-            clockwork_thread_program::state::SEED_THREAD.as_ref(),
+            clockwork_thread_program::state::SEED_THREAD,
             thread_authority.as_ref(),
             thread_id.as_slice(),
         ],
@@ -46,7 +46,7 @@ pub fn get_clockwork_network_config_pda() -> (Pubkey, u8) {
 
 pub fn get_clockwork_network_registry_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(
-        &[clockwork_network_program::state::SEED_REGISTRY.as_ref()],
+        &[clockwork_network_program::state::SEED_REGISTRY],
         &clockwork_network_program::id(),
     )
 }
@@ -54,8 +54,8 @@ pub fn get_clockwork_network_registry_pda() -> (Pubkey, u8) {
 pub fn get_clockwork_network_snapshot_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[
-            clockwork_network_program::state::SEED_SNAPSHOT.as_ref(),
-            (0 as u64).to_be_bytes().as_ref(),
+            clockwork_network_program::state::SEED_SNAPSHOT,
+            (0_u64).to_be_bytes().as_ref(),
         ],
         &clockwork_network_program::id(),
     )
@@ -63,10 +63,7 @@ pub fn get_clockwork_network_snapshot_pda() -> (Pubkey, u8) {
 
 pub fn get_clockwork_network_fee_pda(worker: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
-        &[
-            clockwork_network_program::state::SEED_FEE.as_ref(),
-            worker.as_ref(),
-        ],
+        &[clockwork_network_program::state::SEED_FEE, worker.as_ref()],
         &clockwork_network_program::id(),
     )
 }
@@ -74,7 +71,7 @@ pub fn get_clockwork_network_fee_pda(worker: &Pubkey) -> (Pubkey, u8) {
 pub fn get_clockwork_network_penalty_pda(worker: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[
-            clockwork_network_program::state::SEED_PENALTY.as_ref(),
+            clockwork_network_program::state::SEED_PENALTY,
             worker.as_ref(),
         ],
         &clockwork_network_program::id(),
@@ -84,7 +81,7 @@ pub fn get_clockwork_network_penalty_pda(worker: &Pubkey) -> (Pubkey, u8) {
 pub fn get_clockwork_network_worker_pda(index: u64) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[
-            clockwork_network_program::state::SEED_WORKER.as_ref(),
+            clockwork_network_program::state::SEED_WORKER,
             index.to_be_bytes().as_ref(),
         ],
         &clockwork_network_program::id(),

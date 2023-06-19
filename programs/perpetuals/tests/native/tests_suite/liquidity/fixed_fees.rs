@@ -59,7 +59,7 @@ pub async fn fixed_fees() {
             alice,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &usdc_mint,
+            usdc_mint,
             &cortex_stake_reward_mint,
             AddLiquidityParams {
                 amount_in: utils::scale(1_000, USDC_DECIMALS),
@@ -105,7 +105,7 @@ pub async fn fixed_fees() {
             alice,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &usdc_mint,
+            usdc_mint,
             &cortex_stake_reward_mint,
             RemoveLiquidityParams {
                 lp_amount_in: utils::scale(100, Perpetuals::LP_DECIMALS),

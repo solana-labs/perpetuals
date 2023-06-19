@@ -240,6 +240,7 @@ impl Perpetuals {
         anchor_lang::system_program::transfer(cpi_context, amount)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn realloc<'a>(
         funding_account: AccountInfo<'a>,
         target_account: AccountInfo<'a>,
@@ -263,6 +264,7 @@ impl Perpetuals {
     }
 
     // recursive swap CPI
+    #[allow(clippy::too_many_arguments)]
     pub fn internal_swap<'a>(
         &self,
         authority: AccountInfo<'a>,
@@ -334,6 +336,7 @@ impl Perpetuals {
     /// avoid delegation of vote (simplify things).
     /// Owner can auto revoke at worse, and to hedge against this we always revoke the min amount between
     /// user voting power and our initial revoke target.
+    #[allow(clippy::too_many_arguments)]
     pub fn remove_governing_power<'a>(
         &self,
         transfer_authority: AccountInfo<'a>,
@@ -394,6 +397,7 @@ impl Perpetuals {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn add_governing_power<'a>(
         &self,
         transfer_authority: AccountInfo<'a>,

@@ -20,7 +20,7 @@ pub async fn test_claim_stakes(
     let stake_reward_token_account_pda = pda::get_stake_reward_token_account_pda().0;
 
     let owner_stake_reward_token_account_address =
-        utils::find_associated_token_account(&owner.pubkey(), &stake_reward_token_mint).0;
+        utils::find_associated_token_account(&owner.pubkey(), stake_reward_token_mint).0;
 
     // ==== WHEN ==============================================================
 

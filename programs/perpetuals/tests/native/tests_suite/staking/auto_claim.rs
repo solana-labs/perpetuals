@@ -244,7 +244,7 @@ pub async fn auto_claim() {
     // Check number of time cron has been executed
     // Cron execution is not deterministic as hour/min/sec impact trigger conditions, depends on when tests are runned
     // cron execution may trigger on different rounds
-    assert!(cron_executions.len() >= 1 && cron_executions.len() <= 2);
+    assert!(!cron_executions.is_empty() && cron_executions.len() <= 2);
 
     println!("Cron executions: {:?}", cron_executions);
 }

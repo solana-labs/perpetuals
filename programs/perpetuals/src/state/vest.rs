@@ -33,7 +33,7 @@ impl Vest {
 
         // Everything remaining is claimable
         if current_time > self.unlock_end_timestamp {
-            return Ok(math::checked_sub(self.amount, self.claimed_amount)?);
+            return math::checked_sub(self.amount, self.claimed_amount);
         }
 
         let unlock_duration_in_seconds: u128 =

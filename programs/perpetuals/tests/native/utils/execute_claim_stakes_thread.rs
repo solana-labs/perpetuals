@@ -29,7 +29,7 @@ pub async fn execute_claim_stakes_thread(
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
     let stake_reward_token_account_address =
-        utils::find_associated_token_account(&owner.pubkey(), &stake_reward_token_mint).0;
+        utils::find_associated_token_account(&owner.pubkey(), stake_reward_token_mint).0;
     let stake_reward_token_account_pda = pda::get_stake_reward_token_account_pda().0;
     let thread_authority = pda::get_staking_thread_authority(&owner.pubkey()).0;
     let staking_account = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
@@ -45,7 +45,7 @@ pub async fn execute_claim_stakes_thread(
     let kickoff_result = adapters::clockwork::thread::thread_kickoff(
         program_test_ctx,
         clockwork_worker,
-        &payer,
+        payer,
         clockwork_signatory,
         &thread_authority,
         staking_account
@@ -89,7 +89,7 @@ pub async fn execute_claim_stakes_thread(
 
     adapters::clockwork::thread::thread_exec(
         program_test_ctx,
-        &clockwork_worker,
+        clockwork_worker,
         payer,
         clockwork_signatory,
         &thread_authority,

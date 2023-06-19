@@ -100,9 +100,9 @@ pub async fn test_staking_rewards_from_swap() {
             martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &eth_mint,
+            eth_mint,
             // The program receives USDC
-            &usdc_mint,
+            usdc_mint,
             &cortex_stake_reward_mint,
             SwapParams {
                 amount_in: utils::scale(5_000, USDC_DECIMALS),
@@ -121,9 +121,9 @@ pub async fn test_staking_rewards_from_swap() {
             martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &usdc_mint,
+            usdc_mint,
             // The program receives ETH
-            &eth_mint,
+            eth_mint,
             &cortex_stake_reward_mint,
             SwapParams {
                 amount_in: utils::scale(10, ETH_DECIMALS),

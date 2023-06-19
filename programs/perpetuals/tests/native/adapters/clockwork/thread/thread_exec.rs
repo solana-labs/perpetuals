@@ -9,6 +9,7 @@ use {
     },
 };
 
+#[allow(clippy::too_many_arguments)]
 pub async fn thread_exec(
     program_test_ctx: &mut ProgramTestContext,
     worker_pda: &Pubkey,
@@ -23,13 +24,6 @@ pub async fn thread_exec(
     let pool_pda = clockwork_network_program::state::Pool::pubkey(0);
     let thread_pda = pda::get_clockwork_thread_pda(thread_authority, thread_id).0;
 
-    println!(">>>>> fee: {}", fee_pda);
-    println!(">>>>> pool: {}", pool_pda);
-    println!(">>>>> signatory: {}", signatory.pubkey());
-    println!(">>>>> thread: {}", thread_pda);
-    println!(">>>>> worker: {}", worker_pda);
-    println!(">>>>> payer: {}", payer.pubkey());
-
     let mut accounts_meta = clockwork_thread_program::accounts::ThreadExec {
         fee: fee_pda,
         pool: pool_pda,
@@ -39,13 +33,7 @@ pub async fn thread_exec(
     }
     .to_account_metas(None);
 
-    for ele in accounts_meta.as_slice() {
-        println!(">>>>> ACCOUNT: {:?}", ele);
-    }
-
     for remaining_account in remaining_accounts {
-        println!(">>>>> REMAINING ACCOUNT: {:?}", remaining_account);
-
         accounts_meta.push(remaining_account);
     }
 

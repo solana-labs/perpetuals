@@ -118,9 +118,9 @@ impl Cortex {
 
     // returns the current size of the Cortex
     pub fn size(&self) -> usize {
-        return Cortex::LEN
+        Cortex::LEN
             + self.vests.len() * Vest::LEN
-            + self.resolved_staking_rounds.len() * StakingRound::LEN;
+            + self.resolved_staking_rounds.len() * StakingRound::LEN
     }
 
     pub fn current_staking_round_is_resolvable(&self, current_time: i64) -> Result<bool> {

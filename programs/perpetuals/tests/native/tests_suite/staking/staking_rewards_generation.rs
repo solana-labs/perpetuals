@@ -156,7 +156,7 @@ pub async fn staking_rewards_generation() {
             martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &eth_mint,
+            eth_mint,
             &cortex_stake_reward_mint,
             AddLiquidityParams {
                 amount_in: utils::scale_f64(0.25, ETH_DECIMALS),
@@ -197,7 +197,7 @@ pub async fn staking_rewards_generation() {
             &martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &eth_mint,
+            eth_mint,
             &cortex_stake_reward_mint,
             OpenPositionParams {
                 // max price paid (slippage implied)
@@ -244,7 +244,7 @@ pub async fn staking_rewards_generation() {
             martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &eth_mint,
+            eth_mint,
             &cortex_stake_reward_mint,
             &position_pda,
             ClosePositionParams {
@@ -286,9 +286,9 @@ pub async fn staking_rewards_generation() {
             martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &eth_mint,
+            eth_mint,
             // The program receives USDC
-            &usdc_mint,
+            usdc_mint,
             &cortex_stake_reward_mint,
             SwapParams {
                 amount_in: utils::scale(150, USDC_DECIMALS),
@@ -334,7 +334,7 @@ pub async fn staking_rewards_generation() {
             martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &eth_mint,
+            eth_mint,
             &cortex_stake_reward_mint,
             RemoveLiquidityParams {
                 lp_amount_in: utils::scale(1, Perpetuals::LP_DECIMALS),

@@ -127,7 +127,7 @@ impl LockedStakingOption {
 }
 
 // List of valid locked staking options and the related multipliers
-pub const LOCKED_STAKING_OPTIONS: [&'static LockedStakingOption; 6] = [
+pub const LOCKED_STAKING_OPTIONS: [&LockedStakingOption; 6] = [
     &LockedStakingOption {
         locked_days: 30,
         base_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.25) as u32,
@@ -196,7 +196,7 @@ impl Staking {
 
     // returns the current size of the Staking
     pub fn size(&self) -> usize {
-        return Staking::LEN + self.locked_stakes.len() * LockedStake::LEN;
+        Staking::LEN + self.locked_stakes.len() * LockedStake::LEN
     }
 
     // returns the new size of the structure after adding/removing stakings

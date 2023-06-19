@@ -105,7 +105,7 @@ pub async fn min_max_leverage() {
         martin,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &eth_mint,
+        eth_mint,
         &cortex_stake_reward_mint,
         OpenPositionParams {
             // max price paid (slippage implied)
@@ -124,7 +124,7 @@ pub async fn min_max_leverage() {
         martin,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &eth_mint,
+        eth_mint,
         &cortex_stake_reward_mint,
         OpenPositionParams {
             // max price paid (slippage implied)

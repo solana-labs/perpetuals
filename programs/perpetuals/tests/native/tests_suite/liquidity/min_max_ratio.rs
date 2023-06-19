@@ -86,7 +86,7 @@ pub async fn min_max_ratio() {
         alice,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &usdc_mint,
+        usdc_mint,
         &cortex_stake_reward_mint,
         AddLiquidityParams {
             amount_in: utils::scale(1_000, USDC_DECIMALS),
@@ -112,7 +112,7 @@ pub async fn min_max_ratio() {
         alice,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &usdc_mint,
+        usdc_mint,
         &cortex_stake_reward_mint,
         RemoveLiquidityParams {
             lp_amount_in: alice_lp_token_account_balance * 35 / 100,

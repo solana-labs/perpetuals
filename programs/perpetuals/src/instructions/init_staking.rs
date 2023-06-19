@@ -185,8 +185,7 @@ pub fn init_staking(ctx: Context<InitStaking>, params: &InitStakingParams) -> Re
                     current_time % 60,
                     current_time % 24,
                     Staking::AUTO_CLAIM_CRON_DAYS_PERIODICITY
-                )
-                .into(),
+                ),
                 skippable: false,
             },
         )?;
