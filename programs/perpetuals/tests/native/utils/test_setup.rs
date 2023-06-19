@@ -455,8 +455,8 @@ impl TestSetup {
 
         // Initialize users token accounts for lp token mint
         {
-            let users_keypairs: Vec<&Keypair> = users.values().collect();
-            let users_pubkeys: Vec<Pubkey> = users_keypairs
+            let users_pubkeys: Vec<Pubkey> = users
+                .values()
                 .into_iter()
                 .map(|keypair| keypair.pubkey())
                 .collect();
