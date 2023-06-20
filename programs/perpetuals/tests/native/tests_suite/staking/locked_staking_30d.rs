@@ -1,5 +1,8 @@
 use {
-    crate::{test_instructions, utils},
+    crate::{
+        test_instructions,
+        utils::{self, pda},
+    },
     maplit::hashmap,
     perpetuals::{
         instructions::{
@@ -138,8 +141,13 @@ pub async fn locked_staking_30d() {
         .unwrap();
     }
 
+    let lm_token_mint = pda::get_lm_token_mint_pda().0;
+
     let alice_staking_reward_token_account_address =
         utils::find_associated_token_account(&alice.pubkey(), &cortex_stake_reward_mint).0;
+
+    let alice_lm_token_account_address =
+        utils::find_associated_token_account(&alice.pubkey(), &lm_token_mint).0;
 
     // Alice: start 30d locked staking
     {
@@ -279,6 +287,12 @@ pub async fn locked_staking_30d() {
         )
         .await;
 
+        let lm_balance_before = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice_lm_token_account_address,
+        )
+        .await;
+
         test_instructions::claim_stakes(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
@@ -295,11 +309,17 @@ pub async fn locked_staking_30d() {
         )
         .await;
 
+        let lm_balance_after = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice_lm_token_account_address,
+        )
+        .await;
+
         assert_eq!(balance_after - balance_before, 90_094_938);
+        assert_eq!(lm_balance_after - lm_balance_before, 2_000_000);
     }
 
     // Move 30d in the future where staking have ended
-    // TODO: For now we don't have clockwork working, so just do one 30 days round
     {
         utils::warp_forward(
             &mut test_setup.program_test_ctx.borrow_mut(),
@@ -317,33 +337,16 @@ pub async fn locked_staking_30d() {
         .await
         .unwrap();
 
-        /*
-        {
-            let nb_round = (utils::days_in_seconds(30) as f64
-                / StakingRound::ROUND_MIN_DURATION_SECONDS as f64)
-                .ceil()
-                .to_u64()
-                .unwrap();
-
-            for _ in 0..nb_round {
-                utils::warp_forward(
-                    &mut test_setup.program_test_ctx.borrow_mut(),
-                    StakingRound::ROUND_MIN_DURATION_SECONDS,
-                )
-                .await;
-
-                instructions::resolve_staking_round(
-                    &mut test_setup.program_test_ctx.borrow_mut(),
-                    alice,
-                    alice,
-                    &test_setup.payer_keypair,
-                    &cortex_stake_reward_mint,
-                )
-                .await
-                .unwrap();
-            }
-        }
-        */
+        utils::execute_claim_stakes_thread(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            &clockwork_worker,
+            &test_setup.clockwork_signatory,
+            alice,
+            &test_setup.payer_keypair,
+            &cortex_stake_reward_mint,
+        )
+        .await
+        .unwrap();
     }
 
     // Remove the stake without resolving it first should fail
@@ -372,19 +375,6 @@ pub async fn locked_staking_30d() {
     )
     .await
     .unwrap();
-
-    /*
-    // Resolve the locked stake
-    instructions::test_resolve_locked_stakes(
-        &mut test_setup.program_test_ctx.borrow_mut(),
-        alice,
-        alice,
-        &test_setup.payer_keypair,
-        &test_setup.governance_realm_pda,
-    )
-    .await
-    .unwrap();
-    */
 
     utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 

@@ -286,8 +286,6 @@ pub async fn liquid_staking() {
         .unwrap();
     }
 
-    println!(">>> AFTER WARP");
-
     // Use add liquidity to generate rewards for the current round
     {
         // Generate platform activity to fill current round' rewards
