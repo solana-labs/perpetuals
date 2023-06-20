@@ -30,7 +30,7 @@ pub struct ClaimStakes<'info> {
         token::mint = stake_reward_token_mint,
         has_one = owner
     )]
-    pub owner_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub reward_token_account: Box<Account<'info, TokenAccount>>,
 
     // reward token account of the stake owner
     #[account(
@@ -38,7 +38,7 @@ pub struct ClaimStakes<'info> {
         token::mint = lm_token_mint,
         has_one = owner
     )]
-    pub owner_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub lm_token_account: Box<Account<'info, TokenAccount>>,
 
     // staking reward token vault
     #[account(
@@ -286,7 +286,7 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
 
             perpetuals.transfer_tokens(
                 ctx.accounts.stake_reward_token_account.to_account_info(),
-                ctx.accounts.owner_reward_token_account.to_account_info(),
+                ctx.accounts.reward_token_account.to_account_info(),
                 ctx.accounts.transfer_authority.to_account_info(),
                 ctx.accounts.token_program.to_account_info(),
                 rewards_token_amount,
@@ -309,7 +309,7 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
 
             perpetuals.transfer_tokens(
                 ctx.accounts.stake_lm_reward_token_account.to_account_info(),
-                ctx.accounts.owner_lm_reward_token_account.to_account_info(),
+                ctx.accounts.lm_token_account.to_account_info(),
                 ctx.accounts.transfer_authority.to_account_info(),
                 ctx.accounts.token_program.to_account_info(),
                 lm_rewards_token_amount,

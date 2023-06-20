@@ -32,7 +32,7 @@ pub struct AddLiquidStake<'info> {
         token::mint = stake_reward_token_mint,
         has_one = owner
     )]
-    pub owner_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub reward_token_account: Box<Account<'info, TokenAccount>>,
 
     // reward token account of the stake owner
     #[account(
@@ -40,7 +40,7 @@ pub struct AddLiquidStake<'info> {
         token::mint = lm_token_mint,
         has_one = owner
     )]
-    pub owner_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub lm_token_account: Box<Account<'info, TokenAccount>>,
 
     // staked token vault
     #[account(
@@ -181,14 +181,8 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
                     caller: ctx.accounts.owner.to_account_info(),
                     payer: ctx.accounts.owner.to_account_info(),
                     owner: ctx.accounts.owner.to_account_info(),
-                    owner_reward_token_account: ctx
-                        .accounts
-                        .owner_reward_token_account
-                        .to_account_info(),
-                    owner_lm_reward_token_account: ctx
-                        .accounts
-                        .owner_lm_reward_token_account
-                        .to_account_info(),
+                    reward_token_account: ctx.accounts.reward_token_account.to_account_info(),
+                    lm_token_account: ctx.accounts.lm_token_account.to_account_info(),
                     stake_reward_token_account: ctx
                         .accounts
                         .stake_reward_token_account

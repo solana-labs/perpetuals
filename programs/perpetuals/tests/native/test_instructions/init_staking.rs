@@ -27,9 +27,9 @@ pub async fn init_staking(
     let staking_thread_authority_pda = pda::get_staking_thread_authority(&owner.pubkey()).0;
     let stake_reward_token_account_pda = pda::get_stake_reward_token_account_pda().0;
     let stake_lm_reward_token_account_pda = pda::get_stake_lm_reward_token_account_pda().0;
-    let owner_reward_token_account_address =
+    let reward_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), stake_reward_token_mint).0;
-    let owner_lm_reward_token_account_address =
+    let lm_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), &lm_token_mint_pda).0;
 
     let stakes_claim_cron_thread_address = pda::get_thread_address(
@@ -43,8 +43,8 @@ pub async fn init_staking(
         program_test_ctx,
         perpetuals::accounts::InitStaking {
             owner: owner.pubkey(),
-            owner_reward_token_account: owner_reward_token_account_address,
-            owner_lm_reward_token_account: owner_lm_reward_token_account_address,
+            reward_token_account: reward_token_account_address,
+            lm_token_account: lm_token_account_address,
             stake_reward_token_account: stake_reward_token_account_pda,
             stake_lm_reward_token_account: stake_lm_reward_token_account_pda,
             staking: staking_pda,

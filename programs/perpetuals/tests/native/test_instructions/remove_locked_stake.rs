@@ -69,7 +69,7 @@ pub async fn remove_locked_stake(
         perpetuals::accounts::RemoveLockedStake {
             owner: owner.pubkey(),
             lm_token_account: lm_token_account_address,
-            owner_reward_token_account: stake_reward_token_account_address,
+            reward_token_account: stake_reward_token_account_address,
             stake_token_account: stake_token_account_pda,
             stake_reward_token_account: stake_reward_token_account_pda,
             stake_lm_reward_token_account: stake_lm_reward_token_account_pda,

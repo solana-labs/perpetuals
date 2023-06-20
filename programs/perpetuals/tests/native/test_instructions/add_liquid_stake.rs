@@ -28,11 +28,9 @@ pub async fn add_liquid_stake(
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
     let governance_token_mint_pda = pda::get_governance_token_mint_pda().0;
 
-    let lm_token_account_address =
-        utils::find_associated_token_account(&owner.pubkey(), &lm_token_mint_pda).0;
-    let owner_reward_token_account_address =
+    let reward_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), stake_reward_token_mint).0;
-    let owner_lm_reward_token_account_address =
+    let lm_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), &lm_token_mint_pda).0;
 
     let governance_governing_token_holding_pda = pda::get_governance_governing_token_holding_pda(
@@ -73,8 +71,8 @@ pub async fn add_liquid_stake(
         perpetuals::accounts::AddLiquidStake {
             owner: owner.pubkey(),
             funding_account: lm_token_account_address,
-            owner_reward_token_account: owner_reward_token_account_address,
-            owner_lm_reward_token_account: owner_lm_reward_token_account_address,
+            reward_token_account: reward_token_account_address,
+            lm_token_account: lm_token_account_address,
             stake_token_account: stake_token_account_pda,
             stake_reward_token_account: stake_reward_token_account_pda,
             stake_lm_reward_token_account: stake_lm_reward_token_account_pda,

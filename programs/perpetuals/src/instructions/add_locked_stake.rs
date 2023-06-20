@@ -33,7 +33,7 @@ pub struct AddLockedStake<'info> {
         token::mint = stake_reward_token_mint,
         has_one = owner
     )]
-    pub owner_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub reward_token_account: Box<Account<'info, TokenAccount>>,
 
     // staked token vault
     #[account(

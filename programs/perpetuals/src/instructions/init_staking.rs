@@ -26,7 +26,7 @@ pub struct InitStaking<'info> {
         token::mint = stake_reward_token_mint,
         has_one = owner
     )]
-    pub owner_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub reward_token_account: Box<Account<'info, TokenAccount>>,
 
     // reward token account of the stake owner
     #[account(
@@ -34,7 +34,7 @@ pub struct InitStaking<'info> {
         token::mint = lm_token_mint,
         has_one = owner
     )]
-    pub owner_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub lm_token_account: Box<Account<'info, TokenAccount>>,
 
     // staking reward token vault
     #[account(
@@ -172,14 +172,8 @@ pub fn init_staking(ctx: Context<InitStaking>, params: &InitStakingParams) -> Re
                     caller: ctx.accounts.stakes_claim_cron_thread.to_account_info(),
                     payer: ctx.accounts.stakes_claim_payer.to_account_info(),
                     owner: ctx.accounts.owner.to_account_info(),
-                    owner_reward_token_account: ctx
-                        .accounts
-                        .owner_reward_token_account
-                        .to_account_info(),
-                    owner_lm_reward_token_account: ctx
-                        .accounts
-                        .owner_lm_reward_token_account
-                        .to_account_info(),
+                    reward_token_account: ctx.accounts.reward_token_account.to_account_info(),
+                    lm_token_account: ctx.accounts.lm_token_account.to_account_info(),
                     stake_reward_token_account: ctx
                         .accounts
                         .stake_reward_token_account

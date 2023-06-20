@@ -29,9 +29,9 @@ pub async fn execute_claim_stakes_thread(
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
-    let owner_reward_token_account_address =
+    let reward_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), stake_reward_token_mint).0;
-    let owner_lm_reward_token_account_address =
+    let lm_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), &lm_token_mint_pda).0;
     let stake_reward_token_account_pda = pda::get_stake_reward_token_account_pda().0;
     let stake_lm_reward_token_account_pda = pda::get_stake_lm_reward_token_account_pda().0;
@@ -71,8 +71,8 @@ pub async fn execute_claim_stakes_thread(
         // but will be replaced dynamically by the signatory
         // needs to use signatory here
         payer: clockwork_signatory.pubkey(),
-        owner_reward_token_account: owner_reward_token_account_address,
-        owner_lm_reward_token_account: owner_lm_reward_token_account_address,
+        reward_token_account: reward_token_account_address,
+        lm_token_account: lm_token_account_address,
         stake_reward_token_account: stake_reward_token_account_pda,
         stake_lm_reward_token_account: stake_lm_reward_token_account_pda,
         transfer_authority: transfer_authority_pda,
