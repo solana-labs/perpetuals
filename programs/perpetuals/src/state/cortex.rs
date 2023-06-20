@@ -19,6 +19,7 @@ pub struct Cortex {
     pub governance_token_bump: u8,
     pub stake_token_account_bump: u8,
     pub stake_reward_token_account_bump: u8,
+    pub stake_lm_reward_token_account_bump: u8,
     //
     pub inception_epoch: u64,
     pub governance_program: Pubkey,
@@ -27,11 +28,17 @@ pub struct Cortex {
     pub stake_reward_token_mint: Pubkey,
     pub stake_token_decimals: u8,
     pub stake_reward_token_decimals: u8,
-    // these two values are used to resolve staking rounds
-    // `resolved_reward_token_amount` represents the amount of rewards allocated to resolved rounds, claimable (excluding current/next round)
+    //
+    // amount of rewards allocated to resolved rounds, claimable (excluding current/next round)
     pub resolved_reward_token_amount: u64,
-    // `resolved_stake_token_amount`represents the amount of staked token locked in resolved rounds, claimable (excluding current/next round)
+    // amount of staked token locked in resolved rounds, claimable (excluding current/next round)
     pub resolved_stake_token_amount: u128,
+    //
+    // amount of lm rewards allocated to resolved rounds, claimable (excluding current/next round)
+    pub resolved_lm_reward_token_amount: u64,
+    // amount of lm staked token locked in resolved rounds, claimable (excluding current/next round)
+    pub resolved_lm_stake_token_amount: u128,
+    //
     pub current_staking_round: StakingRound,
     pub next_staking_round: StakingRound,
     // must be the last element of the struct for reallocs
@@ -41,9 +48,14 @@ pub struct Cortex {
 #[derive(Default, Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
 pub struct StakingRound {
     pub start_time: i64,
+    //
     pub rate: u64, // the amount of reward you get per staked stake-token for that round - set at Round's resolution
     pub total_stake: u64, // - set at Round's resolution
     pub total_claim: u64, // - set at Round's resolution
+    //
+    pub lm_rate: u64, // the amount of lm reward you get per staked stake-token for that round - set at Round's resolution
+    pub lm_total_stake: u64, // - set at Round's resolution
+    pub lm_total_claim: u64, // - set at Round's resolution
 }
 
 impl StakingRound {
@@ -65,11 +77,13 @@ impl StakingRound {
             rate: u64::MIN,
             total_stake: u64::MIN,
             total_claim: u64::MIN,
+            lm_rate: u64::MIN,
+            lm_total_stake: u64::MIN,
+            lm_total_claim: u64::MIN,
         }
     }
 }
 
-/// Cortex
 impl Cortex {
     pub const LEN: usize = 8 + std::mem::size_of::<Cortex>();
     const INCEPTION_EMISSION_RATE: u64 = Perpetuals::RATE_POWER as u64; // 100%

@@ -37,6 +37,8 @@ pub async fn init(
     let (stake_token_account_pda, stake_token_account_bump) = pda::get_stake_token_account_pda();
     let (stake_reward_token_account_pda, stake_reward_token_account_bump) =
         pda::get_stake_reward_token_account_pda();
+    let (stake_lm_reward_token_account_pda, stake_lm_reward_token_account_bump) =
+        pda::get_stake_lm_reward_token_account_pda();
 
     let accounts_meta = {
         let accounts = perpetuals::accounts::Init {
@@ -48,6 +50,7 @@ pub async fn init(
             governance_token_mint: governance_token_mint_pda,
             stake_token_account: stake_token_account_pda,
             stake_reward_token_account: stake_reward_token_account_pda,
+            stake_lm_reward_token_account: stake_lm_reward_token_account_pda,
             perpetuals: perpetuals_pda,
             perpetuals_program: perpetuals::ID,
             perpetuals_program_data: perpetuals_program_data_pda,
@@ -125,6 +128,10 @@ pub async fn init(
         assert_eq!(
             cortex_account.stake_reward_token_account_bump,
             stake_reward_token_account_bump
+        );
+        assert_eq!(
+            cortex_account.stake_lm_reward_token_account_bump,
+            stake_lm_reward_token_account_bump
         );
         assert_eq!(
             cortex_account.stake_reward_token_mint,

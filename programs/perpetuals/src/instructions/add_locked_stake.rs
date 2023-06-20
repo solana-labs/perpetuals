@@ -167,9 +167,17 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
     let cortex = ctx.accounts.cortex.as_mut();
 
     // Add stake to Staking account
-    let stake_amount_with_multiplier = {
-        let stake_amount_with_multiplier = math::checked_as_u64(math::checked_div(
+    let (stake_amount_with_reward_multiplier, stake_amount_with_lm_reward_multiplier) = {
+        let stake_amount_with_reward_multiplier = math::checked_as_u64(math::checked_div(
             math::checked_mul(params.amount, staking_option.base_reward_multiplier as u64)? as u128,
+            Perpetuals::BPS_POWER,
+        )?)?;
+
+        let stake_amount_with_lm_reward_multiplier = math::checked_as_u64(math::checked_div(
+            math::checked_mul(
+                params.amount,
+                staking_option.lm_token_reward_multiplier as u64,
+            )? as u128,
             Perpetuals::BPS_POWER,
         )?)?;
 
@@ -185,7 +193,8 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
             lm_token_reward_multiplier: staking_option.lm_token_reward_multiplier,
             vote_multiplier: staking_option.vote_multiplier,
 
-            amount_with_multiplier: stake_amount_with_multiplier,
+            amount_with_reward_multiplier: stake_amount_with_reward_multiplier,
+            amount_with_lm_reward_multiplier: stake_amount_with_lm_reward_multiplier,
 
             resolved: false,
             stake_resolution_thread_id: params.stake_resolution_thread_id,
@@ -282,7 +291,10 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
             )?;
         }
 
-        stake_amount_with_multiplier
+        (
+            stake_amount_with_reward_multiplier,
+            stake_amount_with_lm_reward_multiplier,
+        )
     };
 
     // transfer newly staked tokens to Stake PDA
@@ -327,10 +339,14 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
 
     // update Cortex data
     {
-        // apply delta to next round taking into account real yield multiplier
         cortex.next_staking_round.total_stake = math::checked_add(
             cortex.next_staking_round.total_stake,
-            stake_amount_with_multiplier,
+            stake_amount_with_reward_multiplier,
+        )?;
+
+        cortex.next_staking_round.lm_total_stake = math::checked_add(
+            cortex.next_staking_round.lm_total_stake,
+            stake_amount_with_lm_reward_multiplier,
         )?;
     }
 

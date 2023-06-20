@@ -173,7 +173,7 @@ pub async fn auto_claim() {
     // Store the index of the round where cron has been executed
     let mut cron_executions: Vec<u64> = Vec::new();
 
-    for i in 0..100 {
+    for i in 0..30 {
         // Generate platform activity to fill current round' rewards
         {
             test_instructions::add_liquidity(

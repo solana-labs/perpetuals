@@ -265,6 +265,8 @@ pub async fn liquid_staking() {
         assert_eq!(balance_after - balance_before, 90_072_750);
     }
 
+    println!(">>> AFTER CLAIM");
+
     // warp to the next round and resolve the current one
     {
         utils::warp_forward(
@@ -283,6 +285,8 @@ pub async fn liquid_staking() {
         .await
         .unwrap();
     }
+
+    println!(">>> AFTER WARP");
 
     // Use add liquidity to generate rewards for the current round
     {

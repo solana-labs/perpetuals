@@ -20,9 +20,9 @@ pub async fn test_integration() {
     tests_suite::staking::locked_staking_30d().await;
     tests_suite::staking::multiple_stakers_get_correct_rewards().await;
 
-    tests_suite::lp_token::lp_token_price().await;
-
     // Long tests
     tests_suite::staking::resolved_round_overflow().await;
     tests_suite::staking::auto_claim().await;
+
+    tests_suite::lp_token::lp_token_price().await;
 }

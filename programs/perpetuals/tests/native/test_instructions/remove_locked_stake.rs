@@ -24,6 +24,7 @@ pub async fn remove_locked_stake(
     let cortex_pda = pda::get_cortex_pda().0;
     let stake_token_account_pda = pda::get_stake_token_account_pda().0;
     let stake_reward_token_account_pda = pda::get_stake_reward_token_account_pda().0;
+    let stake_lm_reward_token_account_pda = pda::get_stake_lm_reward_token_account_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
     let governance_token_mint_pda = pda::get_governance_token_mint_pda().0;
 
@@ -71,6 +72,7 @@ pub async fn remove_locked_stake(
             owner_reward_token_account: stake_reward_token_account_address,
             stake_token_account: stake_token_account_pda,
             stake_reward_token_account: stake_reward_token_account_pda,
+            stake_lm_reward_token_account: stake_lm_reward_token_account_pda,
             transfer_authority: transfer_authority_pda,
             staking: staking_pda,
             cortex: cortex_pda,
@@ -118,10 +120,11 @@ pub async fn remove_locked_stake(
 
     // Check owner staked token ATA balance
     {
-        assert_eq!(
+        // Can be higher if user claimed lm rewards
+        assert!(
             owner_staked_token_account_before
-                + staking_account_before.locked_stakes[params.locked_stake_index].amount,
-            owner_staked_token_account_after,
+                + staking_account_before.locked_stakes[params.locked_stake_index].amount
+                <= owner_staked_token_account_after,
         );
     }
 

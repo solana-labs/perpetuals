@@ -18,6 +18,7 @@ pub async fn resolve_staking_round(
     let cortex_pda = pda::get_cortex_pda().0;
     let stake_token_account_pda = pda::get_stake_token_account_pda().0;
     let stake_reward_token_account_pda = pda::get_stake_reward_token_account_pda().0;
+    let stake_lm_reward_token_account_pda = pda::get_stake_lm_reward_token_account_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
 
     // // ==== WHEN ==============================================================
@@ -28,6 +29,7 @@ pub async fn resolve_staking_round(
             caller: caller.pubkey(),
             stake_token_account: stake_token_account_pda,
             stake_reward_token_account: stake_reward_token_account_pda,
+            stake_lm_reward_token_account: stake_lm_reward_token_account_pda,
             transfer_authority: transfer_authority_pda,
             cortex: cortex_pda,
             perpetuals: perpetuals_pda,

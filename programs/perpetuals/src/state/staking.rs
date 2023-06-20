@@ -72,8 +72,10 @@ pub struct LockedStake {
     pub vote_multiplier: u32,
 
     // Persisted data to save-up computation during claim etc.
-    // amount with real yield multiplier applied to it
-    pub amount_with_multiplier: u64,
+    // amount with base reward multiplier applied to it
+    pub amount_with_reward_multiplier: u64,
+    // amount with base reward multiplier applied to it
+    pub amount_with_lm_reward_multiplier: u64,
 
     // locked stake needs to be resolved before removing it
     // doesn't apply to liquid stake (lock_duration == 0)
@@ -169,14 +171,14 @@ pub const LOCKED_STAKING_OPTIONS: [&LockedStakingOption; 6] = [
 impl Staking {
     pub const LEN: usize = 8 + std::mem::size_of::<Staking>();
 
-    // The max age of a Staking account in the system, 20 days
-    pub const MAX_AGE_SECONDS: i64 = 20 * HOURS_PER_DAY * SECONDS_PER_HOURS;
+    // The max age of a Staking account in the system, 9 days
+    pub const MAX_AGE_SECONDS: i64 = 9 * HOURS_PER_DAY * SECONDS_PER_HOURS;
 
-    // Run cron every 18 days, leaving 3 days of buffering in case cron doesn't execute as it should have
-    pub const AUTO_CLAIM_CRON_DAYS_PERIODICITY: u8 = 18;
+    // Run cron every 7 days, leaving 2 days of buffering in case cron doesn't execute as it should have
+    pub const AUTO_CLAIM_CRON_DAYS_PERIODICITY: u8 = 7;
 
-    // Cover ~10 years of auto-claim fees (210 calls * 18 days between calls = 3780 days covered ~= 10.3448275862 years)
-    pub const AUTO_CLAIM_FEE_COVERED_CALLS: u64 = 210;
+    // Cover ~10 years of auto-claim fees (530 calls * 7 days between calls = 3710 days covered ~= 10.1643835616 years)
+    pub const AUTO_CLAIM_FEE_COVERED_CALLS: u64 = 530;
 
     // Fee paid for the execution of one automated action using clockwork
     pub const AUTOMATION_EXEC_FEE: u64 = 1_000;

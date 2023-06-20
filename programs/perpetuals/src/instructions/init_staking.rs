@@ -22,20 +22,37 @@ pub struct InitStaking<'info> {
 
     // reward token account of the stake owner
     #[account(
-            mut,
-            token::mint = stake_reward_token_mint,
-            has_one = owner
-        )]
+        mut,
+        token::mint = stake_reward_token_mint,
+        has_one = owner
+    )]
     pub owner_reward_token_account: Box<Account<'info, TokenAccount>>,
+
+    // reward token account of the stake owner
+    #[account(
+        mut,
+        token::mint = lm_token_mint,
+        has_one = owner
+    )]
+    pub owner_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
 
     // staking reward token vault
     #[account(
-            mut,
-            token::mint = stake_reward_token_mint,
-            seeds = [b"stake_reward_token_account"],
-            bump = cortex.stake_reward_token_account_bump
-        )]
+        mut,
+        token::mint = stake_reward_token_mint,
+        seeds = [b"stake_reward_token_account"],
+        bump = cortex.stake_reward_token_account_bump
+    )]
     pub stake_reward_token_account: Box<Account<'info, TokenAccount>>,
+
+    // staking lm reward token vault
+    #[account(
+        mut,
+        token::mint = lm_token_mint,
+        seeds = [b"stake_lm_reward_token_account"],
+        bump = cortex.stake_lm_reward_token_account_bump
+    )]
+    pub stake_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
 
     #[account(
         init,
@@ -85,6 +102,12 @@ pub struct InitStaking<'info> {
         bump = perpetuals.perpetuals_bump
     )]
     pub perpetuals: Box<Account<'info, Perpetuals>>,
+
+    #[account(
+        seeds = [b"lm_token_mint"],
+        bump = cortex.lm_token_bump
+    )]
+    pub lm_token_mint: Box<Account<'info, Mint>>,
 
     #[account()]
     pub stake_reward_token_mint: Box<Account<'info, Mint>>,
@@ -153,15 +176,24 @@ pub fn init_staking(ctx: Context<InitStaking>, params: &InitStakingParams) -> Re
                         .accounts
                         .owner_reward_token_account
                         .to_account_info(),
+                    owner_lm_reward_token_account: ctx
+                        .accounts
+                        .owner_lm_reward_token_account
+                        .to_account_info(),
                     stake_reward_token_account: ctx
                         .accounts
                         .stake_reward_token_account
+                        .to_account_info(),
+                    stake_lm_reward_token_account: ctx
+                        .accounts
+                        .stake_lm_reward_token_account
                         .to_account_info(),
                     transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
                     staking: staking.to_account_info(),
                     cortex: ctx.accounts.cortex.to_account_info(),
                     perpetuals: ctx.accounts.perpetuals.to_account_info(),
                     stake_reward_token_mint: ctx.accounts.stake_reward_token_mint.to_account_info(),
+                    lm_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
                     perpetuals_program: ctx.accounts.perpetuals_program.to_account_info(),
                     system_program: ctx.accounts.system_program.to_account_info(),
                     token_program: ctx.accounts.token_program.to_account_info(),

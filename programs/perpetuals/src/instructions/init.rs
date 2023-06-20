@@ -93,6 +93,17 @@ pub struct Init<'info> {
     )]
     pub stake_reward_token_account: Box<Account<'info, TokenAccount>>,
 
+    // staking lm reward token vault
+    #[account(
+        init,
+        payer = upgrade_authority,
+        token::mint = lm_token_mint,
+        token::authority = transfer_authority,
+        seeds = [b"stake_lm_reward_token_account"],
+        bump
+    )]
+    pub stake_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
+
     #[account(
         init,
         payer = upgrade_authority,
@@ -199,6 +210,10 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
         cortex.stake_reward_token_account_bump = *ctx
             .bumps
             .get("stake_reward_token_account")
+            .ok_or(ProgramError::InvalidSeeds)?;
+        cortex.stake_lm_reward_token_account_bump = *ctx
+            .bumps
+            .get("stake_lm_reward_token_account")
             .ok_or(ProgramError::InvalidSeeds)?;
         cortex.inception_epoch = cortex.get_epoch()?;
         cortex.governance_program = ctx.accounts.governance_program.key();

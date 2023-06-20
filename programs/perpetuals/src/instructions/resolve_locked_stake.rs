@@ -144,22 +144,40 @@ pub fn resolve_locked_stake(
     }
 
     // forfeit current round participation
-    cortex.current_staking_round.total_stake = math::checked_sub(
-        cortex.current_staking_round.total_stake,
-        locked_stake.amount_with_multiplier,
-    )?;
+    {
+        cortex.current_staking_round.total_stake = math::checked_sub(
+            cortex.current_staking_round.total_stake,
+            locked_stake.amount_with_reward_multiplier,
+        )?;
+
+        cortex.current_staking_round.lm_total_stake = math::checked_sub(
+            cortex.current_staking_round.lm_total_stake,
+            locked_stake.amount_with_lm_reward_multiplier,
+        )?;
+    }
 
     // remove staked tokens from next round
-    cortex.next_staking_round.total_stake = math::checked_sub(
-        cortex.next_staking_round.total_stake,
-        locked_stake.amount_with_multiplier,
-    )?;
+    {
+        cortex.next_staking_round.total_stake = math::checked_sub(
+            cortex.next_staking_round.total_stake,
+            locked_stake.amount_with_reward_multiplier,
+        )?;
+
+        cortex.next_staking_round.lm_total_stake = math::checked_sub(
+            cortex.next_staking_round.lm_total_stake,
+            locked_stake.amount_with_lm_reward_multiplier,
+        )?;
+    }
 
     locked_stake.resolved = true;
 
     msg!(
         "cortex.next_staking_round.total_stake: {}",
         cortex.next_staking_round.total_stake
+    );
+    msg!(
+        "cortex.next_staking_round.lm_total_stake: {}",
+        cortex.next_staking_round.lm_total_stake
     );
     msg!(
         "cortex.resolved_staking_rounds after remove stake {:?}",

@@ -32,6 +32,14 @@ pub struct ClaimStakes<'info> {
     )]
     pub owner_reward_token_account: Box<Account<'info, TokenAccount>>,
 
+    // reward token account of the stake owner
+    #[account(
+        mut,
+        token::mint = lm_token_mint,
+        has_one = owner
+    )]
+    pub owner_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
+
     // staking reward token vault
     #[account(
         mut,
@@ -40,6 +48,15 @@ pub struct ClaimStakes<'info> {
         bump = cortex.stake_reward_token_account_bump
     )]
     pub stake_reward_token_account: Box<Account<'info, TokenAccount>>,
+
+    // staking lm reward token vault
+    #[account(
+        mut,
+        token::mint = lm_token_mint,
+        seeds = [b"stake_lm_reward_token_account"],
+        bump = cortex.stake_lm_reward_token_account_bump
+    )]
+    pub stake_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: empty PDA, authority for token accounts
     #[account(
@@ -70,6 +87,12 @@ pub struct ClaimStakes<'info> {
     )]
     pub perpetuals: Box<Account<'info, Perpetuals>>,
 
+    #[account(
+        seeds = [b"lm_token_mint"],
+        bump = cortex.lm_token_bump
+    )]
+    pub lm_token_mint: Box<Account<'info, Mint>>,
+
     #[account()]
     pub stake_reward_token_mint: Box<Account<'info, Mint>>,
 
@@ -87,7 +110,12 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
     // Loop over resolved rounds and:
     // 1. Calculate rewards token amount to be claimed for staker
     // 2. Drop fully claimed rounds
-    let (rewards_token_amount, stake_amount_with_multiplier) = {
+    let (
+        rewards_token_amount,
+        stake_amount_with_reward_multiplier,
+        lm_rewards_token_amount,
+        stake_amount_with_lm_reward_multiplier,
+    ) = {
         // prints compute budget before
         sol_log_compute_units();
 
@@ -96,9 +124,11 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
         let stake_reward_token_decimals = cortex.stake_reward_token_decimals as i32;
 
         let mut rewards_token_amount: u64 = 0;
+        let mut lm_rewards_token_amount: u64 = 0;
 
         // total amount of token that tokens have been claimed for
-        let mut stake_amount_with_multiplier: u64 = 0;
+        let mut stake_amount_with_reward_multiplier: u64 = 0;
+        let mut stake_amount_with_lm_reward_multiplier: u64 = 0;
 
         msg!(
             "{} resolved rounds to evaluate",
@@ -113,30 +143,63 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
                 for locked_stake in staking.locked_stakes.iter_mut() {
                     // Stake is elligible for rewards
                     if locked_stake.qualifies_for_rewards_from(round) {
-                        let locked_rewards_token_amount = math::checked_decimal_mul(
-                            locked_stake.amount_with_multiplier,
-                            -stake_token_decimals,
-                            round.rate,
-                            -(Perpetuals::RATE_DECIMALS as i32),
-                            -stake_reward_token_decimals,
-                        )
-                        .unwrap();
+                        {
+                            let locked_rewards_token_amount = math::checked_decimal_mul(
+                                locked_stake.amount_with_reward_multiplier,
+                                -stake_token_decimals,
+                                round.rate,
+                                -(Perpetuals::RATE_DECIMALS as i32),
+                                -stake_reward_token_decimals,
+                            )
+                            .unwrap();
 
-                        rewards_token_amount =
-                            math::checked_add(rewards_token_amount, locked_rewards_token_amount)
-                                .unwrap();
+                            rewards_token_amount = math::checked_add(
+                                rewards_token_amount,
+                                locked_rewards_token_amount,
+                            )
+                            .unwrap();
 
-                        round.total_claim = math::checked_add(
-                            round.total_claim,
-                            locked_stake.amount_with_multiplier,
-                        )
-                        .unwrap();
+                            round.total_claim = math::checked_add(
+                                round.total_claim,
+                                locked_stake.amount_with_reward_multiplier,
+                            )
+                            .unwrap();
 
-                        stake_amount_with_multiplier = math::checked_add(
-                            stake_amount_with_multiplier,
-                            locked_stake.amount_with_multiplier,
-                        )
-                        .unwrap();
+                            stake_amount_with_reward_multiplier = math::checked_add(
+                                stake_amount_with_reward_multiplier,
+                                locked_stake.amount_with_reward_multiplier,
+                            )
+                            .unwrap();
+                        }
+
+                        {
+                            let locked_lm_rewards_token_amount = math::checked_decimal_mul(
+                                locked_stake.amount_with_lm_reward_multiplier,
+                                -(Cortex::LM_DECIMALS as i32),
+                                round.lm_rate,
+                                -(Perpetuals::RATE_DECIMALS as i32),
+                                -(Cortex::LM_DECIMALS as i32),
+                            )
+                            .unwrap();
+
+                            lm_rewards_token_amount = math::checked_add(
+                                lm_rewards_token_amount,
+                                locked_lm_rewards_token_amount,
+                            )
+                            .unwrap();
+
+                            round.lm_total_claim = math::checked_add(
+                                round.lm_total_claim,
+                                locked_stake.amount_with_lm_reward_multiplier,
+                            )
+                            .unwrap();
+
+                            stake_amount_with_lm_reward_multiplier = math::checked_add(
+                                stake_amount_with_lm_reward_multiplier,
+                                locked_stake.amount_with_lm_reward_multiplier,
+                            )
+                            .unwrap();
+                        }
                     }
                 }
             }
@@ -163,8 +226,8 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
                     round.total_claim =
                         math::checked_add(round.total_claim, staking.liquid_stake.amount).unwrap();
 
-                    stake_amount_with_multiplier = math::checked_add(
-                        stake_amount_with_multiplier,
+                    stake_amount_with_reward_multiplier = math::checked_add(
+                        stake_amount_with_reward_multiplier,
                         staking.liquid_stake.amount,
                     )
                     .unwrap();
@@ -174,7 +237,8 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
             }
 
             // retain element if there is stake that has not been claimed yet by other participants
-            let round_fully_claimed = round.total_claim == round.total_stake;
+            let round_fully_claimed = round.total_claim == round.total_stake
+                && round.lm_total_claim == round.lm_total_stake;
 
             // note: some dust of rewards will build up in the token account due to rate precision of 9 units
             !round_fully_claimed
@@ -204,29 +268,55 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
         // prints compute budget after
         sol_log_compute_units();
 
-        (rewards_token_amount, stake_amount_with_multiplier)
+        (
+            rewards_token_amount,
+            stake_amount_with_reward_multiplier,
+            lm_rewards_token_amount,
+            stake_amount_with_lm_reward_multiplier,
+        )
     };
 
     msg!("Distribute {} rewards", rewards_token_amount);
 
     {
-        if rewards_token_amount.is_zero() {
+        if !rewards_token_amount.is_zero() {
+            msg!("Transfer rewards_token_amount: {}", rewards_token_amount);
+
+            let perpetuals = ctx.accounts.perpetuals.as_mut();
+
+            perpetuals.transfer_tokens(
+                ctx.accounts.stake_reward_token_account.to_account_info(),
+                ctx.accounts.owner_reward_token_account.to_account_info(),
+                ctx.accounts.transfer_authority.to_account_info(),
+                ctx.accounts.token_program.to_account_info(),
+                rewards_token_amount,
+            )?;
+        } else {
             msg!("No reward tokens to claim at this time");
-
-            return Ok(());
         }
+    }
 
-        msg!("Transfer rewards_token_amount: {}", rewards_token_amount);
+    msg!("Distribute {} lm rewards", lm_rewards_token_amount);
 
-        let perpetuals = ctx.accounts.perpetuals.as_mut();
+    {
+        if !lm_rewards_token_amount.is_zero() {
+            msg!(
+                "Transfer lm_rewards_token_amount: {}",
+                lm_rewards_token_amount
+            );
 
-        perpetuals.transfer_tokens(
-            ctx.accounts.stake_reward_token_account.to_account_info(),
-            ctx.accounts.owner_reward_token_account.to_account_info(),
-            ctx.accounts.transfer_authority.to_account_info(),
-            ctx.accounts.token_program.to_account_info(),
-            rewards_token_amount,
-        )?;
+            let perpetuals = ctx.accounts.perpetuals.as_mut();
+
+            perpetuals.transfer_tokens(
+                ctx.accounts.stake_lm_reward_token_account.to_account_info(),
+                ctx.accounts.owner_lm_reward_token_account.to_account_info(),
+                ctx.accounts.transfer_authority.to_account_info(),
+                ctx.accounts.token_program.to_account_info(),
+                lm_rewards_token_amount,
+            )?;
+        } else {
+            msg!("No lm reward tokens to claim at this time");
+        }
     }
 
     // Update stakes claim time
@@ -246,15 +336,31 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
 
     // Adapt current/next round
     {
-        // update resolved stake token amount left, by removing the previously staked amount
-        cortex.resolved_stake_token_amount = math::checked_sub(
-            cortex.resolved_stake_token_amount,
-            stake_amount_with_multiplier as u128,
-        )?;
+        {
+            // update resolved stake token amount left, by removing the previously staked amount
+            cortex.resolved_stake_token_amount = math::checked_sub(
+                cortex.resolved_stake_token_amount,
+                stake_amount_with_reward_multiplier as u128,
+            )?;
 
-        // update resolved reward token amount left
-        cortex.resolved_reward_token_amount =
-            math::checked_sub(cortex.resolved_reward_token_amount, rewards_token_amount)?;
+            // update resolved reward token amount left
+            cortex.resolved_reward_token_amount =
+                math::checked_sub(cortex.resolved_reward_token_amount, rewards_token_amount)?;
+        }
+
+        {
+            // update resolved lm stake token amount left, by removing the previously staked amount
+            cortex.resolved_lm_stake_token_amount = math::checked_sub(
+                cortex.resolved_lm_stake_token_amount,
+                stake_amount_with_lm_reward_multiplier as u128,
+            )?;
+
+            // update resolved reward token amount left
+            cortex.resolved_lm_reward_token_amount = math::checked_sub(
+                cortex.resolved_lm_reward_token_amount,
+                lm_rewards_token_amount,
+            )?;
+        }
 
         msg!(
             "cortex.resolved_reward_token_amount after claim stake {:?}",
@@ -262,7 +368,12 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
         );
 
         msg!(
-            "Cortex.resolved_staking_rounds after claim stake {:?}",
+            "cortex.resolved_lm_reward_token_amount after claim stake {:?}",
+            cortex.resolved_lm_reward_token_amount
+        );
+
+        msg!(
+            "cortex.resolved_staking_rounds after claim stake {:?}",
             cortex.resolved_staking_rounds
         );
     }
