@@ -136,7 +136,7 @@ pub async fn liquid_staking() {
         .unwrap();
     }
 
-    let alice_stake_reward_token_account_address =
+    let alice_staking_reward_token_account_address =
         utils::find_associated_token_account(&alice.pubkey(), &cortex_stake_reward_mint).0;
 
     let stakes_claim_cron_thread_id =
@@ -175,7 +175,7 @@ pub async fn liquid_staking() {
     {
         let balance_before = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            alice_stake_reward_token_account_address,
+            alice_staking_reward_token_account_address,
         )
         .await;
 
@@ -191,7 +191,7 @@ pub async fn liquid_staking() {
 
         let balance_after = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            alice_stake_reward_token_account_address,
+            alice_staking_reward_token_account_address,
         )
         .await;
 
@@ -242,7 +242,7 @@ pub async fn liquid_staking() {
     {
         let balance_before = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            alice_stake_reward_token_account_address,
+            alice_staking_reward_token_account_address,
         )
         .await;
 
@@ -258,7 +258,7 @@ pub async fn liquid_staking() {
 
         let balance_after = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            alice_stake_reward_token_account_address,
+            alice_staking_reward_token_account_address,
         )
         .await;
 
@@ -352,7 +352,7 @@ pub async fn liquid_staking() {
     {
         let balance_before = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            alice_stake_reward_token_account_address,
+            alice_staking_reward_token_account_address,
         )
         .await;
 
@@ -368,7 +368,7 @@ pub async fn liquid_staking() {
 
         let balance_after = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            alice_stake_reward_token_account_address,
+            alice_staking_reward_token_account_address,
         )
         .await;
 

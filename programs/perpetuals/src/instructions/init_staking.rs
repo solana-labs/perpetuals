@@ -23,7 +23,7 @@ pub struct InitStaking<'info> {
     // reward token account of the stake owner
     #[account(
         mut,
-        token::mint = stake_reward_token_mint,
+        token::mint = staking_reward_token_mint,
         has_one = owner
     )]
     pub reward_token_account: Box<Account<'info, TokenAccount>>,
@@ -39,20 +39,20 @@ pub struct InitStaking<'info> {
     // staking reward token vault
     #[account(
         mut,
-        token::mint = stake_reward_token_mint,
-        seeds = [b"stake_reward_token_account"],
-        bump = cortex.stake_reward_token_account_bump
+        token::mint = staking_reward_token_mint,
+        seeds = [b"staking_reward_token_account"],
+        bump = cortex.staking_reward_token_account_bump
     )]
-    pub stake_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
 
     // staking lm reward token vault
     #[account(
         mut,
         token::mint = lm_token_mint,
-        seeds = [b"stake_lm_reward_token_account"],
-        bump = cortex.stake_lm_reward_token_account_bump
+        seeds = [b"staking_lm_reward_token_account"],
+        bump = cortex.staking_lm_reward_token_account_bump
     )]
-    pub stake_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
 
     #[account(
         init,
@@ -93,7 +93,7 @@ pub struct InitStaking<'info> {
         mut,
         seeds = [b"cortex"],
         bump = cortex.bump,
-        has_one = stake_reward_token_mint
+        has_one = staking_reward_token_mint
     )]
     pub cortex: Box<Account<'info, Cortex>>,
 
@@ -110,7 +110,7 @@ pub struct InitStaking<'info> {
     pub lm_token_mint: Box<Account<'info, Mint>>,
 
     #[account()]
-    pub stake_reward_token_mint: Box<Account<'info, Mint>>,
+    pub staking_reward_token_mint: Box<Account<'info, Mint>>,
 
     perpetuals_program: Program<'info, program::Perpetuals>,
     clockwork_program: Program<'info, clockwork_sdk::ThreadProgram>,
@@ -174,19 +174,22 @@ pub fn init_staking(ctx: Context<InitStaking>, params: &InitStakingParams) -> Re
                     owner: ctx.accounts.owner.to_account_info(),
                     reward_token_account: ctx.accounts.reward_token_account.to_account_info(),
                     lm_token_account: ctx.accounts.lm_token_account.to_account_info(),
-                    stake_reward_token_account: ctx
+                    staking_reward_token_account: ctx
                         .accounts
-                        .stake_reward_token_account
+                        .staking_reward_token_account
                         .to_account_info(),
-                    stake_lm_reward_token_account: ctx
+                    staking_lm_reward_token_account: ctx
                         .accounts
-                        .stake_lm_reward_token_account
+                        .staking_lm_reward_token_account
                         .to_account_info(),
                     transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
                     staking: staking.to_account_info(),
                     cortex: ctx.accounts.cortex.to_account_info(),
                     perpetuals: ctx.accounts.perpetuals.to_account_info(),
-                    stake_reward_token_mint: ctx.accounts.stake_reward_token_mint.to_account_info(),
+                    staking_reward_token_mint: ctx
+                        .accounts
+                        .staking_reward_token_mint
+                        .to_account_info(),
                     lm_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
                     perpetuals_program: ctx.accounts.perpetuals_program.to_account_info(),
                     system_program: ctx.accounts.system_program.to_account_info(),

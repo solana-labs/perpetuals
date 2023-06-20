@@ -16,7 +16,7 @@ pub async fn swap(
     dispensing_custody_token_mint: &Pubkey,
     // Mint sent by the User
     receiving_custody_token_mint: &Pubkey,
-    stake_reward_token_mint: &Pubkey,
+    staking_reward_token_mint: &Pubkey,
     params: SwapParams,
 ) -> std::result::Result<(), BanksClientError> {
     // ==== WHEN ==============================================================
@@ -48,11 +48,11 @@ pub async fn swap(
         utils::get_account::<Custody>(program_test_ctx, receiving_custody_pda).await;
     let receiving_custody_oracle_account_address = receiving_custody_account.oracle.oracle_account;
 
-    let stake_reward_token_account_pda = pda::get_stake_reward_token_account_pda().0;
+    let staking_reward_token_account_pda = pda::get_staking_reward_token_account_pda().0;
 
-    let srt_custody_pda = pda::get_custody_pda(pool_pda, stake_reward_token_mint).0;
+    let srt_custody_pda = pda::get_custody_pda(pool_pda, staking_reward_token_mint).0;
     let srt_custody_token_account_pda =
-        pda::get_custody_token_account_pda(pool_pda, stake_reward_token_mint).0;
+        pda::get_custody_token_account_pda(pool_pda, staking_reward_token_mint).0;
     let srt_custody_account =
         utils::get_account::<Custody>(program_test_ctx, srt_custody_pda).await;
     let srt_custody_oracle_account_address = srt_custody_account.oracle.oracle_account;
@@ -91,9 +91,9 @@ pub async fn swap(
             stake_reward_token_custody: srt_custody_pda,
             stake_reward_token_custody_oracle_account: srt_custody_oracle_account_address,
             stake_reward_token_custody_token_account: srt_custody_token_account_pda, // the stake reward vault
-            stake_reward_token_account: stake_reward_token_account_pda,
+            staking_reward_token_account: staking_reward_token_account_pda,
             lm_token_mint: lm_token_mint_pda,
-            stake_reward_token_mint: *stake_reward_token_mint,
+            staking_reward_token_mint: *staking_reward_token_mint,
             token_program: anchor_spl::token::ID,
             perpetuals_program: perpetuals::ID,
         }

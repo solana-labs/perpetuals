@@ -30,7 +30,7 @@ pub struct AddLockedStake<'info> {
 
     #[account(
         mut,
-        token::mint = stake_reward_token_mint,
+        token::mint = staking_reward_token_mint,
         has_one = owner
     )]
     pub reward_token_account: Box<Account<'info, TokenAccount>>,
@@ -40,19 +40,19 @@ pub struct AddLockedStake<'info> {
         mut,
         token::mint = lm_token_mint,
         token::authority = transfer_authority,
-        seeds = [b"stake_token_account"],
-        bump = cortex.stake_token_account_bump,
+        seeds = [b"staking_token_account"],
+        bump = cortex.staking_token_account_bump,
     )]
-    pub stake_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_token_account: Box<Account<'info, TokenAccount>>,
 
     // staking reward token vault
     #[account(
         mut,
-        token::mint = stake_reward_token_mint,
-        seeds = [b"stake_reward_token_account"],
-        bump = cortex.stake_reward_token_account_bump
+        token::mint = staking_reward_token_mint,
+        seeds = [b"staking_reward_token_account"],
+        bump = cortex.staking_reward_token_account_bump
     )]
-    pub stake_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: empty PDA, authority for token accounts
     #[account(
@@ -73,7 +73,7 @@ pub struct AddLockedStake<'info> {
         mut,
         seeds = [b"cortex"],
         bump = cortex.bump,
-        has_one = stake_reward_token_mint
+        has_one = staking_reward_token_mint
     )]
     pub cortex: Box<Account<'info, Cortex>>,
 
@@ -98,7 +98,7 @@ pub struct AddLockedStake<'info> {
     pub governance_token_mint: Box<Account<'info, Mint>>,
 
     #[account()]
-    pub stake_reward_token_mint: Box<Account<'info, Mint>>,
+    pub staking_reward_token_mint: Box<Account<'info, Mint>>,
 
     /// CHECK: checked by spl governance v3 program
     /// A realm represent one project (ADRENA, MANGO etc.) within the governance program
@@ -169,15 +169,12 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
     // Add stake to Staking account
     let (stake_amount_with_reward_multiplier, stake_amount_with_lm_reward_multiplier) = {
         let stake_amount_with_reward_multiplier = math::checked_as_u64(math::checked_div(
-            math::checked_mul(params.amount, staking_option.base_reward_multiplier as u64)? as u128,
+            math::checked_mul(params.amount, staking_option.reward_multiplier as u64)? as u128,
             Perpetuals::BPS_POWER,
         )?)?;
 
         let stake_amount_with_lm_reward_multiplier = math::checked_as_u64(math::checked_div(
-            math::checked_mul(
-                params.amount,
-                staking_option.lm_token_reward_multiplier as u64,
-            )? as u128,
+            math::checked_mul(params.amount, staking_option.lm_reward_multiplier as u64)? as u128,
             Perpetuals::BPS_POWER,
         )?)?;
 
@@ -189,8 +186,8 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
 
             // Transform days in seconds here
             lock_duration: math::checked_mul(staking_option.locked_days as u64, 3_600 * 24)?,
-            base_reward_multiplier: staking_option.base_reward_multiplier,
-            lm_token_reward_multiplier: staking_option.lm_token_reward_multiplier,
+            reward_multiplier: staking_option.reward_multiplier,
+            lm_reward_multiplier: staking_option.lm_reward_multiplier,
             vote_multiplier: staking_option.vote_multiplier,
 
             amount_with_reward_multiplier: stake_amount_with_reward_multiplier,
@@ -302,7 +299,7 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
     {
         perpetuals.transfer_tokens_from_user(
             ctx.accounts.funding_account.to_account_info(),
-            ctx.accounts.stake_token_account.to_account_info(),
+            ctx.accounts.staking_token_account.to_account_info(),
             ctx.accounts.owner.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
             params.amount,

@@ -140,13 +140,13 @@ pub async fn staking_rewards_generation() {
         .unwrap();
     }
 
-    let stake_reward_token_account_pda = pda::get_stake_reward_token_account_pda().0;
+    let staking_reward_token_account_pda = pda::get_staking_reward_token_account_pda().0;
 
     // Check that add liquidity generates rewards
     {
-        let stake_reward_token_account_balance_before = utils::get_token_account_balance(
+        let staking_reward_token_account_balance_before = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
+            staking_reward_token_account_pda,
         )
         .await;
 
@@ -168,15 +168,16 @@ pub async fn staking_rewards_generation() {
 
         utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
-        let stake_reward_token_account_balance_after = utils::get_token_account_balance(
+        let staking_reward_token_account_balance_after = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
+            staking_reward_token_account_pda,
         )
         .await;
 
         // Check rewards has been generated
         assert_eq!(
-            stake_reward_token_account_balance_after - stake_reward_token_account_balance_before,
+            staking_reward_token_account_balance_after
+                - staking_reward_token_account_balance_before,
             22_188,
         );
     }
@@ -185,9 +186,9 @@ pub async fn staking_rewards_generation() {
 
     // Check that open position generates rewards
     let position_pda = {
-        let stake_reward_token_account_balance_before = utils::get_token_account_balance(
+        let staking_reward_token_account_balance_before = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
+            staking_reward_token_account_pda,
         )
         .await;
 
@@ -213,15 +214,16 @@ pub async fn staking_rewards_generation() {
 
         utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
-        let stake_reward_token_account_balance_after = utils::get_token_account_balance(
+        let staking_reward_token_account_balance_after = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
+            staking_reward_token_account_pda,
         )
         .await;
 
         // Check rewards has been generated
         assert_eq!(
-            stake_reward_token_account_balance_after - stake_reward_token_account_balance_before,
+            staking_reward_token_account_balance_after
+                - staking_reward_token_account_balance_before,
             3_637,
         );
 
@@ -232,9 +234,9 @@ pub async fn staking_rewards_generation() {
 
     // Check that close position generates rewards
     {
-        let stake_reward_token_account_balance_before = utils::get_token_account_balance(
+        let staking_reward_token_account_balance_before = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
+            staking_reward_token_account_pda,
         )
         .await;
 
@@ -257,15 +259,16 @@ pub async fn staking_rewards_generation() {
 
         utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
-        let stake_reward_token_account_balance_after = utils::get_token_account_balance(
+        let staking_reward_token_account_balance_after = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
+            staking_reward_token_account_pda,
         )
         .await;
 
         // Check rewards has been generated
         assert_eq!(
-            stake_reward_token_account_balance_after - stake_reward_token_account_balance_before,
+            staking_reward_token_account_balance_after
+                - staking_reward_token_account_balance_before,
             3_637,
         );
     }
@@ -274,9 +277,9 @@ pub async fn staking_rewards_generation() {
 
     // Check that swap generates rewards
     {
-        let stake_reward_token_account_balance_before = utils::get_token_account_balance(
+        let staking_reward_token_account_balance_before = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
+            staking_reward_token_account_pda,
         )
         .await;
 
@@ -305,15 +308,16 @@ pub async fn staking_rewards_generation() {
 
         utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
-        let stake_reward_token_account_balance_after = utils::get_token_account_balance(
+        let staking_reward_token_account_balance_after = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
+            staking_reward_token_account_pda,
         )
         .await;
 
         // Check rewards has been generated
         assert_eq!(
-            stake_reward_token_account_balance_after - stake_reward_token_account_balance_before,
+            staking_reward_token_account_balance_after
+                - staking_reward_token_account_balance_before,
             6_370,
         );
     }
@@ -322,9 +326,9 @@ pub async fn staking_rewards_generation() {
 
     // Check that remove liquidity generates rewards
     {
-        let stake_reward_token_account_balance_before = utils::get_token_account_balance(
+        let staking_reward_token_account_balance_before = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
+            staking_reward_token_account_pda,
         )
         .await;
 
@@ -346,15 +350,16 @@ pub async fn staking_rewards_generation() {
 
         utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
-        let stake_reward_token_account_balance_after = utils::get_token_account_balance(
+        let staking_reward_token_account_balance_after = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            stake_reward_token_account_pda,
+            staking_reward_token_account_pda,
         )
         .await;
 
         // Check rewards has been generated
         assert_eq!(
-            stake_reward_token_account_balance_after - stake_reward_token_account_balance_before,
+            staking_reward_token_account_balance_after
+                - staking_reward_token_account_balance_before,
             75,
         );
     }

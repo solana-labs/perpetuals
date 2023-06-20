@@ -138,7 +138,7 @@ pub async fn locked_staking_30d() {
         .unwrap();
     }
 
-    let alice_stake_reward_token_account_address =
+    let alice_staking_reward_token_account_address =
         utils::find_associated_token_account(&alice.pubkey(), &cortex_stake_reward_mint).0;
 
     // Alice: start 30d locked staking
@@ -187,7 +187,7 @@ pub async fn locked_staking_30d() {
     {
         let balance_before = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            alice_stake_reward_token_account_address,
+            alice_staking_reward_token_account_address,
         )
         .await;
 
@@ -203,7 +203,7 @@ pub async fn locked_staking_30d() {
 
         let balance_after = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            alice_stake_reward_token_account_address,
+            alice_staking_reward_token_account_address,
         )
         .await;
 
@@ -275,7 +275,7 @@ pub async fn locked_staking_30d() {
     {
         let balance_before = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            alice_stake_reward_token_account_address,
+            alice_staking_reward_token_account_address,
         )
         .await;
 
@@ -291,7 +291,7 @@ pub async fn locked_staking_30d() {
 
         let balance_after = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            alice_stake_reward_token_account_address,
+            alice_staking_reward_token_account_address,
         )
         .await;
 

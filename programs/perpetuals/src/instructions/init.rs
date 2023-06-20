@@ -77,21 +77,21 @@ pub struct Init<'info> {
         payer = upgrade_authority,
         token::mint = lm_token_mint,
         token::authority = transfer_authority,
-        seeds = [b"stake_token_account"],
+        seeds = [b"staking_token_account"],
         bump
     )]
-    pub stake_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_token_account: Box<Account<'info, TokenAccount>>,
 
     // staking reward token vault
     #[account(
         init,
         payer = upgrade_authority,
-        token::mint = stake_reward_token_mint,
+        token::mint = staking_reward_token_mint,
         token::authority = transfer_authority,
-        seeds = [b"stake_reward_token_account"],
+        seeds = [b"staking_reward_token_account"],
         bump
     )]
-    pub stake_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
 
     // staking lm reward token vault
     #[account(
@@ -99,10 +99,10 @@ pub struct Init<'info> {
         payer = upgrade_authority,
         token::mint = lm_token_mint,
         token::authority = transfer_authority,
-        seeds = [b"stake_lm_reward_token_account"],
+        seeds = [b"staking_lm_reward_token_account"],
         bump
     )]
-    pub stake_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
 
     #[account(
         init,
@@ -130,7 +130,7 @@ pub struct Init<'info> {
     pub governance_program: Program<'info, SplGovernanceV3Adapter>,
 
     #[account()]
-    pub stake_reward_token_mint: Box<Account<'info, Mint>>,
+    pub staking_reward_token_mint: Box<Account<'info, Mint>>,
 
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
@@ -203,26 +203,26 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
             .get("governance_token_mint")
             .ok_or(ProgramError::InvalidSeeds)?;
         cortex.bump = *ctx.bumps.get("cortex").ok_or(ProgramError::InvalidSeeds)?;
-        cortex.stake_token_account_bump = *ctx
+        cortex.staking_token_account_bump = *ctx
             .bumps
-            .get("stake_token_account")
+            .get("staking_token_account")
             .ok_or(ProgramError::InvalidSeeds)?;
-        cortex.stake_reward_token_account_bump = *ctx
+        cortex.staking_reward_token_account_bump = *ctx
             .bumps
-            .get("stake_reward_token_account")
+            .get("staking_reward_token_account")
             .ok_or(ProgramError::InvalidSeeds)?;
-        cortex.stake_lm_reward_token_account_bump = *ctx
+        cortex.staking_lm_reward_token_account_bump = *ctx
             .bumps
-            .get("stake_lm_reward_token_account")
+            .get("staking_lm_reward_token_account")
             .ok_or(ProgramError::InvalidSeeds)?;
         cortex.inception_epoch = cortex.get_epoch()?;
         cortex.governance_program = ctx.accounts.governance_program.key();
         cortex.governance_realm = ctx.accounts.governance_realm.key();
-        cortex.stake_reward_token_mint = ctx.accounts.stake_reward_token_mint.key();
+        cortex.staking_reward_token_mint = ctx.accounts.staking_reward_token_mint.key();
         cortex.resolved_reward_token_amount = u64::MIN;
         cortex.resolved_stake_token_amount = u128::MIN;
         cortex.stake_token_decimals = ctx.accounts.lm_token_mint.decimals;
-        cortex.stake_reward_token_decimals = ctx.accounts.stake_reward_token_mint.decimals;
+        cortex.stake_reward_token_decimals = ctx.accounts.staking_reward_token_mint.decimals;
         // initialize the first staking rounds
         cortex.current_staking_round = StakingRound::new(perpetuals.get_time()?);
         cortex.next_staking_round = StakingRound::new(0);

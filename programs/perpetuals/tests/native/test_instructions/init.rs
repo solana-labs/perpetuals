@@ -22,7 +22,7 @@ pub async fn init(
     upgrade_authority: &Keypair,
     params: InitParams,
     governance_realm_pda: &Pubkey,
-    stake_reward_token_mint: &Pubkey,
+    staking_reward_token_mint: &Pubkey,
     multisig_signers: &[&Keypair],
 ) -> std::result::Result<(), BanksClientError> {
     // ==== WHEN ==============================================================
@@ -34,11 +34,12 @@ pub async fn init(
     let (lm_token_mint_pda, lm_token_mint_bump) = pda::get_lm_token_mint_pda();
     let (governance_token_mint_pda, governance_token_mint_bump) =
         pda::get_governance_token_mint_pda();
-    let (stake_token_account_pda, stake_token_account_bump) = pda::get_stake_token_account_pda();
-    let (stake_reward_token_account_pda, stake_reward_token_account_bump) =
-        pda::get_stake_reward_token_account_pda();
-    let (stake_lm_reward_token_account_pda, stake_lm_reward_token_account_bump) =
-        pda::get_stake_lm_reward_token_account_pda();
+    let (staking_token_account_pda, staking_token_account_bump) =
+        pda::get_staking_token_account_pda();
+    let (staking_reward_token_account_pda, staking_reward_token_account_bump) =
+        pda::get_staking_reward_token_account_pda();
+    let (staking_lm_reward_token_account_pda, staking_lm_reward_token_account_bump) =
+        pda::get_staking_lm_reward_token_account_pda();
 
     let accounts_meta = {
         let accounts = perpetuals::accounts::Init {
@@ -48,15 +49,15 @@ pub async fn init(
             cortex: cortex_pda,
             lm_token_mint: lm_token_mint_pda,
             governance_token_mint: governance_token_mint_pda,
-            stake_token_account: stake_token_account_pda,
-            stake_reward_token_account: stake_reward_token_account_pda,
-            stake_lm_reward_token_account: stake_lm_reward_token_account_pda,
+            staking_token_account: staking_token_account_pda,
+            staking_reward_token_account: staking_reward_token_account_pda,
+            staking_lm_reward_token_account: staking_lm_reward_token_account_pda,
             perpetuals: perpetuals_pda,
             perpetuals_program: perpetuals::ID,
             perpetuals_program_data: perpetuals_program_data_pda,
             governance_realm: *governance_realm_pda,
             governance_program: spl_governance_program_adapter::ID,
-            stake_reward_token_mint: *stake_reward_token_mint,
+            staking_reward_token_mint: *staking_reward_token_mint,
             system_program: anchor_lang::system_program::ID,
             token_program: anchor_spl::token::ID,
         };
@@ -122,20 +123,20 @@ pub async fn init(
         );
         assert_eq!(cortex_account.inception_epoch, 0);
         assert_eq!(
-            cortex_account.stake_token_account_bump,
-            stake_token_account_bump
+            cortex_account.staking_token_account_bump,
+            staking_token_account_bump
         );
         assert_eq!(
-            cortex_account.stake_reward_token_account_bump,
-            stake_reward_token_account_bump
+            cortex_account.staking_reward_token_account_bump,
+            staking_reward_token_account_bump
         );
         assert_eq!(
-            cortex_account.stake_lm_reward_token_account_bump,
-            stake_lm_reward_token_account_bump
+            cortex_account.staking_lm_reward_token_account_bump,
+            staking_lm_reward_token_account_bump
         );
         assert_eq!(
-            cortex_account.stake_reward_token_mint,
-            *stake_reward_token_mint
+            cortex_account.staking_reward_token_mint,
+            *staking_reward_token_mint
         );
         assert_eq!(
             cortex_account.current_staking_round,

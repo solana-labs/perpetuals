@@ -269,13 +269,13 @@ pub async fn multiple_stakers_get_correct_rewards() {
     // Claims tokens for alice/martin/paul
     // Should get different share
 
-    let alice_stake_reward_token_account_address =
+    let alice_staking_reward_token_account_address =
         utils::find_associated_token_account(&alice.pubkey(), &cortex_stake_reward_mint).0;
 
-    let martin_stake_reward_token_account_address =
+    let martin_staking_reward_token_account_address =
         utils::find_associated_token_account(&martin.pubkey(), &cortex_stake_reward_mint).0;
 
-    let paul_stake_reward_token_account_address =
+    let paul_staking_reward_token_account_address =
         utils::find_associated_token_account(&paul.pubkey(), &cortex_stake_reward_mint).0;
 
     // Claim when there is one round worth of rewards to claim
@@ -284,7 +284,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
         {
             let balance_before = utils::get_token_account_balance(
                 &mut test_setup.program_test_ctx.borrow_mut(),
-                alice_stake_reward_token_account_address,
+                alice_staking_reward_token_account_address,
             )
             .await;
 
@@ -300,7 +300,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
 
             let balance_after = utils::get_token_account_balance(
                 &mut test_setup.program_test_ctx.borrow_mut(),
-                alice_stake_reward_token_account_address,
+                alice_staking_reward_token_account_address,
             )
             .await;
 
@@ -311,7 +311,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
         {
             let balance_before = utils::get_token_account_balance(
                 &mut test_setup.program_test_ctx.borrow_mut(),
-                martin_stake_reward_token_account_address,
+                martin_staking_reward_token_account_address,
             )
             .await;
 
@@ -327,7 +327,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
 
             let balance_after = utils::get_token_account_balance(
                 &mut test_setup.program_test_ctx.borrow_mut(),
-                martin_stake_reward_token_account_address,
+                martin_staking_reward_token_account_address,
             )
             .await;
 
@@ -338,7 +338,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
         {
             let balance_before = utils::get_token_account_balance(
                 &mut test_setup.program_test_ctx.borrow_mut(),
-                paul_stake_reward_token_account_address,
+                paul_staking_reward_token_account_address,
             )
             .await;
 
@@ -354,7 +354,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
 
             let balance_after = utils::get_token_account_balance(
                 &mut test_setup.program_test_ctx.borrow_mut(),
-                paul_stake_reward_token_account_address,
+                paul_staking_reward_token_account_address,
             )
             .await;
 

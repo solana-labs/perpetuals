@@ -29,7 +29,7 @@ pub struct AddLiquidStake<'info> {
 
     #[account(
         mut,
-        token::mint = stake_reward_token_mint,
+        token::mint = staking_reward_token_mint,
         has_one = owner
     )]
     pub reward_token_account: Box<Account<'info, TokenAccount>>,
@@ -47,28 +47,28 @@ pub struct AddLiquidStake<'info> {
         mut,
         token::mint = lm_token_mint,
         token::authority = transfer_authority,
-        seeds = [b"stake_token_account"],
-        bump = cortex.stake_token_account_bump,
+        seeds = [b"staking_token_account"],
+        bump = cortex.staking_token_account_bump,
     )]
-    pub stake_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_token_account: Box<Account<'info, TokenAccount>>,
 
     // staking reward token vault
     #[account(
         mut,
-        token::mint = stake_reward_token_mint,
-        seeds = [b"stake_reward_token_account"],
-        bump = cortex.stake_reward_token_account_bump
+        token::mint = staking_reward_token_mint,
+        seeds = [b"staking_reward_token_account"],
+        bump = cortex.staking_reward_token_account_bump
     )]
-    pub stake_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
 
     // staking lm reward token vault
     #[account(
         mut,
         token::mint = lm_token_mint,
-        seeds = [b"stake_lm_reward_token_account"],
-        bump = cortex.stake_lm_reward_token_account_bump
+        seeds = [b"staking_lm_reward_token_account"],
+        bump = cortex.staking_lm_reward_token_account_bump
     )]
-    pub stake_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: empty PDA, authority for token accounts
     #[account(
@@ -89,7 +89,7 @@ pub struct AddLiquidStake<'info> {
         mut,
         seeds = [b"cortex"],
         bump = cortex.bump,
-        has_one = stake_reward_token_mint
+        has_one = staking_reward_token_mint
     )]
     pub cortex: Box<Account<'info, Cortex>>,
 
@@ -114,7 +114,7 @@ pub struct AddLiquidStake<'info> {
     pub governance_token_mint: Box<Account<'info, Mint>>,
 
     #[account()]
-    pub stake_reward_token_mint: Box<Account<'info, Mint>>,
+    pub staking_reward_token_mint: Box<Account<'info, Mint>>,
 
     /// CHECK: checked by spl governance v3 program
     /// A realm represent one project (ADRENA, MANGO etc.) within the governance program
@@ -183,20 +183,23 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
                     owner: ctx.accounts.owner.to_account_info(),
                     reward_token_account: ctx.accounts.reward_token_account.to_account_info(),
                     lm_token_account: ctx.accounts.lm_token_account.to_account_info(),
-                    stake_reward_token_account: ctx
+                    staking_reward_token_account: ctx
                         .accounts
-                        .stake_reward_token_account
+                        .staking_reward_token_account
                         .to_account_info(),
 
-                    stake_lm_reward_token_account: ctx
+                    staking_lm_reward_token_account: ctx
                         .accounts
-                        .stake_lm_reward_token_account
+                        .staking_lm_reward_token_account
                         .to_account_info(),
                     transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
                     staking: staking.to_account_info(),
                     cortex: cortex.to_account_info(),
                     perpetuals: perpetuals.to_account_info(),
-                    stake_reward_token_mint: ctx.accounts.stake_reward_token_mint.to_account_info(),
+                    staking_reward_token_mint: ctx
+                        .accounts
+                        .staking_reward_token_mint
+                        .to_account_info(),
                     lm_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
                     perpetuals_program: ctx.accounts.perpetuals_program.to_account_info(),
                     system_program: ctx.accounts.system_program.to_account_info(),
@@ -225,7 +228,7 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
     {
         perpetuals.transfer_tokens_from_user(
             ctx.accounts.funding_account.to_account_info(),
-            ctx.accounts.stake_token_account.to_account_info(),
+            ctx.accounts.staking_token_account.to_account_info(),
             ctx.accounts.owner.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
             params.amount,

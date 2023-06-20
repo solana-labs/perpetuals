@@ -19,7 +19,7 @@ pub async fn add_liquidity(
     payer: &Keypair,
     pool_pda: &Pubkey,
     custody_token_mint: &Pubkey,
-    stake_reward_token_mint: &Pubkey,
+    staking_reward_token_mint: &Pubkey,
     params: AddLiquidityParams,
 ) -> std::result::Result<(), BanksClientError> {
     // ==== WHEN ==============================================================
@@ -43,11 +43,11 @@ pub async fn add_liquidity(
     let custody_account = utils::get_account::<Custody>(program_test_ctx, custody_pda).await;
     let custody_oracle_account_address = custody_account.oracle.oracle_account;
 
-    let stake_reward_token_account_pda = pda::get_stake_reward_token_account_pda().0;
+    let staking_reward_token_account_pda = pda::get_staking_reward_token_account_pda().0;
 
-    let srt_custody_pda = pda::get_custody_pda(pool_pda, stake_reward_token_mint).0;
+    let srt_custody_pda = pda::get_custody_pda(pool_pda, staking_reward_token_mint).0;
     let srt_custody_token_account_pda =
-        pda::get_custody_token_account_pda(pool_pda, stake_reward_token_mint).0;
+        pda::get_custody_token_account_pda(pool_pda, staking_reward_token_mint).0;
     let srt_custody_account =
         utils::get_account::<Custody>(program_test_ctx, srt_custody_pda).await;
     let srt_custody_oracle_account_address = srt_custody_account.oracle.oracle_account;
@@ -86,10 +86,10 @@ pub async fn add_liquidity(
             stake_reward_token_custody: srt_custody_pda,
             stake_reward_token_custody_oracle_account: srt_custody_oracle_account_address,
             stake_reward_token_custody_token_account: srt_custody_token_account_pda,
-            stake_reward_token_account: stake_reward_token_account_pda, // the stake reward vault
+            staking_reward_token_account: staking_reward_token_account_pda, // the stake reward vault
             lp_token_mint: lp_token_mint_pda,
             lm_token_mint: lm_token_mint_pda,
-            stake_reward_token_mint: *stake_reward_token_mint,
+            staking_reward_token_mint: *staking_reward_token_mint,
             token_program: anchor_spl::token::ID,
             perpetuals_program: perpetuals::ID,
         };

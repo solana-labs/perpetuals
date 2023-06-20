@@ -23,28 +23,28 @@ pub struct ResolveStakingRound<'info> {
     #[account(
         mut,
         token::mint = lm_token_mint,
-        seeds = [b"stake_token_account"],
-        bump = cortex.stake_token_account_bump
+        seeds = [b"staking_token_account"],
+        bump = cortex.staking_token_account_bump
     )]
-    pub stake_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_token_account: Box<Account<'info, TokenAccount>>,
 
     // staking reward token vault
     #[account(
         mut,
-        token::mint = stake_reward_token_mint,
-        seeds = [b"stake_reward_token_account"],
-        bump = cortex.stake_reward_token_account_bump
+        token::mint = staking_reward_token_mint,
+        seeds = [b"staking_reward_token_account"],
+        bump = cortex.staking_reward_token_account_bump
     )]
-    pub stake_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
 
     // staking lm reward token vault
     #[account(
         mut,
         token::mint = lm_token_mint,
-        seeds = [b"stake_lm_reward_token_account"],
-        bump = cortex.stake_lm_reward_token_account_bump
+        seeds = [b"staking_lm_reward_token_account"],
+        bump = cortex.staking_lm_reward_token_account_bump
     )]
-    pub stake_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: empty PDA, authority for token accounts
     #[account(
@@ -74,7 +74,7 @@ pub struct ResolveStakingRound<'info> {
     pub lm_token_mint: Box<Account<'info, Mint>>,
 
     #[account()]
-    pub stake_reward_token_mint: Box<Account<'info, Mint>>,
+    pub staking_reward_token_mint: Box<Account<'info, Mint>>,
 
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
@@ -97,14 +97,16 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
 
         ctx.accounts.perpetuals.mint_tokens(
             ctx.accounts.lm_token_mint.to_account_info(),
-            ctx.accounts.stake_lm_reward_token_account.to_account_info(),
+            ctx.accounts
+                .staking_lm_reward_token_account
+                .to_account_info(),
             ctx.accounts.transfer_authority.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
             current_round_lm_reward_token_amount,
         )?;
 
         // reload account to account for newly minted tokens
-        ctx.accounts.stake_lm_reward_token_account.reload()?;
+        ctx.accounts.staking_lm_reward_token_account.reload()?;
     }
 
     // Calculate metrics
@@ -116,13 +118,13 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
     ) = {
         msg!(
             "Calc 1: {}, {}",
-            ctx.accounts.stake_reward_token_account.amount,
+            ctx.accounts.staking_reward_token_account.amount,
             cortex.resolved_reward_token_amount,
         );
 
         // Consider as reward everything that is in the vault, minus what is already assigned as reward
         let current_round_reward_token_amount = math::checked_sub(
-            ctx.accounts.stake_reward_token_account.amount,
+            ctx.accounts.staking_reward_token_account.amount,
             cortex.resolved_reward_token_amount,
         )?;
 
@@ -130,13 +132,13 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
 
         msg!(
             "Calc 2: {}, {}",
-            ctx.accounts.stake_lm_reward_token_account.amount,
+            ctx.accounts.staking_lm_reward_token_account.amount,
             cortex.resolved_lm_reward_token_amount,
         );
 
         // Consider as reward everything that is in the vault, minus what is already assigned as reward
         let current_round_lm_reward_token_amount = math::checked_sub(
-            ctx.accounts.stake_lm_reward_token_account.amount,
+            ctx.accounts.staking_lm_reward_token_account.amount,
             cortex.resolved_lm_reward_token_amount,
         )?;
 
@@ -198,7 +200,7 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
                 )?;
 
                 require!(
-                    ctx.accounts.stake_reward_token_account.amount
+                    ctx.accounts.staking_reward_token_account.amount
                         == math::checked_add(
                             cortex.resolved_reward_token_amount,
                             current_round_reward_token_amount
@@ -207,7 +209,7 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
                 );
 
                 cortex.resolved_reward_token_amount =
-                    ctx.accounts.stake_reward_token_account.amount;
+                    ctx.accounts.staking_reward_token_account.amount;
             }
 
             {
@@ -217,7 +219,7 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
                 )?;
 
                 require!(
-                    ctx.accounts.stake_lm_reward_token_account.amount
+                    ctx.accounts.staking_lm_reward_token_account.amount
                         == math::checked_add(
                             cortex.resolved_lm_reward_token_amount,
                             current_round_lm_reward_token_amount
@@ -226,7 +228,7 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
                 );
 
                 cortex.resolved_lm_reward_token_amount =
-                    ctx.accounts.stake_lm_reward_token_account.amount;
+                    ctx.accounts.staking_lm_reward_token_account.amount;
             }
         }
 

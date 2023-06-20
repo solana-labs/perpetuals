@@ -15,7 +15,7 @@ pub async fn init_staking(
     program_test_ctx: &mut ProgramTestContext,
     owner: &Keypair,
     payer: &Keypair,
-    stake_reward_token_mint: &Pubkey,
+    staking_reward_token_mint: &Pubkey,
     params: InitStakingParams,
 ) -> std::result::Result<(Pubkey, u8), BanksClientError> {
     // ==== GIVEN =============================================================
@@ -25,10 +25,10 @@ pub async fn init_staking(
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
     let (staking_pda, staking_bump) = pda::get_staking_pda(&owner.pubkey());
     let staking_thread_authority_pda = pda::get_staking_thread_authority(&owner.pubkey()).0;
-    let stake_reward_token_account_pda = pda::get_stake_reward_token_account_pda().0;
-    let stake_lm_reward_token_account_pda = pda::get_stake_lm_reward_token_account_pda().0;
+    let staking_reward_token_account_pda = pda::get_staking_reward_token_account_pda().0;
+    let staking_lm_reward_token_account_pda = pda::get_staking_lm_reward_token_account_pda().0;
     let reward_token_account_address =
-        utils::find_associated_token_account(&owner.pubkey(), stake_reward_token_mint).0;
+        utils::find_associated_token_account(&owner.pubkey(), staking_reward_token_mint).0;
     let lm_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), &lm_token_mint_pda).0;
 
@@ -45,8 +45,8 @@ pub async fn init_staking(
             owner: owner.pubkey(),
             reward_token_account: reward_token_account_address,
             lm_token_account: lm_token_account_address,
-            stake_reward_token_account: stake_reward_token_account_pda,
-            stake_lm_reward_token_account: stake_lm_reward_token_account_pda,
+            staking_reward_token_account: staking_reward_token_account_pda,
+            staking_lm_reward_token_account: staking_lm_reward_token_account_pda,
             staking: staking_pda,
             transfer_authority: transfer_authority_pda,
             staking_thread_authority: staking_thread_authority_pda,
@@ -55,7 +55,7 @@ pub async fn init_staking(
             cortex: cortex_pda,
             perpetuals: perpetuals_pda,
             lm_token_mint: lm_token_mint_pda,
-            stake_reward_token_mint: *stake_reward_token_mint,
+            staking_reward_token_mint: *staking_reward_token_mint,
             perpetuals_program: perpetuals::ID,
             clockwork_program: clockwork_sdk::ID,
             system_program: anchor_lang::system_program::ID,

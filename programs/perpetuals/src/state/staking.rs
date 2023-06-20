@@ -67,8 +67,8 @@ pub struct LockedStake {
     pub lock_duration: u64,
 
     // In BPS
-    pub base_reward_multiplier: u32,
-    pub lm_token_reward_multiplier: u32,
+    pub reward_multiplier: u32,
+    pub lm_reward_multiplier: u32,
     pub vote_multiplier: u32,
 
     // Persisted data to save-up computation during claim etc.
@@ -114,8 +114,8 @@ impl LockedStake {
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct LockedStakingOption {
     pub locked_days: u32,
-    pub base_reward_multiplier: u32,
-    pub lm_token_reward_multiplier: u32,
+    pub reward_multiplier: u32,
+    pub lm_reward_multiplier: u32,
     pub vote_multiplier: u32,
 }
 
@@ -132,38 +132,38 @@ impl LockedStakingOption {
 pub const LOCKED_STAKING_OPTIONS: [&LockedStakingOption; 6] = [
     &LockedStakingOption {
         locked_days: 30,
-        base_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.25) as u32,
-        lm_token_reward_multiplier: Perpetuals::BPS_POWER as u32,
+        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.25) as u32,
+        lm_reward_multiplier: Perpetuals::BPS_POWER as u32,
         vote_multiplier: (Perpetuals::BPS_POWER as f64 * 1.21) as u32,
     },
     &LockedStakingOption {
         locked_days: 60,
-        base_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.56) as u32,
-        lm_token_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.25) as u32,
+        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.56) as u32,
+        lm_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.25) as u32,
         vote_multiplier: (Perpetuals::BPS_POWER as f64 * 1.33) as u32,
     },
     &LockedStakingOption {
         locked_days: 90,
-        base_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.95) as u32,
-        lm_token_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.56) as u32,
+        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.95) as u32,
+        lm_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.56) as u32,
         vote_multiplier: (Perpetuals::BPS_POWER as f64 * 1.46) as u32,
     },
     &LockedStakingOption {
         locked_days: 180,
-        base_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 2.44) as u32,
-        lm_token_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.95) as u32,
+        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 2.44) as u32,
+        lm_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.95) as u32,
         vote_multiplier: (Perpetuals::BPS_POWER as f64 * 1.61) as u32,
     },
     &LockedStakingOption {
         locked_days: 360,
-        base_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 3.05) as u32,
-        lm_token_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 2.44) as u32,
+        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 3.05) as u32,
+        lm_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 2.44) as u32,
         vote_multiplier: (Perpetuals::BPS_POWER as f64 * 1.78) as u32,
     },
     &LockedStakingOption {
         locked_days: 720,
-        base_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 3.81) as u32,
-        lm_token_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 3.05) as u32,
+        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 3.81) as u32,
+        lm_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 3.05) as u32,
         vote_multiplier: (Perpetuals::BPS_POWER as f64 * 1.95) as u32,
     },
 ];
