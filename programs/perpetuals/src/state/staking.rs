@@ -53,6 +53,10 @@ pub struct LiquidStake {
 
     // Time used for claim purpose, to know wherever the stake is elligible for round reward
     pub claim_time: i64,
+
+    // When user add stake when a stake is already live
+    pub overlap_time: i64,
+    pub overlap_amount: u64,
 }
 
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Debug)]

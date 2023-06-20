@@ -217,6 +217,25 @@ pub async fn resolved_round_overflow() {
 
     // Add one more round and check it doesn't overflow
     {
+        // Use add liquidity to generate rewards for the current round to be able to differentiate rounds
+        {
+            // Generate platform activity to fill current round' rewards
+            test_instructions::add_liquidity(
+                &mut test_setup.program_test_ctx.borrow_mut(),
+                alice,
+                &test_setup.payer_keypair,
+                &test_setup.pool_pda,
+                &eth_mint,
+                &cortex_stake_reward_mint,
+                AddLiquidityParams {
+                    amount_in: utils::scale_f64(0.01, ETH_DECIMALS),
+                    min_lp_amount_out: 1,
+                },
+            )
+            .await
+            .unwrap();
+        }
+
         let cortex_before =
             utils::get_account::<Cortex>(&mut test_setup.program_test_ctx.borrow_mut(), cortex_pda)
                 .await;

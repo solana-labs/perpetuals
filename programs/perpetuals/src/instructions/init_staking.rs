@@ -135,6 +135,12 @@ pub fn init_staking(ctx: Context<InitStaking>, params: &InitStakingParams) -> Re
     staking.locked_stakes = Vec::new();
     staking.stakes_claim_cron_thread_id = params.stakes_claim_cron_thread_id;
 
+    staking.liquid_stake.amount = u64::MIN;
+    staking.liquid_stake.stake_time = 0;
+    staking.liquid_stake.claim_time = 0;
+    staking.liquid_stake.overlap_time = 0;
+    staking.liquid_stake.overlap_amount = u64::MIN;
+
     let current_time = clock::Clock::get()?.unix_timestamp;
 
     // Setup auto-claim cron and pause it (will resume once user stake tokens)

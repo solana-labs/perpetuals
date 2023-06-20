@@ -208,8 +208,41 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
             {
                 // Stake is elligible for rewards
                 if staking.liquid_stake.qualifies_for_rewards_from(round) {
+                    msg!("Liquid stake: Qualifying for rewards :)");
+
+                    let stake_amount = if staking.liquid_stake.overlap_amount > 0
+                        && staking.liquid_stake.overlap_time >= round.start_time
+                    {
+                        // there is an overlap, which means that current_round staked amount is different that
+                        // the staked amount in the resolved round
+                        //
+                        // it is the case because user staked tokens when they were already staked token
+                        //
+                        // i.e
+                        // initial context: resolved round [], current round [10 staked tokens] next round [10 staked tokens]
+                        // user stakes 20 new tokens: resolved round [], current round [10 staked tokens] next round [30 staked tokens]
+                        // after round resolve: resolved round [10 stake_amount], current round [30 staked tokens] next round [30 staked tokens]
+                        //
+                        // now we are in the case where claim is called for the resolved round. User is not entitled to 30 stake tokens worth or rewards
+                        // but 10
+                        let stake_amount = math::checked_sub(
+                            staking.liquid_stake.amount,
+                            staking.liquid_stake.overlap_amount,
+                        )
+                        .unwrap();
+
+                        msg!("overlap");
+
+                        staking.liquid_stake.overlap_amount = 0;
+                        staking.liquid_stake.overlap_time = 0;
+
+                        stake_amount
+                    } else {
+                        staking.liquid_stake.amount
+                    };
+
                     let liquid_rewards_token_amount = math::checked_decimal_mul(
-                        staking.liquid_stake.amount,
+                        stake_amount,
                         -stake_token_decimals,
                         round.rate,
                         -(Perpetuals::RATE_DECIMALS as i32),
@@ -217,20 +250,15 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
                     )
                     .unwrap();
 
-                    msg!("Liquid stake: Qualifying for rewards :)");
-
                     rewards_token_amount =
                         math::checked_add(rewards_token_amount, liquid_rewards_token_amount)
                             .unwrap();
 
-                    round.total_claim =
-                        math::checked_add(round.total_claim, staking.liquid_stake.amount).unwrap();
+                    round.total_claim = math::checked_add(round.total_claim, stake_amount).unwrap();
 
-                    stake_amount_with_reward_multiplier = math::checked_add(
-                        stake_amount_with_reward_multiplier,
-                        staking.liquid_stake.amount,
-                    )
-                    .unwrap();
+                    stake_amount_with_reward_multiplier =
+                        math::checked_add(stake_amount_with_reward_multiplier, stake_amount)
+                            .unwrap();
                 } else {
                     msg!("Liquid stake: Not qualifying for rewards :(");
                 }
@@ -254,7 +282,6 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
             if !staking_rounds_delta.is_zero() {
                 msg!("Realloc Cortex");
 
-                // TODO: ADD PAYER ACCOUNT FOR CLAIM AND USE THE CLOCKWORK DELEGATED PAYER PUBKEY: C1ockworkPayer11111111111111111111111111111
                 Perpetuals::realloc(
                     ctx.accounts.payer.to_account_info(),
                     cortex.to_account_info(),

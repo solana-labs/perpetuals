@@ -178,7 +178,11 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
         );
     }
 
-    if !current_round_stake_token_amount.is_zero() {
+    // If there are staked tokens and there are tokens to distribute
+    if (!current_round_stake_token_amount.is_zero()
+        || !current_round_lm_stake_token_amount.is_zero())
+        && (cortex.current_staking_round.rate != 0 || cortex.current_staking_round.lm_rate != 0)
+    {
         // Update cortex data
         {
             {

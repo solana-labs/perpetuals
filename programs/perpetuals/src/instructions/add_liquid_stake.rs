@@ -172,11 +172,9 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
     // Add stake to Staking account
     {
         // If liquid staking is already ongoing
-        // @TODO, make user to not lose current round of reward when adding new tokens to liquid stake
         if staking.liquid_stake.amount > 0 {
             // Claim rewards
             {
-                // recursive program call
                 let cpi_accounts = crate::cpi::accounts::ClaimStakes {
                     caller: ctx.accounts.owner.to_account_info(),
                     payer: ctx.accounts.owner.to_account_info(),
@@ -210,17 +208,18 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
                 crate::cpi::claim_stakes(CpiContext::new(cpi_program, cpi_accounts))?
             }
 
-            // Drop rewards for current round, start accruing reward at next round
-            cortex.current_staking_round.total_stake = math::checked_sub(
-                cortex.current_staking_round.total_stake,
-                staking.liquid_stake.amount,
-            )?;
+            // Set an overlap time to know when the current round should be treated differently than next round
+            //
+            // will be used during claim_stakes to calculate appropriate rewards
+            staking.liquid_stake.overlap_time = perpetuals.get_time()?;
+            staking.liquid_stake.overlap_amount =
+                math::checked_add(staking.liquid_stake.overlap_amount, params.amount)?;
+        } else {
+            staking.liquid_stake.stake_time = perpetuals.get_time()?;
         }
 
         staking.liquid_stake.amount =
             math::checked_add(staking.liquid_stake.amount, params.amount)?;
-
-        staking.liquid_stake.stake_time = perpetuals.get_time()?;
     };
 
     // transfer newly staked tokens to Stake PDA

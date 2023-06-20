@@ -265,8 +265,6 @@ pub async fn liquid_staking() {
         assert_eq!(balance_after - balance_before, 90_072_750);
     }
 
-    println!(">>> AFTER CLAIM");
-
     // warp to the next round and resolve the current one
     {
         utils::warp_forward(
@@ -340,11 +338,6 @@ pub async fn liquid_staking() {
         .unwrap();
     }
 
-    /*
-    //
-    // @TODO UNCOMMENT TO TEST DOUBLE STAKING TO NOT LOSE ANY REWARDS
-    //
-
     // Claim rewards - alice should get rewards from her first liquid staking for this round
     // New staking should start accruing rewards next round only
     {
@@ -354,7 +347,7 @@ pub async fn liquid_staking() {
         )
         .await;
 
-        instructions::claim_stakes(
+        test_instructions::claim_stakes(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             alice,
@@ -370,9 +363,8 @@ pub async fn liquid_staking() {
         )
         .await;
 
-        assert_eq!(balance_after - balance_before, 90_000);
+        assert_eq!(balance_after - balance_before, 22_188);
     }
-    */
 
     // Remove half the stake
     test_instructions::remove_liquid_stake(
