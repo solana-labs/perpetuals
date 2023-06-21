@@ -2,7 +2,7 @@ use {
     crate::{test_instructions, utils},
     maplit::hashmap,
     perpetuals::{
-        instructions::{AddLiquidityParams, RemoveLiquidityParams},
+        instructions::{BucketName, MintLmTokensFromBucketParams},
         state::cortex::Cortex,
     },
     solana_sdk::signer::Signer,
@@ -11,7 +11,7 @@ use {
 const USDC_DECIMALS: u8 = 6;
 const ETH_DECIMALS: u8 = 9;
 
-pub async fn insuffisient_fund() {
+pub async fn lm_minting() {
     let test_setup = utils::TestSetup::new(
         vec![utils::UserParam {
             name: "alice",
@@ -74,106 +74,90 @@ pub async fn insuffisient_fund() {
                 payer_user_name: "alice",
             },
         ],
-        utils::scale(1_000_000, Cortex::LM_DECIMALS),
-        utils::scale(1_000_000, Cortex::LM_DECIMALS),
-        utils::scale(1_000_000, Cortex::LM_DECIMALS),
-        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(100_000, Cortex::LM_DECIMALS),
+        utils::scale(200_000, Cortex::LM_DECIMALS),
+        utils::scale(300_000, Cortex::LM_DECIMALS),
+        utils::scale(500_000, Cortex::LM_DECIMALS),
     )
     .await;
 
     let alice = test_setup.get_user_keypair_by_name("alice");
 
-    let cortex_stake_reward_mint = test_setup.get_cortex_stake_reward_mint();
+    let admin_a = test_setup.get_multisig_member_keypair_by_name("admin_a");
 
-    let usdc_mint = &test_setup.get_mint_by_name("usdc");
-    let eth_mint = &test_setup.get_mint_by_name("eth");
+    let multisig_signers = test_setup.get_multisig_signers();
 
-    // Trying to add more USDC than owned should fail
-    assert!(test_instructions::add_liquidity(
+    test_instructions::mint_lm_tokens_from_bucket(
         &mut test_setup.program_test_ctx.borrow_mut(),
-        alice,
+        admin_a,
+        &alice.pubkey(),
         &test_setup.payer_keypair,
-        &test_setup.pool_pda,
-        usdc_mint,
-        &cortex_stake_reward_mint,
-        AddLiquidityParams {
-            amount_in: utils::scale(1_000_000, USDC_DECIMALS),
-            min_lp_amount_out: 1
+        MintLmTokensFromBucketParams {
+            bucket_name: BucketName::CoreContributor,
+            amount: utils::scale(50_000, Cortex::LM_DECIMALS),
+            reason: "Mint 50% of core contributor bucket allocation".to_string(),
         },
+        &multisig_signers,
+    )
+    .await
+    .unwrap();
+
+    assert!(test_instructions::mint_lm_tokens_from_bucket(
+        &mut test_setup.program_test_ctx.borrow_mut(),
+        admin_a,
+        &alice.pubkey(),
+        &test_setup.payer_keypair,
+        MintLmTokensFromBucketParams {
+            bucket_name: BucketName::CoreContributor,
+            amount: utils::scale(60_000, Cortex::LM_DECIMALS),
+            reason: "Mint 60% of core contributor bucket allocation should fail as we already minted 50%".to_string(),
+        },
+        &multisig_signers,
     )
     .await
     .is_err());
 
-    // Alice: add 15k USDC and 10 ETH liquidity
-    {
-        test_instructions::add_liquidity(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            alice,
-            &test_setup.payer_keypair,
-            &test_setup.pool_pda,
-            usdc_mint,
-            &cortex_stake_reward_mint,
-            AddLiquidityParams {
-                amount_in: utils::scale(15_000, USDC_DECIMALS),
-                min_lp_amount_out: 1,
-            },
-        )
-        .await
-        .unwrap();
-
-        test_instructions::add_liquidity(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            alice,
-            &test_setup.payer_keypair,
-            &test_setup.pool_pda,
-            eth_mint,
-            &cortex_stake_reward_mint,
-            AddLiquidityParams {
-                amount_in: utils::scale(10, ETH_DECIMALS),
-                min_lp_amount_out: 1,
-            },
-        )
-        .await
-        .unwrap();
-    }
-
-    let alice_lp_token_mint_pda =
-        utils::find_associated_token_account(&alice.pubkey(), &test_setup.lp_token_mint_pda).0;
-
-    let alice_lp_token_account_balance = utils::get_token_account_balance(
+    test_instructions::mint_lm_tokens_from_bucket(
         &mut test_setup.program_test_ctx.borrow_mut(),
-        alice_lp_token_mint_pda,
-    )
-    .await;
-
-    // Trying to remove more LP token than owned should fail
-    assert!(test_instructions::remove_liquidity(
-        &mut test_setup.program_test_ctx.borrow_mut(),
-        alice,
+        admin_a,
+        &alice.pubkey(),
         &test_setup.payer_keypair,
-        &test_setup.pool_pda,
-        usdc_mint,
-        &cortex_stake_reward_mint,
-        RemoveLiquidityParams {
-            lp_amount_in: alice_lp_token_account_balance + 1,
-            min_amount_out: 1
+        MintLmTokensFromBucketParams {
+            bucket_name: BucketName::CoreContributor,
+            amount: utils::scale(50_000, Cortex::LM_DECIMALS),
+            reason: "Mint other 50% of core contributor bucket allocation".to_string(),
         },
+        &multisig_signers,
     )
     .await
-    .is_err());
+    .unwrap();
 
-    // Trying to remove more asset than owned by the pool should fail
-    assert!(test_instructions::remove_liquidity(
+    test_instructions::mint_lm_tokens_from_bucket(
         &mut test_setup.program_test_ctx.borrow_mut(),
-        alice,
+        admin_a,
+        &alice.pubkey(),
         &test_setup.payer_keypair,
-        &test_setup.pool_pda,
-        usdc_mint,
-        &cortex_stake_reward_mint,
-        RemoveLiquidityParams {
-            lp_amount_in: alice_lp_token_account_balance * 75 / 100,
-            min_amount_out: 1
+        MintLmTokensFromBucketParams {
+            bucket_name: BucketName::DaoTreasury,
+            amount: utils::scale(200_000, Cortex::LM_DECIMALS),
+            reason: "Mint 100% of dao treasury bucket allocation".to_string(),
         },
+        &multisig_signers,
+    )
+    .await
+    .unwrap();
+
+    assert!(test_instructions::mint_lm_tokens_from_bucket(
+        &mut test_setup.program_test_ctx.borrow_mut(),
+        admin_a,
+        &alice.pubkey(),
+        &test_setup.payer_keypair,
+        MintLmTokensFromBucketParams {
+            bucket_name: BucketName::Ecosystem,
+            amount: utils::scale(0, Cortex::LM_DECIMALS),
+            reason: "Mint 0 should fail".to_string(),
+        },
+        &multisig_signers,
     )
     .await
     .is_err());

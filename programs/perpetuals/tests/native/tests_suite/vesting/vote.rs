@@ -40,6 +40,10 @@ pub async fn vote() {
             liquidity_amount: utils::scale(0, USDC_DECIMALS),
             payer_user_name: "alice",
         }],
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
     )
     .await;
 

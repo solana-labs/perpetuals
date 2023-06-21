@@ -130,6 +130,10 @@ impl TestSetup {
         governance_realm_name: &str,
         pool_name: &str,
         custodies_params: Vec<SetupCustodyWithLiquidityParams<'_>>,
+        core_contributor_bucket_allocation: u64,
+        dao_treasury_bucket_allocation: u64,
+        pol_bucket_allocation: u64,
+        ecosystem_bucket_allocation: u64,
     ) -> TestSetup {
         let mut program_test = ProgramTest::default();
 
@@ -244,7 +248,13 @@ impl TestSetup {
         test_instructions::init(
             &mut program_test_ctx.borrow_mut(),
             program_authority_keypair,
-            fixtures::init_params_permissions_full(1),
+            fixtures::init_params_permissions_full(
+                1,
+                core_contributor_bucket_allocation,
+                dao_treasury_bucket_allocation,
+                pol_bucket_allocation,
+                ecosystem_bucket_allocation,
+            ),
             &governance_realm_pda,
             cortex_stake_reward_mint,
             &multisig_signers,

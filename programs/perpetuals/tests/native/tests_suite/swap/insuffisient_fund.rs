@@ -1,7 +1,7 @@
 use {
     crate::{test_instructions, utils},
     maplit::hashmap,
-    perpetuals::instructions::SwapParams,
+    perpetuals::{instructions::SwapParams, state::cortex::Cortex},
 };
 
 const USDC_DECIMALS: u8 = 6;
@@ -82,6 +82,10 @@ pub async fn test_staking_rewards_from_swap() {
                 payer_user_name: "martin",
             },
         ],
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
     )
     .await;
 

@@ -3,7 +3,7 @@ use {
     maplit::hashmap,
     perpetuals::{
         instructions::{AddLiquidityParams, RemoveLiquidityParams},
-        state::{custody::Custody, perpetuals::Perpetuals, pool::Pool},
+        state::{cortex::Cortex, custody::Custody, perpetuals::Perpetuals, pool::Pool},
     },
 };
 
@@ -45,6 +45,10 @@ pub async fn fixed_fees() {
             liquidity_amount: utils::scale(0, USDC_DECIMALS),
             payer_user_name: "alice",
         }],
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
     )
     .await;
 

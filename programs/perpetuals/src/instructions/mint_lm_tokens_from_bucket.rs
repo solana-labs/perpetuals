@@ -80,7 +80,6 @@ pub fn mint_lm_tokens_from_bucket<'info>(
 ) -> Result<u8> {
     {
         msg!("Validate inputs");
-        msg!("Mint {} tokens", params.amount);
 
         if params.amount == 0 {
             return Err(ProgramError::InvalidArgument.into());
@@ -103,7 +102,7 @@ pub fn mint_lm_tokens_from_bucket<'info>(
 
                 require_eq!(
                     account_info.key(),
-                    Pubkey::find_program_address(&[b"multisig", &[multisig.bump]], &crate::ID).0,
+                    Pubkey::find_program_address(&[b"multisig"], &crate::ID).0,
                 );
 
                 multisig
@@ -158,7 +157,7 @@ pub fn mint_lm_tokens_from_bucket<'info>(
         }
         BucketName::DaoTreasury => {
             cortex.dao_treasury_bucket_minted_amount =
-                math::checked_add(cortex.dao_treasury_bucket_allocation, params.amount)?;
+                math::checked_add(cortex.dao_treasury_bucket_minted_amount, params.amount)?;
 
             require!(
                 cortex.dao_treasury_bucket_minted_amount <= cortex.dao_treasury_bucket_allocation,

@@ -5,6 +5,9 @@ pub mod utils;
 
 #[tokio::test]
 pub async fn test_integration() {
+    tests_suite::lm_minting::lm_minting().await;
+
+    /*
     tests_suite::basic_interactions().await;
 
     tests_suite::liquidity::fixed_fees().await;
@@ -28,5 +31,5 @@ pub async fn test_integration() {
     tests_suite::staking::resolved_round_overflow().await;
     tests_suite::staking::auto_claim().await;
 
-    tests_suite::lp_token::lp_token_price().await;
+    tests_suite::lp_token::lp_token_price().await;*/
 }

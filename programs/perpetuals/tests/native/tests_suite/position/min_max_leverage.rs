@@ -3,7 +3,7 @@ use {
     maplit::hashmap,
     perpetuals::{
         instructions::OpenPositionParams,
-        state::{custody::PricingParams, position::Side},
+        state::{cortex::Cortex, custody::PricingParams, position::Side},
     },
 };
 
@@ -89,6 +89,10 @@ pub async fn min_max_leverage() {
                 payer_user_name: "alice",
             },
         ],
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
     )
     .await;
 

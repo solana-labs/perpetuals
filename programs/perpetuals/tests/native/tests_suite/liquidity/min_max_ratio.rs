@@ -1,7 +1,10 @@
 use {
     crate::{test_instructions, utils},
     maplit::hashmap,
-    perpetuals::instructions::{AddLiquidityParams, RemoveLiquidityParams},
+    perpetuals::{
+        instructions::{AddLiquidityParams, RemoveLiquidityParams},
+        state::cortex::Cortex,
+    },
     solana_sdk::signer::Signer,
 };
 
@@ -71,6 +74,10 @@ pub async fn min_max_ratio() {
                 payer_user_name: "alice",
             },
         ],
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
     )
     .await;
 

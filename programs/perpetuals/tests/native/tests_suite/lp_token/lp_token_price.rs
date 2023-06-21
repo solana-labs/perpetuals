@@ -1,7 +1,7 @@
 use {
     crate::{test_instructions, utils},
     maplit::hashmap,
-    perpetuals::instructions::SetCustomOraclePriceParams,
+    perpetuals::{instructions::SetCustomOraclePriceParams, state::cortex::Cortex},
 };
 
 const USDC_DECIMALS: u8 = 6;
@@ -70,6 +70,10 @@ pub async fn lp_token_price() {
                 payer_user_name: "alice",
             },
         ],
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
     )
     .await;
 
