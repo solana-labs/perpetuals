@@ -117,10 +117,24 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
         current_round_lm_stake_token_amount,
     ) = {
         // Consider as reward everything that is in the vault, minus what is already assigned as reward
+        msg!(
+            ">>>> ctx.accounts.staking_reward_token_account.amount: {}",
+            ctx.accounts.staking_reward_token_account.amount
+        );
+        msg!(
+            ">>>> cortex.resolved_reward_token_amount: {}",
+            cortex.resolved_reward_token_amount
+        );
+
         let current_round_reward_token_amount = math::checked_sub(
             ctx.accounts.staking_reward_token_account.amount,
             cortex.resolved_reward_token_amount,
         )?;
+
+        msg!(
+            ">>>> current_round_stake_token_amount: {}",
+            cortex.current_staking_round.total_stake
+        );
 
         let current_round_stake_token_amount = cortex.current_staking_round.total_stake;
 

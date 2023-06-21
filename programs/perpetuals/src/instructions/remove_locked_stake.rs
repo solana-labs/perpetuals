@@ -181,7 +181,20 @@ pub fn remove_locked_stake(
         };
 
         let cpi_program = ctx.accounts.perpetuals_program.to_account_info();
-        crate::cpi::claim_stakes(CpiContext::new(cpi_program, cpi_accounts))?
+        crate::cpi::claim_stakes(CpiContext::new(cpi_program, cpi_accounts))?;
+
+        // Force reloading all accounts that may have been affected by claim
+        {
+            ctx.accounts.reward_token_account.reload()?;
+            ctx.accounts.lm_token_account.reload()?;
+            ctx.accounts.staking_reward_token_account.reload()?;
+            ctx.accounts.staking_lm_reward_token_account.reload()?;
+            ctx.accounts.staking.reload()?;
+            ctx.accounts.cortex.reload()?;
+            ctx.accounts.perpetuals.reload()?;
+            ctx.accounts.lm_token_mint.reload()?;
+            ctx.accounts.staking_reward_token_mint.reload()?;
+        }
     }
 
     let staking = ctx.accounts.staking.as_mut();

@@ -173,6 +173,15 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
     {
         // If liquid staking is already ongoing
         if staking.liquid_stake.amount > 0 {
+            msg!(
+                "===== Before: claim_time {}",
+                staking.liquid_stake.claim_time
+            );
+            msg!(
+                "===== Before: stake_time {}",
+                staking.liquid_stake.stake_time
+            );
+
             // Claim rewards
             {
                 let cpi_accounts = crate::cpi::accounts::ClaimStakes {
@@ -205,7 +214,20 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
                 };
 
                 let cpi_program = ctx.accounts.perpetuals_program.to_account_info();
-                crate::cpi::claim_stakes(CpiContext::new(cpi_program, cpi_accounts))?
+                crate::cpi::claim_stakes(CpiContext::new(cpi_program, cpi_accounts))?;
+
+                // Force reloading all accounts that may have been affected by claim
+                {
+                    ctx.accounts.reward_token_account.reload()?;
+                    ctx.accounts.lm_token_account.reload()?;
+                    ctx.accounts.staking_reward_token_account.reload()?;
+                    ctx.accounts.staking_lm_reward_token_account.reload()?;
+                    staking.reload()?;
+                    cortex.reload()?;
+                    perpetuals.reload()?;
+                    ctx.accounts.lm_token_mint.reload()?;
+                    ctx.accounts.staking_reward_token_mint.reload()?;
+                }
             }
 
             // Set an overlap time to know when the current round should be treated differently than next round

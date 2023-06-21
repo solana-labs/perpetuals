@@ -188,7 +188,20 @@ pub fn remove_liquid_stake(
         };
 
         let cpi_program = ctx.accounts.perpetuals_program.to_account_info();
-        crate::cpi::claim_stakes(CpiContext::new(cpi_program, cpi_accounts))?
+        crate::cpi::claim_stakes(CpiContext::new(cpi_program, cpi_accounts))?;
+
+        // Force reloading all accounts that may have been affected by claim
+        {
+            ctx.accounts.reward_token_account.reload()?;
+            ctx.accounts.lm_token_account.reload()?;
+            ctx.accounts.staking_reward_token_account.reload()?;
+            ctx.accounts.staking_lm_reward_token_account.reload()?;
+            ctx.accounts.staking.reload()?;
+            ctx.accounts.cortex.reload()?;
+            ctx.accounts.perpetuals.reload()?;
+            ctx.accounts.lm_token_mint.reload()?;
+            ctx.accounts.staking_reward_token_mint.reload()?;
+        }
     }
 
     let staking = ctx.accounts.staking.as_mut();
@@ -234,8 +247,33 @@ pub fn remove_liquid_stake(
                 .liquid_stake
                 .qualifies_for_rewards_from(&cortex.current_staking_round)
             {
-                cortex.current_staking_round.total_stake =
-                    math::checked_sub(cortex.current_staking_round.total_stake, params.amount)?;
+                // overlap
+                if staking.liquid_stake.overlap_amount > 0
+                    && staking.liquid_stake.overlap_time >= cortex.current_staking_round.start_time
+                {
+                    // In case of overlap, takes overlapped tokens first (last tokens put in staking)
+                    //
+                    // if there are not enough tokens, takes it up from long lasting staked tokens reserve
+                    if params.amount > staking.liquid_stake.overlap_amount {
+                        staking.liquid_stake.overlap_amount = 0;
+
+                        cortex.current_staking_round.total_stake = math::checked_sub(
+                            cortex.current_staking_round.total_stake,
+                            math::checked_sub(params.amount, staking.liquid_stake.overlap_amount)?,
+                        )?;
+                    } else {
+                        staking.liquid_stake.overlap_amount =
+                            math::checked_sub(staking.liquid_stake.overlap_amount, params.amount)?;
+
+                        cortex.current_staking_round.total_stake = math::checked_sub(
+                            cortex.current_staking_round.total_stake,
+                            math::checked_sub(params.amount, staking.liquid_stake.overlap_amount)?,
+                        )?;
+                    }
+                } else {
+                    cortex.current_staking_round.total_stake =
+                        math::checked_sub(cortex.current_staking_round.total_stake, params.amount)?;
+                }
             }
 
             // apply delta to next round
