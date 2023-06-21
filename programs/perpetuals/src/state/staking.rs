@@ -176,9 +176,9 @@ impl Staking {
     pub const LEN: usize = 8 + std::mem::size_of::<Staking>();
 
     // The max age of a Staking account in the system, 9 days
-    pub const MAX_AGE_SECONDS: i64 = 9 * HOURS_PER_DAY * SECONDS_PER_HOURS;
+    pub const MAX_AGE_SECONDS: i64 = 8 * HOURS_PER_DAY * SECONDS_PER_HOURS;
 
-    // Run cron every 7 days, leaving 2 days of buffering in case cron doesn't execute as it should have
+    // Run cron every 7 days, leaving 1 days of buffering in case cron doesn't execute as it should have
     pub const AUTO_CLAIM_CRON_DAYS_PERIODICITY: u8 = 7;
 
     // Cover ~10 years of auto-claim fees (530 calls * 7 days between calls = 3710 days covered ~= 10.1643835616 years)

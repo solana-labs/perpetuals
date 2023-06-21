@@ -36,6 +36,7 @@ pub enum AdminInstruction {
     SetCustomOraclePrice,
     SetTestTime,
     UpgradeCustody,
+    MintLmTokensFromBucket,
 }
 
 impl Multisig {

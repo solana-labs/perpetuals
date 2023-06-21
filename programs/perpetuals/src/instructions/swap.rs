@@ -3,6 +3,7 @@
 use {
     crate::{
         error::PerpetualsError,
+        instructions::{BucketName, MintLmTokensFromBucketParams},
         math,
         state::{
             cortex::Cortex, custody::Custody, oracle::OraclePrice, perpetuals::Perpetuals,
@@ -51,6 +52,7 @@ pub struct Swap<'info> {
     pub transfer_authority: AccountInfo<'info>,
 
     #[account(
+        mut,
         seeds = [b"cortex"],
         bump = cortex.bump
     )]
@@ -341,14 +343,39 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
         let amount = cortex.get_swap_lm_rewards_amounts(fees)?;
         let total_amount = math::checked_add(amount.0, amount.1)?;
 
-        // mint lm tokens
-        perpetuals.mint_tokens(
-            ctx.accounts.lm_token_mint.to_account_info(),
-            ctx.accounts.lm_token_account.to_account_info(),
-            ctx.accounts.transfer_authority.to_account_info(),
-            ctx.accounts.token_program.to_account_info(),
-            total_amount,
-        )?;
+        if total_amount > 0 {
+            let cpi_accounts = crate::cpi::accounts::MintLmTokensFromBucket {
+                admin: ctx.accounts.transfer_authority.to_account_info(),
+                receiving_account: ctx.accounts.lm_token_account.to_account_info(),
+                transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
+                cortex: ctx.accounts.cortex.to_account_info(),
+                perpetuals: perpetuals.to_account_info(),
+                lm_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+                token_program: ctx.accounts.token_program.to_account_info(),
+            };
+
+            let cpi_program = ctx.accounts.perpetuals_program.to_account_info();
+            crate::cpi::mint_lm_tokens_from_bucket(
+                CpiContext::new_with_signer(
+                    cpi_program,
+                    cpi_accounts,
+                    &[&[b"transfer_authority", &[perpetuals.transfer_authority_bump]]],
+                ),
+                MintLmTokensFromBucketParams {
+                    bucket_name: BucketName::Ecosystem,
+                    amount: total_amount,
+                    reason: String::from("Liquidity mining rewards"),
+                },
+            )?;
+
+            {
+                ctx.accounts.lm_token_account.reload()?;
+                ctx.accounts.cortex.reload()?;
+                perpetuals.reload()?;
+                ctx.accounts.lm_token_mint.reload()?;
+            }
+        }
+
         msg!("Amount LM rewards out: {}", total_amount);
         amount
     };

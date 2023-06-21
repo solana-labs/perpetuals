@@ -297,4 +297,11 @@ pub mod perpetuals {
     ) -> Result<u64> {
         instructions::get_lp_token_price(ctx, &params)
     }
+
+    pub fn mint_lm_tokens_from_bucket<'info>(
+        ctx: Context<'_, '_, '_, 'info, MintLmTokensFromBucket<'info>>,
+        params: MintLmTokensFromBucketParams,
+    ) -> Result<u8> {
+        instructions::mint_lm_tokens_from_bucket(ctx, &params)
+    }
 }

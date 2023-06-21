@@ -12,7 +12,8 @@ pub const SECONDS_PER_HOURS: i64 = 3600;
 #[account]
 #[derive(Default, Debug)]
 pub struct Cortex {
-    pub vests: Vec<Pubkey>,
+    //
+    // Bumps
     //
     pub bump: u8,
     pub lm_token_bump: u8,
@@ -21,24 +22,43 @@ pub struct Cortex {
     pub staking_reward_token_account_bump: u8,
     pub staking_lm_reward_token_account_bump: u8,
     //
+    // Time
+    //
     pub inception_epoch: u64,
+    //
+    // Governance
+    //
     pub governance_program: Pubkey,
     pub governance_realm: Pubkey,
+    //
+    // Vesting
+    //
+    pub vests: Vec<Pubkey>,
+    //
+    // Lm tokens minting rules
+    //
+    pub core_contributor_bucket_allocation: u64,
+    pub core_contributor_bucket_minted_amount: u64,
+    pub dao_treasury_bucket_allocation: u64,
+    pub dao_treasury_bucket_minted_amount: u64,
+    pub pol_bucket_allocation: u64,
+    pub pol_bucket_minted_amount: u64,
+    pub ecosystem_bucket_allocation: u64,
+    pub ecosystem_bucket_minted_amount: u64,
+    //
+    // Staking
     //
     pub staking_reward_token_mint: Pubkey,
     pub stake_token_decimals: u8,
     pub stake_reward_token_decimals: u8,
-    //
     // amount of rewards allocated to resolved rounds, claimable (excluding current/next round)
     pub resolved_reward_token_amount: u64,
     // amount of staked token locked in resolved rounds, claimable (excluding current/next round)
     pub resolved_stake_token_amount: u128,
-    //
     // amount of lm rewards allocated to resolved rounds, claimable (excluding current/next round)
     pub resolved_lm_reward_token_amount: u64,
     // amount of lm staked token locked in resolved rounds, claimable (excluding current/next round)
     pub resolved_lm_stake_token_amount: u128,
-    //
     pub current_staking_round: StakingRound,
     pub next_staking_round: StakingRound,
     // must be the last element of the struct for reallocs

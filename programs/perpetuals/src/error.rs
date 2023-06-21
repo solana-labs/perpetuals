@@ -74,4 +74,6 @@ pub enum PerpetualsError {
     CannotFoundStake,
     #[msg("Stake is not resolved")]
     UnresolvedStake,
+    #[msg("Reached bucket mint limit")]
+    BucketMintLimit,
 }

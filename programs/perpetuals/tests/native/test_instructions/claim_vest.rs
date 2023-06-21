@@ -67,6 +67,7 @@ pub async fn claim_vest(
             governance_realm_config: governance_realm_config_pda,
             governance_governing_token_holding: governance_governing_token_holding_pda,
             governance_governing_token_owner_record: governance_governing_token_owner_record_pda,
+            perpetuals_program: perpetuals::ID,
             governance_program: spl_governance_program_adapter::ID,
             system_program: anchor_lang::system_program::ID,
             token_program: anchor_spl::token::ID,

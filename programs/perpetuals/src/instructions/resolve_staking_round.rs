@@ -3,6 +3,7 @@
 use {
     crate::{
         error::PerpetualsError,
+        instructions::{BucketName, MintLmTokensFromBucketParams},
         math,
         state::{
             cortex::{Cortex, StakingRound},
@@ -76,6 +77,7 @@ pub struct ResolveStakingRound<'info> {
     #[account()]
     pub staking_reward_token_mint: Box<Account<'info, Mint>>,
 
+    pub perpetuals_program: Program<'info, Perpetuals>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
 }
@@ -95,6 +97,49 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
         // @TODO calculate this one based on emission formula
         let current_round_lm_reward_token_amount = 1_000_000;
 
+        // Mint LM tokens
+        {
+            if current_round_lm_reward_token_amount > 0 {
+                let cpi_accounts = crate::cpi::accounts::MintLmTokensFromBucket {
+                    admin: ctx.accounts.transfer_authority.to_account_info(),
+                    receiving_account: ctx
+                        .accounts
+                        .staking_lm_reward_token_account
+                        .to_account_info(),
+                    transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
+                    cortex: cortex.to_account_info(),
+                    perpetuals: ctx.accounts.perpetuals.to_account_info(),
+                    lm_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+                    token_program: ctx.accounts.token_program.to_account_info(),
+                };
+
+                let cpi_program = ctx.accounts.perpetuals_program.to_account_info();
+                crate::cpi::mint_lm_tokens_from_bucket(
+                    CpiContext::new_with_signer(
+                        cpi_program,
+                        cpi_accounts,
+                        &[&[
+                            b"transfer_authority",
+                            &[ctx.accounts.perpetuals.transfer_authority_bump],
+                        ]],
+                    ),
+                    MintLmTokensFromBucketParams {
+                        bucket_name: BucketName::Ecosystem,
+                        amount: current_round_lm_reward_token_amount,
+                        reason: String::from("Staking rewards"),
+                    },
+                )?;
+
+                {
+                    ctx.accounts.staking_lm_reward_token_account.reload()?;
+                    cortex.reload()?;
+                    ctx.accounts.perpetuals.reload()?;
+                    ctx.accounts.lm_token_mint.reload()?;
+                }
+            }
+        }
+
+        /*
         ctx.accounts.perpetuals.mint_tokens(
             ctx.accounts.lm_token_mint.to_account_info(),
             ctx.accounts
@@ -103,7 +148,7 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
             ctx.accounts.transfer_authority.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
             current_round_lm_reward_token_amount,
-        )?;
+        )?;*/
 
         // reload account to account for newly minted tokens
         ctx.accounts.staking_lm_reward_token_account.reload()?;
@@ -117,24 +162,10 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
         current_round_lm_stake_token_amount,
     ) = {
         // Consider as reward everything that is in the vault, minus what is already assigned as reward
-        msg!(
-            ">>>> ctx.accounts.staking_reward_token_account.amount: {}",
-            ctx.accounts.staking_reward_token_account.amount
-        );
-        msg!(
-            ">>>> cortex.resolved_reward_token_amount: {}",
-            cortex.resolved_reward_token_amount
-        );
-
         let current_round_reward_token_amount = math::checked_sub(
             ctx.accounts.staking_reward_token_account.amount,
             cortex.resolved_reward_token_amount,
         )?;
-
-        msg!(
-            ">>>> current_round_stake_token_amount: {}",
-            cortex.current_staking_round.total_stake
-        );
 
         let current_round_stake_token_amount = cortex.current_staking_round.total_stake;
 

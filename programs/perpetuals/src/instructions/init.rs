@@ -148,6 +148,10 @@ pub struct InitParams {
     pub allow_pnl_withdrawal: bool,
     pub allow_collateral_withdrawal: bool,
     pub allow_size_change: bool,
+    pub core_contributor_bucket_allocation: u64,
+    pub dao_treasury_bucket_allocation: u64,
+    pub pol_bucket_allocation: u64,
+    pub ecosystem_bucket_allocation: u64,
 }
 
 pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
@@ -194,38 +198,74 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
     // record cortex
     {
         let cortex = ctx.accounts.cortex.as_mut();
-        cortex.lm_token_bump = *ctx
-            .bumps
-            .get("lm_token_mint")
-            .ok_or(ProgramError::InvalidSeeds)?;
-        cortex.governance_token_bump = *ctx
-            .bumps
-            .get("governance_token_mint")
-            .ok_or(ProgramError::InvalidSeeds)?;
-        cortex.bump = *ctx.bumps.get("cortex").ok_or(ProgramError::InvalidSeeds)?;
-        cortex.staking_token_account_bump = *ctx
-            .bumps
-            .get("staking_token_account")
-            .ok_or(ProgramError::InvalidSeeds)?;
-        cortex.staking_reward_token_account_bump = *ctx
-            .bumps
-            .get("staking_reward_token_account")
-            .ok_or(ProgramError::InvalidSeeds)?;
-        cortex.staking_lm_reward_token_account_bump = *ctx
-            .bumps
-            .get("staking_lm_reward_token_account")
-            .ok_or(ProgramError::InvalidSeeds)?;
-        cortex.inception_epoch = cortex.get_epoch()?;
-        cortex.governance_program = ctx.accounts.governance_program.key();
-        cortex.governance_realm = ctx.accounts.governance_realm.key();
-        cortex.staking_reward_token_mint = ctx.accounts.staking_reward_token_mint.key();
-        cortex.resolved_reward_token_amount = u64::MIN;
-        cortex.resolved_stake_token_amount = u128::MIN;
-        cortex.stake_token_decimals = ctx.accounts.lm_token_mint.decimals;
-        cortex.stake_reward_token_decimals = ctx.accounts.staking_reward_token_mint.decimals;
-        // initialize the first staking rounds
-        cortex.current_staking_round = StakingRound::new(perpetuals.get_time()?);
-        cortex.next_staking_round = StakingRound::new(0);
+
+        // Bumps
+        {
+            cortex.lm_token_bump = *ctx
+                .bumps
+                .get("lm_token_mint")
+                .ok_or(ProgramError::InvalidSeeds)?;
+            cortex.governance_token_bump = *ctx
+                .bumps
+                .get("governance_token_mint")
+                .ok_or(ProgramError::InvalidSeeds)?;
+            cortex.bump = *ctx.bumps.get("cortex").ok_or(ProgramError::InvalidSeeds)?;
+            cortex.staking_token_account_bump = *ctx
+                .bumps
+                .get("staking_token_account")
+                .ok_or(ProgramError::InvalidSeeds)?;
+            cortex.staking_reward_token_account_bump = *ctx
+                .bumps
+                .get("staking_reward_token_account")
+                .ok_or(ProgramError::InvalidSeeds)?;
+            cortex.staking_lm_reward_token_account_bump = *ctx
+                .bumps
+                .get("staking_lm_reward_token_account")
+                .ok_or(ProgramError::InvalidSeeds)?;
+        }
+
+        // Time
+        {
+            cortex.inception_epoch = cortex.get_epoch()?;
+        }
+
+        // Governance
+        {
+            cortex.governance_program = ctx.accounts.governance_program.key();
+            cortex.governance_realm = ctx.accounts.governance_realm.key();
+        }
+
+        // Vesting
+        {
+            cortex.vests = Vec::new();
+        }
+
+        // Lm tokens minting rules
+        {
+            cortex.core_contributor_bucket_allocation = params.core_contributor_bucket_allocation;
+            cortex.core_contributor_bucket_minted_amount = u64::MIN;
+
+            cortex.dao_treasury_bucket_allocation = params.dao_treasury_bucket_allocation;
+            cortex.dao_treasury_bucket_minted_amount = u64::MIN;
+
+            cortex.pol_bucket_allocation = params.pol_bucket_allocation;
+            cortex.pol_bucket_minted_amount = u64::MIN;
+
+            cortex.ecosystem_bucket_allocation = params.ecosystem_bucket_allocation;
+            cortex.ecosystem_bucket_minted_amount = u64::MIN;
+        }
+
+        // Staking
+        {
+            cortex.staking_reward_token_mint = ctx.accounts.staking_reward_token_mint.key();
+            cortex.resolved_reward_token_amount = u64::MIN;
+            cortex.resolved_stake_token_amount = u128::MIN;
+            cortex.stake_token_decimals = ctx.accounts.lm_token_mint.decimals;
+            cortex.stake_reward_token_decimals = ctx.accounts.staking_reward_token_mint.decimals;
+            // initialize the first staking rounds
+            cortex.current_staking_round = StakingRound::new(perpetuals.get_time()?);
+            cortex.next_staking_round = StakingRound::new(0);
+        }
     }
 
     Ok(())
