@@ -102,6 +102,13 @@ pub async fn locked_staking_30d() {
     let eth_mint = &test_setup.get_mint_by_name("eth");
 
     let clockwork_worker = test_setup.get_clockwork_worker();
+    let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+
+    let alice_lm_token_account_address =
+        utils::find_associated_token_account(&alice.pubkey(), &lm_token_mint_pda).0;
+
+    let alice_staking_reward_token_account_address =
+        utils::find_associated_token_account(&alice.pubkey(), &cortex_stake_reward_mint).0;
 
     // Prep work: Alice get 2 governance tokens using vesting
     {
@@ -140,14 +147,6 @@ pub async fn locked_staking_30d() {
         .await
         .unwrap();
     }
-
-    let lm_token_mint = pda::get_lm_token_mint_pda().0;
-
-    let alice_staking_reward_token_account_address =
-        utils::find_associated_token_account(&alice.pubkey(), &cortex_stake_reward_mint).0;
-
-    let alice_lm_token_account_address =
-        utils::find_associated_token_account(&alice.pubkey(), &lm_token_mint).0;
 
     // Alice: start 30d locked staking
     {
@@ -199,6 +198,12 @@ pub async fn locked_staking_30d() {
         )
         .await;
 
+        let lm_balance_before = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice_lm_token_account_address,
+        )
+        .await;
+
         test_instructions::claim_stakes(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
@@ -215,7 +220,14 @@ pub async fn locked_staking_30d() {
         )
         .await;
 
+        let lm_balance_after = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice_lm_token_account_address,
+        )
+        .await;
+
         assert_eq!(balance_before, balance_after);
+        assert_eq!(lm_balance_before, lm_balance_after);
     }
 
     // warp to the next round and resolve the current one
