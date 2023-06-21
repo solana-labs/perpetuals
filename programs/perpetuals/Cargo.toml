@@ -22,11 +22,6 @@ cpi = ["no-entrypoint"]
 test = []
 default = []
 
-[profile.release]
-lto = true
-codegen-units = 1
-overflow-checks = true
-
 [dependencies]
 anchor-lang = {version = "0.26.0", features = ["init-if-needed"]}
 anchor-spl = "0.26.0"
