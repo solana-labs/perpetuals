@@ -6,7 +6,7 @@ use {
         oracle::OraclePrice,
         perpetuals::{Perpetuals, PriceAndFee},
         pool::Pool,
-        position::Position,
+        position::{Position, Side},
     },
     anchor_lang::prelude::*,
 };
@@ -49,6 +49,20 @@ pub struct GetExitPriceAndFee<'info> {
         constraint = custody_oracle_account.key() == custody.oracle.oracle_account
     )]
     pub custody_oracle_account: AccountInfo<'info>,
+
+    #[account(
+        seeds = [b"custody",
+                 pool.key().as_ref(),
+                 collateral_custody.mint.as_ref()],
+        bump = collateral_custody.bump
+    )]
+    pub collateral_custody: Box<Account<'info, Custody>>,
+
+    /// CHECK: oracle account for the collateral token
+    #[account(
+        constraint = collateral_custody_oracle_account.key() == collateral_custody.oracle.oracle_account
+    )]
+    pub collateral_custody_oracle_account: AccountInfo<'info>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
@@ -63,6 +77,7 @@ pub fn get_exit_price_and_fee(
     let pool = &ctx.accounts.pool;
     let curtime = ctx.accounts.perpetuals.get_time()?;
     let custody = &ctx.accounts.custody;
+    let collateral_custody = &ctx.accounts.collateral_custody;
 
     let token_price = OraclePrice::new_from_oracle(
         &ctx.accounts.custody_oracle_account.to_account_info(),
@@ -78,11 +93,26 @@ pub fn get_exit_price_and_fee(
         custody.pricing.use_ema,
     )?;
 
+    let collateral_token_ema_price = OraclePrice::new_from_oracle(
+        &ctx.accounts
+            .collateral_custody_oracle_account
+            .to_account_info(),
+        &collateral_custody.oracle,
+        curtime,
+        collateral_custody.pricing.use_ema,
+    )?;
+
     let price = pool.get_exit_price(&token_price, &token_ema_price, position.side, custody)?;
 
     let size = token_ema_price.get_token_amount(position.size_usd, custody.decimals)?;
 
-    let fee = pool.get_exit_fee(size, custody)?;
+    let mut fee = pool.get_exit_fee(size, custody)?;
+
+    if position.side == Side::Short || custody.is_virtual {
+        let fee_amount_usd = token_ema_price.get_asset_amount_usd(fee, custody.decimals)?;
+        fee = collateral_token_ema_price
+            .get_token_amount(fee_amount_usd, collateral_custody.decimals)?;
+    }
 
     Ok(PriceAndFee { price, fee })
 }

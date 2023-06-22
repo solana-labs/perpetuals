@@ -134,7 +134,8 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     {
         return Err(ProgramError::InvalidArgument.into());
     }
-    if params.side == Side::Short || custody.is_virtual {
+    let use_collateral_custody = params.side == Side::Short || custody.is_virtual;
+    if use_collateral_custody {
         require_keys_neq!(custody.key(), collateral_custody.key());
         require!(
             collateral_custody.is_stable && !collateral_custody.is_virtual,
@@ -211,7 +212,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     let collateral_usd = min_collateral_price
         .get_asset_amount_usd(params.collateral, collateral_custody.decimals)?;
 
-    let locked_amount = if params.side == Side::Short || custody.is_virtual {
+    let locked_amount = if use_collateral_custody {
         custody.get_locked_amount(
             min_collateral_price.get_token_amount(size_usd, collateral_custody.decimals)?,
             params.side,
@@ -221,12 +222,17 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     };
 
     // compute fee
-    let fee_amount = pool.get_entry_fee(
+    let mut fee_amount = pool.get_entry_fee(
         custody.fees.open_position,
         params.size,
         locked_amount,
         collateral_custody,
     )?;
+    let fee_amount_usd = token_ema_price.get_asset_amount_usd(fee_amount, custody.decimals)?;
+    if use_collateral_custody {
+        fee_amount = collateral_token_ema_price
+            .get_token_amount(fee_amount_usd, collateral_custody.decimals)?;
+    }
     msg!("Collected fee: {}", fee_amount);
 
     // compute amount to transfer
@@ -296,10 +302,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     collateral_custody.collected_fees.open_position_usd = collateral_custody
         .collected_fees
         .open_position_usd
-        .wrapping_add(
-            collateral_token_ema_price
-                .get_asset_amount_usd(fee_amount, collateral_custody.decimals)?,
-        );
+        .wrapping_add(fee_amount_usd);
 
     collateral_custody.assets.collateral =
         math::checked_add(collateral_custody.assets.collateral, params.collateral)?;

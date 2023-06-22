@@ -167,7 +167,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     }
 
     msg!("Settle position");
-    let (transfer_amount, fee_amount, profit_usd, loss_usd) = pool.get_close_amount(
+    let (transfer_amount, mut fee_amount, profit_usd, loss_usd) = pool.get_close_amount(
         position,
         &token_price,
         &token_ema_price,
@@ -179,7 +179,11 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         false,
     )?;
 
-    let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
+    let fee_amount_usd = token_ema_price.get_asset_amount_usd(fee_amount, custody.decimals)?;
+    if position.side == Side::Short || custody.is_virtual {
+        fee_amount = collateral_token_ema_price
+            .get_token_amount(fee_amount_usd, collateral_custody.decimals)?;
+    }
 
     msg!("Net profit: {}, loss: {}", profit_usd, loss_usd);
     msg!("Collected fee: {}", fee_amount);
@@ -212,10 +216,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     collateral_custody.collected_fees.close_position_usd = collateral_custody
         .collected_fees
         .close_position_usd
-        .wrapping_add(
-            collateral_token_ema_price
-                .get_asset_amount_usd(fee_amount, collateral_custody.decimals)?,
-        );
+        .wrapping_add(fee_amount_usd);
 
     if transfer_amount > position.collateral_amount {
         let amount_lost = transfer_amount.saturating_sub(position.collateral_amount);
@@ -230,6 +231,8 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         collateral_custody.assets.collateral,
         position.collateral_amount,
     )?;
+
+    let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
     collateral_custody.assets.protocol_fees =
         math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
 

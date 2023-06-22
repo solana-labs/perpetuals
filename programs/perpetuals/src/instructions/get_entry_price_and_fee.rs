@@ -149,12 +149,18 @@ pub fn get_entry_price_and_fee(
         curtime,
     )?;
 
-    let fee = pool.get_entry_fee(
+    let mut fee = pool.get_entry_fee(
         custody.fees.open_position,
         params.size,
         locked_amount,
         collateral_custody,
     )?;
+
+    if params.side == Side::Short || custody.is_virtual {
+        let fee_amount_usd = token_ema_price.get_asset_amount_usd(fee, custody.decimals)?;
+        fee = collateral_token_ema_price
+            .get_token_amount(fee_amount_usd, collateral_custody.decimals)?;
+    }
 
     Ok(NewPositionPricesAndFee {
         entry_price,
