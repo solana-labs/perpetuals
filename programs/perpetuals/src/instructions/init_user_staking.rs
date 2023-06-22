@@ -39,7 +39,6 @@ pub struct InitUserStaking<'info> {
     )]
     pub lm_token_account: Box<Account<'info, TokenAccount>>,
 
-    // staking reward token vault
     #[account(
         mut,
         token::mint = staking_reward_token_mint,
@@ -48,7 +47,6 @@ pub struct InitUserStaking<'info> {
     )]
     pub staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
-    // staking lm reward token vault
     #[account(
         mut,
         token::mint = lm_token_mint,
@@ -82,7 +80,7 @@ pub struct InitUserStaking<'info> {
         seeds = [USER_STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
         bump
     )]
-    pub staking_thread_authority: AccountInfo<'info>,
+    pub user_staking_thread_authority: AccountInfo<'info>,
 
     /// CHECK: checked by clockwork thread program
     #[account(mut)]
@@ -144,7 +142,7 @@ pub fn init_user_staking(
         .ok_or(ProgramError::InvalidSeeds)?;
     user_staking.thread_authority_bump = *ctx
         .bumps
-        .get("staking_thread_authority")
+        .get("user_staking_thread_authority")
         .ok_or(ProgramError::InvalidSeeds)?;
 
     user_staking.locked_stakes = Vec::new();
@@ -167,7 +165,7 @@ pub fn init_user_staking(
                     payer: ctx.accounts.owner.to_account_info(),
                     system_program: ctx.accounts.system_program.to_account_info(),
                     thread: ctx.accounts.stakes_claim_cron_thread.to_account_info(),
-                    authority: ctx.accounts.staking_thread_authority.to_account_info(),
+                    authority: ctx.accounts.user_staking_thread_authority.to_account_info(),
                 },
                 &[&[
                     USER_STAKING_THREAD_AUTHORITY_SEED,
@@ -244,7 +242,7 @@ pub fn init_user_staking(
         clockwork_sdk::cpi::thread_pause(CpiContext::new_with_signer(
             ctx.accounts.clockwork_program.to_account_info(),
             clockwork_sdk::cpi::ThreadPause {
-                authority: ctx.accounts.staking_thread_authority.to_account_info(),
+                authority: ctx.accounts.user_staking_thread_authority.to_account_info(),
                 thread: ctx.accounts.stakes_claim_cron_thread.to_account_info(),
             },
             &[&[

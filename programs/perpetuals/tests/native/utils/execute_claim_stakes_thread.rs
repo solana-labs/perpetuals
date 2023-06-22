@@ -36,7 +36,7 @@ pub async fn execute_claim_stakes_thread(
         utils::find_associated_token_account(&owner.pubkey(), &lm_token_mint_pda).0;
     let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda().0;
     let staking_lm_reward_token_vault_pda = pda::get_staking_lm_reward_token_vault_pda().0;
-    let thread_authority = pda::get_staking_thread_authority(&owner.pubkey()).0;
+    let thread_authority = pda::get_user_staking_thread_authority(&owner.pubkey()).0;
     let user_staking_account =
         utils::get_account::<UserStaking>(program_test_ctx, user_staking_pda).await;
 

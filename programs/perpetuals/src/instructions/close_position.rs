@@ -146,7 +146,6 @@ pub struct ClosePosition<'info> {
     )]
     pub collateral_custody_token_account: Box<Account<'info, TokenAccount>>,
 
-    // staking reward token vault (receiving fees swapped to `staking_reward_token_mint`)
     #[account(
         mut,
         token::mint = staking.reward_token_mint,

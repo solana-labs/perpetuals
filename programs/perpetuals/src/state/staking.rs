@@ -14,7 +14,6 @@ pub struct Staking {
     pub staked_token_vault_bump: u8,
     pub reward_token_vault_bump: u8,
     pub lm_reward_token_vault_bump: u8,
-
     //
     // Token to stake
     //
@@ -26,14 +25,16 @@ pub struct Staking {
     pub reward_token_mint: Pubkey,
     pub reward_token_decimals: u8,
     //
+    // Resolved amounts
+    //
     // amount of rewards allocated to resolved rounds, claimable (excluding current/next round)
     pub resolved_reward_token_amount: u64,
     // amount of staked token locked in resolved rounds, claimable (excluding current/next round)
-    pub resolved_stake_token_amount: u128,
+    pub resolved_staked_token_amount: u128,
     // amount of lm rewards allocated to resolved rounds, claimable (excluding current/next round)
     pub resolved_lm_reward_token_amount: u64,
     // amount of lm staked token locked in resolved rounds, claimable (excluding current/next round)
-    pub resolved_lm_stake_token_amount: u128,
+    pub resolved_lm_staked_token_amount: u128,
 
     pub current_staking_round: StakingRound,
     pub next_staking_round: StakingRound,

@@ -49,9 +49,10 @@ pub async fn add_locked_stake(
             &owner.pubkey(),
         );
 
-    let staking_thread_authority_pda = pda::get_staking_thread_authority(&owner.pubkey()).0;
+    let user_staking_thread_authority_pda =
+        pda::get_user_staking_thread_authority(&owner.pubkey()).0;
     let locked_stake_resolution_thread_address = pda::get_thread_address(
-        &staking_thread_authority_pda,
+        &user_staking_thread_authority_pda,
         params.stake_resolution_thread_id.try_to_vec().unwrap(),
     );
 
@@ -66,7 +67,7 @@ pub async fn add_locked_stake(
         utils::get_token_account_balance(program_test_ctx, lm_token_account_address).await;
 
     let stakes_claim_cron_thread_address = pda::get_thread_address(
-        &staking_thread_authority_pda,
+        &user_staking_thread_authority_pda,
         user_staking_account_before
             .stakes_claim_cron_thread_id
             .try_to_vec()
@@ -95,7 +96,7 @@ pub async fn add_locked_stake(
             governance_governing_token_owner_record: governance_governing_token_owner_record_pda,
             stake_resolution_thread: locked_stake_resolution_thread_address,
             stakes_claim_cron_thread: stakes_claim_cron_thread_address,
-            staking_thread_authority: staking_thread_authority_pda,
+            user_staking_thread_authority: user_staking_thread_authority_pda,
             clockwork_program: clockwork_sdk::ID,
             governance_program: spl_governance_program_adapter::ID,
             perpetuals_program: perpetuals::ID,

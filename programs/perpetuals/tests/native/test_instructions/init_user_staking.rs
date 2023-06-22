@@ -25,7 +25,8 @@ pub async fn init_user_staking(
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
     let (user_staking_pda, user_staking_bump) = pda::get_user_staking_pda(&owner.pubkey());
     let staking_pda = pda::get_staking_pda().0;
-    let staking_thread_authority_pda = pda::get_staking_thread_authority(&owner.pubkey()).0;
+    let user_staking_thread_authority_pda =
+        pda::get_user_staking_thread_authority(&owner.pubkey()).0;
     let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda().0;
     let staking_lm_reward_token_vault_pda = pda::get_staking_lm_reward_token_vault_pda().0;
     let reward_token_account_address =
@@ -34,7 +35,7 @@ pub async fn init_user_staking(
         utils::find_associated_token_account(&owner.pubkey(), &lm_token_mint_pda).0;
 
     let stakes_claim_cron_thread_address = pda::get_thread_address(
-        &staking_thread_authority_pda,
+        &user_staking_thread_authority_pda,
         params.stakes_claim_cron_thread_id.try_to_vec().unwrap(),
     );
 
@@ -51,7 +52,7 @@ pub async fn init_user_staking(
             user_staking: user_staking_pda,
             staking: staking_pda,
             transfer_authority: transfer_authority_pda,
-            staking_thread_authority: staking_thread_authority_pda,
+            user_staking_thread_authority: user_staking_thread_authority_pda,
             stakes_claim_cron_thread: stakes_claim_cron_thread_address,
             stakes_claim_payer: Pubkey::from_str(CLOCKWORK_PAYER_PUBKEY).unwrap(),
             cortex: cortex_pda,

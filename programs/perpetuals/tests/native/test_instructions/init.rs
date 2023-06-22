@@ -159,9 +159,9 @@ pub async fn init(
         );
 
         assert_eq!(staking_account.resolved_reward_token_amount, u64::MIN);
-        assert_eq!(staking_account.resolved_stake_token_amount, u128::MIN);
+        assert_eq!(staking_account.resolved_staked_token_amount, u128::MIN);
         assert_eq!(staking_account.resolved_lm_reward_token_amount, u64::MIN);
-        assert_eq!(staking_account.resolved_lm_stake_token_amount, u128::MIN);
+        assert_eq!(staking_account.resolved_lm_staked_token_amount, u128::MIN);
         assert_eq!(staking_account.next_staking_round, StakingRound::new(0));
         assert!(staking_account.resolved_staking_rounds.is_empty());
     }

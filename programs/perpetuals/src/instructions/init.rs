@@ -91,7 +91,6 @@ pub struct Init<'info> {
     )]
     pub staking_staked_token_vault: Box<Account<'info, TokenAccount>>,
 
-    // staking reward token vault
     #[account(
         init,
         payer = upgrade_authority,
@@ -102,7 +101,6 @@ pub struct Init<'info> {
     )]
     pub staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
-    // staking lm reward token vault
     #[account(
         init,
         payer = upgrade_authority,
@@ -274,9 +272,9 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
             staking.staked_token_decimals = ctx.accounts.lm_token_mint.decimals;
             staking.reward_token_decimals = ctx.accounts.staking_reward_token_mint.decimals;
             staking.resolved_reward_token_amount = u64::MIN;
-            staking.resolved_stake_token_amount = u128::MIN;
+            staking.resolved_staked_token_amount = u128::MIN;
             staking.resolved_lm_reward_token_amount = u64::MIN;
-            staking.resolved_lm_stake_token_amount = u128::MIN;
+            staking.resolved_lm_staked_token_amount = u128::MIN;
             staking.current_staking_round = StakingRound::new(perpetuals.get_time()?);
             staking.next_staking_round = StakingRound::new(0);
             staking.resolved_staking_rounds = Vec::new();

@@ -48,7 +48,8 @@ pub async fn remove_liquid_stake(
             &owner.pubkey(),
         );
 
-    let staking_thread_authority_pda = pda::get_staking_thread_authority(&owner.pubkey()).0;
+    let user_staking_thread_authority_pda =
+        pda::get_user_staking_thread_authority(&owner.pubkey()).0;
 
     // // ==== WHEN ==============================================================
     // save account state before tx execution
@@ -59,7 +60,7 @@ pub async fn remove_liquid_stake(
         utils::get_token_account_balance(program_test_ctx, lm_token_account_address).await;
 
     let stakes_claim_cron_thread_address = pda::get_thread_address(
-        &staking_thread_authority_pda,
+        &user_staking_thread_authority_pda,
         user_staking_account_before
             .stakes_claim_cron_thread_id
             .try_to_vec()
@@ -87,7 +88,7 @@ pub async fn remove_liquid_stake(
             governance_governing_token_holding: governance_governing_token_holding_pda,
             governance_governing_token_owner_record: governance_governing_token_owner_record_pda,
             stakes_claim_cron_thread: stakes_claim_cron_thread_address,
-            staking_thread_authority: staking_thread_authority_pda,
+            user_staking_thread_authority: user_staking_thread_authority_pda,
             clockwork_program: clockwork_sdk::ID,
             governance_program: spl_governance_program_adapter::ID,
             perpetuals_program: perpetuals::ID,

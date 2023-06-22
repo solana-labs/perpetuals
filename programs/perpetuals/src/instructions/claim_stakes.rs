@@ -42,7 +42,6 @@ pub struct ClaimStakes<'info> {
     )]
     pub lm_token_account: Box<Account<'info, TokenAccount>>,
 
-    // staking reward token vault
     #[account(
         mut,
         token::mint = staking_reward_token_mint,
@@ -51,7 +50,6 @@ pub struct ClaimStakes<'info> {
     )]
     pub staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
-    // staking lm reward token vault
     #[account(
         mut,
         token::mint = lm_token_mint,
@@ -374,8 +372,8 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
     {
         {
             // update resolved stake token amount left, by removing the previously staked amount
-            staking.resolved_stake_token_amount = math::checked_sub(
-                staking.resolved_stake_token_amount,
+            staking.resolved_staked_token_amount = math::checked_sub(
+                staking.resolved_staked_token_amount,
                 stake_amount_with_reward_multiplier as u128,
             )?;
 
@@ -386,8 +384,8 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
 
         {
             // update resolved lm stake token amount left, by removing the previously staked amount
-            staking.resolved_lm_stake_token_amount = math::checked_sub(
-                staking.resolved_lm_stake_token_amount,
+            staking.resolved_lm_staked_token_amount = math::checked_sub(
+                staking.resolved_lm_staked_token_amount,
                 stake_amount_with_lm_reward_multiplier as u128,
             )?;
 

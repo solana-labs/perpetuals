@@ -177,7 +177,7 @@ pub async fn resolved_round_overflow() {
 
         assert_eq!(staking.resolved_staking_rounds.len(), 0);
         assert_eq!(staking.resolved_reward_token_amount, 0);
-        assert_eq!(staking.resolved_stake_token_amount, 0);
+        assert_eq!(staking.resolved_staked_token_amount, 0);
     }
 
     //

@@ -29,7 +29,6 @@ pub struct ResolveStakingRound<'info> {
     )]
     pub staking_staked_token_vault: Box<Account<'info, TokenAccount>>,
 
-    // staking reward token vault
     #[account(
         mut,
         token::mint = staking_reward_token_mint,
@@ -38,7 +37,6 @@ pub struct ResolveStakingRound<'info> {
     )]
     pub staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
-    // staking lm reward token vault
     #[account(
         mut,
         token::mint = lm_token_mint,
@@ -235,8 +233,8 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
         // Update cortex data
         {
             {
-                staking.resolved_stake_token_amount = math::checked_add(
-                    staking.resolved_stake_token_amount,
+                staking.resolved_staked_token_amount = math::checked_add(
+                    staking.resolved_staked_token_amount,
                     current_round_stake_token_amount as u128,
                 )?;
 
@@ -254,8 +252,8 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
             }
 
             {
-                staking.resolved_lm_stake_token_amount = math::checked_add(
-                    staking.resolved_lm_stake_token_amount,
+                staking.resolved_lm_staked_token_amount = math::checked_add(
+                    staking.resolved_lm_staked_token_amount,
                     current_round_lm_stake_token_amount as u128,
                 )?;
 
@@ -310,8 +308,8 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
                     staking.resolved_reward_token_amount =
                         math::checked_sub(staking.resolved_reward_token_amount, unclaimed_rewards)?;
 
-                    staking.resolved_stake_token_amount = math::checked_sub(
-                        staking.resolved_stake_token_amount,
+                    staking.resolved_staked_token_amount = math::checked_sub(
+                        staking.resolved_staked_token_amount,
                         stake_token_elligible_to_rewards as u128,
                     )?;
                 }

@@ -103,11 +103,11 @@ pub fn get_staking_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(&["staking".as_ref()], &perpetuals::id())
 }
 
-pub fn get_thread_address(staking_thread_authority: &Pubkey, thread_id: Vec<u8>) -> Pubkey {
-    clockwork_sdk::state::Thread::pubkey(*staking_thread_authority, thread_id)
+pub fn get_thread_address(user_staking_thread_authority: &Pubkey, thread_id: Vec<u8>) -> Pubkey {
+    clockwork_sdk::state::Thread::pubkey(*user_staking_thread_authority, thread_id)
 }
 
-pub fn get_staking_thread_authority(owner: &Pubkey) -> (Pubkey, u8) {
+pub fn get_user_staking_thread_authority(owner: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[USER_STAKING_THREAD_AUTHORITY_SEED, owner.as_ref()],
         &perpetuals::id(),

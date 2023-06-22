@@ -52,7 +52,6 @@ pub struct AddLiquidStake<'info> {
     )]
     pub staking_staked_token_vault: Box<Account<'info, TokenAccount>>,
 
-    // staking reward token vault
     #[account(
         mut,
         token::mint = staking_reward_token_mint,
@@ -61,7 +60,6 @@ pub struct AddLiquidStake<'info> {
     )]
     pub staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
-    // staking lm reward token vault
     #[account(
         mut,
         token::mint = lm_token_mint,
@@ -149,7 +147,7 @@ pub struct AddLiquidStake<'info> {
         seeds = [USER_STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
         bump = user_staking.thread_authority_bump
     )]
-    pub staking_thread_authority: AccountInfo<'info>,
+    pub user_staking_thread_authority: AccountInfo<'info>,
 
     clockwork_program: Program<'info, clockwork_sdk::ThreadProgram>,
     governance_program: Program<'info, SplGovernanceV3Adapter>,
@@ -292,7 +290,7 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
             clockwork_sdk::cpi::thread_resume(CpiContext::new_with_signer(
                 ctx.accounts.clockwork_program.to_account_info(),
                 clockwork_sdk::cpi::ThreadResume {
-                    authority: ctx.accounts.staking_thread_authority.to_account_info(),
+                    authority: ctx.accounts.user_staking_thread_authority.to_account_info(),
                     thread: ctx.accounts.stakes_claim_cron_thread.to_account_info(),
                 },
                 &[&[
