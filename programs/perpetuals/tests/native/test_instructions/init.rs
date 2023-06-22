@@ -29,7 +29,8 @@ pub async fn init(
     // ==== WHEN ==============================================================
     let perpetuals_program_data_pda = pda::get_program_data_pda().0;
     let (multisig_pda, multisig_bump) = pda::get_multisig_pda();
-    let (staking_pda, staking_bump) = pda::get_staking_pda();
+    let (staking_pda, staking_bump) =
+        pda::get_staking_pda(perpetuals::state::staking::StakingType::LM);
     let (transfer_authority_pda, transfer_authority_bump) = pda::get_transfer_authority_pda();
     let (perpetuals_pda, perpetuals_bump) = pda::get_perpetuals_pda();
     let (cortex_pda, cortex_bump) = pda::get_cortex_pda();

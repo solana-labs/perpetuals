@@ -165,7 +165,7 @@ pub async fn resolved_round_overflow() {
 
     utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
-    let staking_pda = pda::get_staking_pda().0;
+    let staking_pda = pda::get_staking_pda(perpetuals::state::staking::StakingType::LM).0;
 
     // Check initial state of resolved rounds
     {

@@ -75,7 +75,7 @@ pub struct ClaimStakes<'info> {
 
     #[account(
         mut,
-        seeds = [b"staking"],
+        seeds = [b"staking", (staking.staking_type as u64).to_be_bytes().as_ref()],
         bump = staking.bump,
         constraint = staking.reward_token_mint.key() == staking_reward_token_mint.key()
     )]

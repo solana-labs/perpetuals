@@ -21,7 +21,7 @@ pub async fn execute_resolve_locked_stake_thread(
 ) -> std::result::Result<(), BanksClientError> {
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
     let user_staking_pda = pda::get_user_staking_pda(&owner.pubkey()).0;
-    let staking_pda = pda::get_staking_pda().0;
+    let staking_pda = pda::get_staking_pda(perpetuals::state::staking::StakingType::LM).0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;

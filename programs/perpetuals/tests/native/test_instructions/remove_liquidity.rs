@@ -33,7 +33,7 @@ pub async fn remove_liquidity(
     let lp_token_mint_pda = pda::get_lp_token_mint_pda(pool_pda).0;
     let cortex_pda = pda::get_cortex_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
-    let staking_pda = pda::get_staking_pda().0;
+    let staking_pda = pda::get_staking_pda(perpetuals::state::staking::StakingType::LM).0;
 
     let receiving_account_address =
         utils::find_associated_token_account(&owner.pubkey(), custody_token_mint).0;

@@ -20,7 +20,7 @@ pub async fn resolve_staking_round(
     let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda().0;
     let staking_lm_reward_token_vault_pda = pda::get_staking_lm_reward_token_vault_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
-    let staking_pda = pda::get_staking_pda().0;
+    let staking_pda = pda::get_staking_pda(perpetuals::state::staking::StakingType::LM).0;
 
     // // ==== WHEN ==============================================================
 

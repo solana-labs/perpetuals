@@ -15,7 +15,7 @@ pub async fn claim_stakes(
     // ==== GIVEN =============================================================
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
     let user_staking_pda = pda::get_user_staking_pda(&owner.pubkey()).0;
-    let staking_pda = pda::get_staking_pda().0;
+    let staking_pda = pda::get_staking_pda(perpetuals::state::staking::StakingType::LM).0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
     let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda().0;

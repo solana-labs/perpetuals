@@ -31,7 +31,7 @@ pub async fn open_position(
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
     let (position_pda, position_bump) =
         pda::get_position_pda(&owner.pubkey(), pool_pda, &custody_pda, params.side);
-    let staking_pda = pda::get_staking_pda().0;
+    let staking_pda = pda::get_staking_pda(perpetuals::state::staking::StakingType::LM).0;
 
     let funding_account_address =
         utils::find_associated_token_account(&owner.pubkey(), custody_token_mint).0;

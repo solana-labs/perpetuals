@@ -371,7 +371,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
 
     // Assert all rewards got distributed
     {
-        let staking_pda = pda::get_staking_pda().0;
+        let staking_pda = pda::get_staking_pda(perpetuals::state::staking::StakingType::LM).0;
 
         let staking_account = utils::get_account::<Staking>(
             &mut test_setup.program_test_ctx.borrow_mut(),

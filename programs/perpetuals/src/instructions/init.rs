@@ -8,7 +8,7 @@ use {
             cortex::Cortex,
             multisig::Multisig,
             perpetuals::Perpetuals,
-            staking::{Staking, StakingRound},
+            staking::{Staking, StakingRound, StakingType},
         },
     },
     anchor_lang::prelude::*,
@@ -44,7 +44,7 @@ pub struct Init<'info> {
         init,
         payer = upgrade_authority,
         space = Staking::LEN,
-        seeds = [b"staking"],
+        seeds = [b"staking", (StakingType::LM as u64).to_be_bytes().as_ref()],
         bump
     )]
     pub staking: Box<Account<'info, Staking>>,
@@ -268,6 +268,7 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
                 .get("staking_lm_reward_token_vault")
                 .ok_or(ProgramError::InvalidSeeds)?;
 
+            staking.staking_type = StakingType::LM;
             staking.staked_token_mint = ctx.accounts.lm_token_mint.key();
             staking.staked_token_decimals = ctx.accounts.lm_token_mint.decimals;
             staking.reward_token_decimals = ctx.accounts.staking_reward_token_mint.decimals;

@@ -4,9 +4,25 @@ use {
     anchor_lang::prelude::*,
 };
 
+#[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Debug)]
+pub enum StakingType {
+    LM = 1,
+    LP = 2,
+}
+
+impl Default for StakingType {
+    fn default() -> Self {
+        Self::LM
+    }
+}
+
 #[account]
 #[derive(Default, Debug)]
 pub struct Staking {
+    //
+    // Type of staking
+    //
+    pub staking_type: StakingType,
     //
     // Bumps
     //
@@ -35,7 +51,9 @@ pub struct Staking {
     pub resolved_lm_reward_token_amount: u64,
     // amount of lm staked token locked in resolved rounds, claimable (excluding current/next round)
     pub resolved_lm_staked_token_amount: u128,
-
+    //
+    // Staking rounds
+    //
     pub current_staking_round: StakingRound,
     pub next_staking_round: StakingRound,
     // must be the last element of the struct for reallocs
