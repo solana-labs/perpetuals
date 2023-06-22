@@ -122,17 +122,26 @@ pub fn get_user_staking_thread_authority(owner: &Pubkey) -> (Pubkey, u8) {
     )
 }
 
-pub fn get_staking_staked_token_vault_pda() -> (Pubkey, u8) {
-    Pubkey::find_program_address(&["staking_staked_token_vault".as_ref()], &perpetuals::id())
-}
-
-pub fn get_staking_reward_token_vault_pda() -> (Pubkey, u8) {
-    Pubkey::find_program_address(&["staking_reward_token_vault".as_ref()], &perpetuals::id())
-}
-
-pub fn get_staking_lm_reward_token_vault_pda() -> (Pubkey, u8) {
+pub fn get_staking_staked_token_vault_pda(staking_pda: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
-        &["staking_lm_reward_token_vault".as_ref()],
+        &["staking_staked_token_vault".as_ref(), staking_pda.as_ref()],
+        &perpetuals::id(),
+    )
+}
+
+pub fn get_staking_reward_token_vault_pda(staking_pda: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &["staking_reward_token_vault".as_ref(), staking_pda.as_ref()],
+        &perpetuals::id(),
+    )
+}
+
+pub fn get_staking_lm_reward_token_vault_pda(staking_pda: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[
+            "staking_lm_reward_token_vault".as_ref(),
+            staking_pda.as_ref(),
+        ],
         &perpetuals::id(),
     )
 }

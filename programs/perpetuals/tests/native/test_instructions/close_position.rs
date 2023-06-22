@@ -37,7 +37,7 @@ pub async fn close_position(
     let custody_account = utils::get_account::<Custody>(program_test_ctx, custody_pda).await;
     let custody_oracle_account_address = custody_account.oracle.oracle_account;
 
-    let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda().0;
+    let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda(&staking_pda).0;
 
     let srt_custody_pda = pda::get_custody_pda(pool_pda, staking_reward_token_mint).0;
     let srt_custody_token_account_pda =

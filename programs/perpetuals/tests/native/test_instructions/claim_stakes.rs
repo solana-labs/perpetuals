@@ -18,8 +18,9 @@ pub async fn claim_stakes(
     let staking_pda = pda::get_staking_pda(perpetuals::state::staking::StakingType::LM).0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
-    let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda().0;
-    let staking_lm_reward_token_vault_pda = pda::get_staking_lm_reward_token_vault_pda().0;
+    let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda(&staking_pda).0;
+    let staking_lm_reward_token_vault_pda =
+        pda::get_staking_lm_reward_token_vault_pda(&staking_pda).0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
 
     let reward_token_account_address =

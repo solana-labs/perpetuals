@@ -9,7 +9,7 @@ use {
             AddLiquidityParams, AddVestParams, ClosePositionParams, OpenPositionParams,
             RemoveLiquidityParams, SwapParams,
         },
-        state::{cortex::Cortex, perpetuals::Perpetuals, position::Side},
+        state::{cortex::Cortex, perpetuals::Perpetuals, position::Side, staking::StakingType},
     },
 };
 
@@ -144,7 +144,8 @@ pub async fn staking_rewards_generation() {
         .unwrap();
     }
 
-    let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda().0;
+    let staking_pda = pda::get_staking_pda(StakingType::LM).0;
+    let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda(&staking_pda).0;
 
     // Check that add liquidity generates rewards
     {

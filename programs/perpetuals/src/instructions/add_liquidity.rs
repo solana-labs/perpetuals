@@ -136,7 +136,7 @@ pub struct AddLiquidity<'info> {
     #[account(
         mut,
         token::mint = staking.reward_token_mint,
-        seeds = [b"staking_reward_token_vault"],
+        seeds = [b"staking_reward_token_vault", staking.key().as_ref()],
         bump = staking.reward_token_vault_bump
     )]
     pub staking_reward_token_vault: Box<Account<'info, TokenAccount>>,

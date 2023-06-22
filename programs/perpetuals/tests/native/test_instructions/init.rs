@@ -29,7 +29,7 @@ pub async fn init(
     // ==== WHEN ==============================================================
     let perpetuals_program_data_pda = pda::get_program_data_pda().0;
     let (multisig_pda, multisig_bump) = pda::get_multisig_pda();
-    let (staking_pda, staking_bump) =
+    let (lm_staking_pda, lm_staking_bump) =
         pda::get_staking_pda(perpetuals::state::staking::StakingType::LM);
     let (transfer_authority_pda, transfer_authority_bump) = pda::get_transfer_authority_pda();
     let (perpetuals_pda, perpetuals_bump) = pda::get_perpetuals_pda();
@@ -38,30 +38,30 @@ pub async fn init(
     let (governance_token_mint_pda, governance_token_mint_bump) =
         pda::get_governance_token_mint_pda();
     let (staking_staked_token_vault_pda, staking_token_account_bump) =
-        pda::get_staking_staked_token_vault_pda();
+        pda::get_staking_staked_token_vault_pda(&lm_staking_pda);
     let (staking_reward_token_vault_pda, staking_reward_token_account_bump) =
-        pda::get_staking_reward_token_vault_pda();
+        pda::get_staking_reward_token_vault_pda(&lm_staking_pda);
     let (staking_lm_reward_token_vault_pda, staking_lm_reward_token_account_bump) =
-        pda::get_staking_lm_reward_token_vault_pda();
+        pda::get_staking_lm_reward_token_vault_pda(&lm_staking_pda);
 
     let accounts_meta = {
         let accounts = perpetuals::accounts::Init {
             upgrade_authority: upgrade_authority.pubkey(),
             multisig: multisig_pda,
             transfer_authority: transfer_authority_pda,
-            staking: staking_pda,
+            lm_staking: lm_staking_pda,
             cortex: cortex_pda,
             lm_token_mint: lm_token_mint_pda,
             governance_token_mint: governance_token_mint_pda,
-            staking_staked_token_vault: staking_staked_token_vault_pda,
-            staking_reward_token_vault: staking_reward_token_vault_pda,
-            staking_lm_reward_token_vault: staking_lm_reward_token_vault_pda,
+            lm_staking_staked_token_vault: staking_staked_token_vault_pda,
+            lm_staking_reward_token_vault: staking_reward_token_vault_pda,
+            lm_staking_lm_reward_token_vault: staking_lm_reward_token_vault_pda,
             perpetuals: perpetuals_pda,
             perpetuals_program: perpetuals::ID,
             perpetuals_program_data: perpetuals_program_data_pda,
             governance_realm: *governance_realm_pda,
             governance_program: spl_governance_program_adapter::ID,
-            staking_reward_token_mint: *staking_reward_token_mint,
+            lm_staking_reward_token_mint: *staking_reward_token_mint,
             system_program: anchor_lang::system_program::ID,
             token_program: anchor_spl::token::ID,
         };
@@ -141,10 +141,10 @@ pub async fn init(
         }
     }
 
-    let staking_account = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
+    let staking_account = utils::get_account::<Staking>(program_test_ctx, lm_staking_pda).await;
     // Assert staking account
     {
-        assert_eq!(staking_account.bump, staking_bump);
+        assert_eq!(staking_account.bump, lm_staking_bump);
 
         assert_eq!(
             staking_account.staked_token_vault_bump,

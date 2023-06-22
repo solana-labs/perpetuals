@@ -23,9 +23,10 @@ pub async fn remove_locked_stake(
     let staking_pda = pda::get_staking_pda(perpetuals::state::staking::StakingType::LM).0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
-    let staking_staked_token_vault_pda = pda::get_staking_staked_token_vault_pda().0;
-    let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda().0;
-    let staking_lm_reward_token_vault_pda = pda::get_staking_lm_reward_token_vault_pda().0;
+    let staking_staked_token_vault_pda = pda::get_staking_staked_token_vault_pda(&staking_pda).0;
+    let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda(&staking_pda).0;
+    let staking_lm_reward_token_vault_pda =
+        pda::get_staking_lm_reward_token_vault_pda(&staking_pda).0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
     let governance_token_mint_pda = pda::get_governance_token_mint_pda().0;
 

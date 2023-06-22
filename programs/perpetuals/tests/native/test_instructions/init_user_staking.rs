@@ -27,8 +27,9 @@ pub async fn init_user_staking(
     let staking_pda = pda::get_staking_pda(perpetuals::state::staking::StakingType::LM).0;
     let user_staking_thread_authority_pda =
         pda::get_user_staking_thread_authority(&owner.pubkey()).0;
-    let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda().0;
-    let staking_lm_reward_token_vault_pda = pda::get_staking_lm_reward_token_vault_pda().0;
+    let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda(&staking_pda).0;
+    let staking_lm_reward_token_vault_pda =
+        pda::get_staking_lm_reward_token_vault_pda(&staking_pda).0;
     let reward_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), staking_reward_token_mint).0;
     let lm_token_account_address =

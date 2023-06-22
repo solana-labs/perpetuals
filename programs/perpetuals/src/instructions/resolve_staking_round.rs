@@ -24,7 +24,7 @@ pub struct ResolveStakingRound<'info> {
     #[account(
         mut,
         token::mint = staking.staked_token_mint,
-        seeds = [b"staking_staked_token_vault"],
+        seeds = [b"staking_staked_token_vault", staking.key().as_ref()],
         bump = staking.staked_token_vault_bump
     )]
     pub staking_staked_token_vault: Box<Account<'info, TokenAccount>>,
@@ -32,7 +32,7 @@ pub struct ResolveStakingRound<'info> {
     #[account(
         mut,
         token::mint = staking_reward_token_mint,
-        seeds = [b"staking_reward_token_vault"],
+        seeds = [b"staking_reward_token_vault", staking.key().as_ref()],
         bump = staking.reward_token_vault_bump
     )]
     pub staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
@@ -40,7 +40,7 @@ pub struct ResolveStakingRound<'info> {
     #[account(
         mut,
         token::mint = lm_token_mint,
-        seeds = [b"staking_lm_reward_token_vault"],
+        seeds = [b"staking_lm_reward_token_vault", staking.key().as_ref()],
         bump = staking.lm_reward_token_vault_bump
     )]
     pub staking_lm_reward_token_vault: Box<Account<'info, TokenAccount>>,

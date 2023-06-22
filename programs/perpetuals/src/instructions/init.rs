@@ -47,7 +47,7 @@ pub struct Init<'info> {
         seeds = [b"staking", (StakingType::LM as u64).to_be_bytes().as_ref()],
         bump
     )]
-    pub staking: Box<Account<'info, Staking>>,
+    pub lm_staking: Box<Account<'info, Staking>>,
 
     #[account(
         init,
@@ -86,30 +86,33 @@ pub struct Init<'info> {
         payer = upgrade_authority,
         token::mint = lm_token_mint,
         token::authority = transfer_authority,
-        seeds = [b"staking_staked_token_vault"],
+        seeds = [b"staking_staked_token_vault", lm_staking.key().as_ref()],
         bump
     )]
-    pub staking_staked_token_vault: Box<Account<'info, TokenAccount>>,
+    pub lm_staking_staked_token_vault: Box<Account<'info, TokenAccount>>,
 
     #[account(
         init,
         payer = upgrade_authority,
-        token::mint = staking_reward_token_mint,
+        token::mint = lm_staking_reward_token_mint,
         token::authority = transfer_authority,
-        seeds = [b"staking_reward_token_vault"],
+        seeds = [b"staking_reward_token_vault", lm_staking.key().as_ref()],
         bump
     )]
-    pub staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
+    pub lm_staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     #[account(
         init,
         payer = upgrade_authority,
         token::mint = lm_token_mint,
         token::authority = transfer_authority,
-        seeds = [b"staking_lm_reward_token_vault"],
+        seeds = [b"staking_lm_reward_token_vault", lm_staking.key().as_ref()],
         bump
     )]
-    pub staking_lm_reward_token_vault: Box<Account<'info, TokenAccount>>,
+    pub lm_staking_lm_reward_token_vault: Box<Account<'info, TokenAccount>>,
+
+    #[account()]
+    pub lm_staking_reward_token_mint: Box<Account<'info, Mint>>,
 
     #[account(
         init,
@@ -135,9 +138,6 @@ pub struct Init<'info> {
     pub governance_realm: UncheckedAccount<'info>,
 
     pub governance_program: Program<'info, SplGovernanceV3Adapter>,
-
-    #[account()]
-    pub staking_reward_token_mint: Box<Account<'info, Mint>>,
 
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
@@ -250,36 +250,39 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
             cortex.ecosystem_bucket_minted_amount = u64::MIN;
         }
 
-        // Staking
+        // LM Staking
         {
-            let staking = ctx.accounts.staking.as_mut();
+            let lm_staking = ctx.accounts.lm_staking.as_mut();
 
-            staking.bump = *ctx.bumps.get("staking").ok_or(ProgramError::InvalidSeeds)?;
-            staking.staked_token_vault_bump = *ctx
+            lm_staking.bump = *ctx
                 .bumps
-                .get("staking_staked_token_vault")
+                .get("lm_staking")
                 .ok_or(ProgramError::InvalidSeeds)?;
-            staking.reward_token_vault_bump = *ctx
+            lm_staking.staked_token_vault_bump = *ctx
                 .bumps
-                .get("staking_reward_token_vault")
+                .get("lm_staking_staked_token_vault")
                 .ok_or(ProgramError::InvalidSeeds)?;
-            staking.lm_reward_token_vault_bump = *ctx
+            lm_staking.reward_token_vault_bump = *ctx
                 .bumps
-                .get("staking_lm_reward_token_vault")
+                .get("lm_staking_reward_token_vault")
+                .ok_or(ProgramError::InvalidSeeds)?;
+            lm_staking.lm_reward_token_vault_bump = *ctx
+                .bumps
+                .get("lm_staking_lm_reward_token_vault")
                 .ok_or(ProgramError::InvalidSeeds)?;
 
-            staking.staking_type = StakingType::LM;
-            staking.staked_token_mint = ctx.accounts.lm_token_mint.key();
-            staking.staked_token_decimals = ctx.accounts.lm_token_mint.decimals;
-            staking.reward_token_decimals = ctx.accounts.staking_reward_token_mint.decimals;
-            staking.resolved_reward_token_amount = u64::MIN;
-            staking.resolved_staked_token_amount = u128::MIN;
-            staking.resolved_lm_reward_token_amount = u64::MIN;
-            staking.resolved_lm_staked_token_amount = u128::MIN;
-            staking.current_staking_round = StakingRound::new(perpetuals.get_time()?);
-            staking.next_staking_round = StakingRound::new(0);
-            staking.resolved_staking_rounds = Vec::new();
-            staking.reward_token_mint = ctx.accounts.staking_reward_token_mint.key();
+            lm_staking.staking_type = StakingType::LM;
+            lm_staking.staked_token_mint = ctx.accounts.lm_token_mint.key();
+            lm_staking.staked_token_decimals = ctx.accounts.lm_token_mint.decimals;
+            lm_staking.reward_token_decimals = ctx.accounts.lm_staking_reward_token_mint.decimals;
+            lm_staking.resolved_reward_token_amount = u64::MIN;
+            lm_staking.resolved_staked_token_amount = u128::MIN;
+            lm_staking.resolved_lm_reward_token_amount = u64::MIN;
+            lm_staking.resolved_lm_staked_token_amount = u128::MIN;
+            lm_staking.current_staking_round = StakingRound::new(perpetuals.get_time()?);
+            lm_staking.next_staking_round = StakingRound::new(0);
+            lm_staking.resolved_staking_rounds = Vec::new();
+            lm_staking.reward_token_mint = ctx.accounts.lm_staking_reward_token_mint.key();
         }
     }
 
