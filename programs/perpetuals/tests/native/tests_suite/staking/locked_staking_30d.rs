@@ -8,7 +8,7 @@ use {
         instructions::{
             AddLiquidityParams, AddLockedStakeParams, AddVestParams, RemoveLockedStakeParams,
         },
-        state::cortex::{Cortex, StakingRound},
+        state::{cortex::Cortex, staking::StakingRound},
     },
     solana_sdk::signer::Signer,
 };
@@ -158,12 +158,12 @@ pub async fn locked_staking_30d() {
             utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
                 as u64;
 
-        test_instructions::init_staking(
+        test_instructions::init_user_staking(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,
             &cortex_stake_reward_mint,
-            perpetuals::instructions::InitStakingParams {
+            perpetuals::instructions::InitUserStakingParams {
                 stakes_claim_cron_thread_id,
             },
         )

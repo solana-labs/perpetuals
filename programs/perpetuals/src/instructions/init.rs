@@ -5,9 +5,10 @@ use {
         adapters::SplGovernanceV3Adapter,
         error::PerpetualsError,
         state::{
-            cortex::{Cortex, StakingRound},
+            cortex::Cortex,
             multisig::Multisig,
             perpetuals::Perpetuals,
+            staking::{Staking, StakingRound},
         },
     },
     anchor_lang::prelude::*,
@@ -42,7 +43,16 @@ pub struct Init<'info> {
     #[account(
         init,
         payer = upgrade_authority,
-        space = Cortex::LEN + std::mem::size_of::<StakingRound>(),
+        space = Staking::LEN,
+        seeds = [b"staking"],
+        bump
+    )]
+    pub staking: Box<Account<'info, Staking>>,
+
+    #[account(
+        init,
+        payer = upgrade_authority,
+        space = Cortex::LEN,
         seeds = [b"cortex"],
         bump
     )]
@@ -210,18 +220,6 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
                 .get("governance_token_mint")
                 .ok_or(ProgramError::InvalidSeeds)?;
             cortex.bump = *ctx.bumps.get("cortex").ok_or(ProgramError::InvalidSeeds)?;
-            cortex.staking_token_account_bump = *ctx
-                .bumps
-                .get("staking_token_account")
-                .ok_or(ProgramError::InvalidSeeds)?;
-            cortex.staking_reward_token_account_bump = *ctx
-                .bumps
-                .get("staking_reward_token_account")
-                .ok_or(ProgramError::InvalidSeeds)?;
-            cortex.staking_lm_reward_token_account_bump = *ctx
-                .bumps
-                .get("staking_lm_reward_token_account")
-                .ok_or(ProgramError::InvalidSeeds)?;
         }
 
         // Time
@@ -257,14 +255,32 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
 
         // Staking
         {
-            cortex.staking_reward_token_mint = ctx.accounts.staking_reward_token_mint.key();
-            cortex.resolved_reward_token_amount = u64::MIN;
-            cortex.resolved_stake_token_amount = u128::MIN;
-            cortex.stake_token_decimals = ctx.accounts.lm_token_mint.decimals;
-            cortex.stake_reward_token_decimals = ctx.accounts.staking_reward_token_mint.decimals;
-            // initialize the first staking rounds
-            cortex.current_staking_round = StakingRound::new(perpetuals.get_time()?);
-            cortex.next_staking_round = StakingRound::new(0);
+            let staking = ctx.accounts.staking.as_mut();
+
+            staking.bump = *ctx.bumps.get("staking").ok_or(ProgramError::InvalidSeeds)?;
+            staking.staking_token_account_bump = *ctx
+                .bumps
+                .get("staking_token_account")
+                .ok_or(ProgramError::InvalidSeeds)?;
+            staking.staking_reward_token_account_bump = *ctx
+                .bumps
+                .get("staking_reward_token_account")
+                .ok_or(ProgramError::InvalidSeeds)?;
+            staking.staking_lm_reward_token_account_bump = *ctx
+                .bumps
+                .get("staking_lm_reward_token_account")
+                .ok_or(ProgramError::InvalidSeeds)?;
+
+            staking.stake_token_decimals = ctx.accounts.lm_token_mint.decimals;
+            staking.stake_reward_token_decimals = ctx.accounts.staking_reward_token_mint.decimals;
+            staking.resolved_reward_token_amount = u64::MIN;
+            staking.resolved_stake_token_amount = u128::MIN;
+            staking.resolved_lm_reward_token_amount = u64::MIN;
+            staking.resolved_lm_stake_token_amount = u128::MIN;
+            staking.current_staking_round = StakingRound::new(perpetuals.get_time()?);
+            staking.next_staking_round = StakingRound::new(0);
+            staking.resolved_staking_rounds = Vec::new();
+            staking.staking_reward_token_mint = ctx.accounts.staking_reward_token_mint.key();
         }
     }
 

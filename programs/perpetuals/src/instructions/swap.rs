@@ -7,7 +7,7 @@ use {
         math,
         state::{
             cortex::Cortex, custody::Custody, oracle::OraclePrice, perpetuals::Perpetuals,
-            pool::Pool,
+            pool::Pool, staking::Staking,
         },
     },
     anchor_lang::prelude::*,
@@ -148,9 +148,9 @@ pub struct Swap<'info> {
     // staking reward token vault (receiving fees swapped to `staking_reward_token_mint`)
     #[account(
         mut,
-        token::mint = cortex.staking_reward_token_mint,
+        token::mint = staking.staking_reward_token_mint,
         seeds = [b"staking_reward_token_account"],
-        bump = cortex.staking_reward_token_account_bump
+        bump = staking.staking_reward_token_account_bump
     )]
     pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -163,6 +163,14 @@ pub struct Swap<'info> {
 
     #[account()]
     pub staking_reward_token_mint: Box<Account<'info, Mint>>,
+
+    #[account(
+        mut,
+        seeds = [b"staking"],
+        bump = staking.bump,
+        has_one = staking_reward_token_mint
+    )]
+    pub staking: Box<Account<'info, Staking>>,
 
     token_program: Program<'info, Token>,
     perpetuals_program: Program<'info, Perpetuals>,
@@ -478,6 +486,7 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
                         .to_account_info(),
                     ctx.accounts.staking_reward_token_account.to_account_info(),
                     ctx.accounts.staking_reward_token_mint.to_account_info(),
+                    ctx.accounts.staking.to_account_info(),
                     ctx.accounts.lm_token_mint.to_account_info(),
                     ctx.accounts.token_program.to_account_info(),
                     ctx.accounts.perpetuals_program.to_account_info(),
@@ -538,6 +547,7 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
                         .to_account_info(),
                     ctx.accounts.staking_reward_token_account.to_account_info(),
                     ctx.accounts.staking_reward_token_mint.to_account_info(),
+                    ctx.accounts.staking.to_account_info(),
                     ctx.accounts.lm_token_mint.to_account_info(),
                     ctx.accounts.token_program.to_account_info(),
                     ctx.accounts.perpetuals_program.to_account_info(),

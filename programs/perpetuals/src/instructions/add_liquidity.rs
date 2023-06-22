@@ -11,6 +11,7 @@ use {
             oracle::OraclePrice,
             perpetuals::Perpetuals,
             pool::{AumCalcMode, Pool},
+            staking::Staking,
         },
     },
     anchor_lang::prelude::*,
@@ -52,6 +53,14 @@ pub struct AddLiquidity<'info> {
         bump = perpetuals.transfer_authority_bump
     )]
     pub transfer_authority: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"staking"],
+        bump = staking.bump,
+        has_one = staking_reward_token_mint
+    )]
+    pub staking: Box<Account<'info, Staking>>,
 
     #[account(
         mut,
@@ -126,9 +135,9 @@ pub struct AddLiquidity<'info> {
     // Note: will be credited with its share of fees swapped from native denomination to `staking_reward_token_mint`
     #[account(
         mut,
-        token::mint = cortex.staking_reward_token_mint,
+        token::mint = staking.staking_reward_token_mint,
         seeds = [b"staking_reward_token_account"],
-        bump = cortex.staking_reward_token_account_bump
+        bump = staking.staking_reward_token_account_bump
     )]
     pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -387,6 +396,7 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
                         .to_account_info(),
                     ctx.accounts.staking_reward_token_account.to_account_info(),
                     ctx.accounts.staking_reward_token_mint.to_account_info(),
+                    ctx.accounts.staking.to_account_info(),
                     ctx.accounts.lm_token_mint.to_account_info(),
                     ctx.accounts.token_program.to_account_info(),
                     ctx.accounts.perpetuals_program.to_account_info(),

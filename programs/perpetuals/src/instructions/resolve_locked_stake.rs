@@ -5,7 +5,9 @@ use {
         adapters::SplGovernanceV3Adapter,
         error::PerpetualsError,
         math, program,
-        state::{cortex::Cortex, perpetuals::Perpetuals, staking::Staking},
+        state::{
+            cortex::Cortex, perpetuals::Perpetuals, staking::Staking, user_staking::UserStaking,
+        },
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token},
@@ -30,9 +32,16 @@ pub struct ResolveLockedStake<'info> {
 
     #[account(
         mut,
-        seeds = [b"staking",
+        seeds = [b"user_staking",
                  owner.key().as_ref()],
-        bump = staking.bump
+        bump = user_staking.bump
+    )]
+    pub user_staking: Box<Account<'info, UserStaking>>,
+
+    #[account(
+        mut,
+        seeds = [b"staking"],
+        bump = staking.bump,
     )]
     pub staking: Box<Account<'info, Staking>>,
 
@@ -98,12 +107,12 @@ pub fn resolve_locked_stake(
     params: &ResolveLockedStakeParams,
 ) -> Result<()> {
     let staking = ctx.accounts.staking.as_mut();
+    let user_staking = ctx.accounts.user_staking.as_mut();
     let perpetuals = ctx.accounts.perpetuals.as_mut();
-    let cortex = ctx.accounts.cortex.as_mut();
 
     let current_time = perpetuals.get_time()?;
 
-    let locked_stake = staking
+    let locked_stake = user_staking
         .locked_stakes
         .iter_mut()
         .find(|stake| stake.stake_resolution_thread_id == params.thread_id)
@@ -145,26 +154,26 @@ pub fn resolve_locked_stake(
 
     // forfeit current round participation
     {
-        cortex.current_staking_round.total_stake = math::checked_sub(
-            cortex.current_staking_round.total_stake,
+        staking.current_staking_round.total_stake = math::checked_sub(
+            staking.current_staking_round.total_stake,
             locked_stake.amount_with_reward_multiplier,
         )?;
 
-        cortex.current_staking_round.lm_total_stake = math::checked_sub(
-            cortex.current_staking_round.lm_total_stake,
+        staking.current_staking_round.lm_total_stake = math::checked_sub(
+            staking.current_staking_round.lm_total_stake,
             locked_stake.amount_with_lm_reward_multiplier,
         )?;
     }
 
     // remove staked tokens from next round
     {
-        cortex.next_staking_round.total_stake = math::checked_sub(
-            cortex.next_staking_round.total_stake,
+        staking.next_staking_round.total_stake = math::checked_sub(
+            staking.next_staking_round.total_stake,
             locked_stake.amount_with_reward_multiplier,
         )?;
 
-        cortex.next_staking_round.lm_total_stake = math::checked_sub(
-            cortex.next_staking_round.lm_total_stake,
+        staking.next_staking_round.lm_total_stake = math::checked_sub(
+            staking.next_staking_round.lm_total_stake,
             locked_stake.amount_with_lm_reward_multiplier,
         )?;
     }
@@ -172,24 +181,24 @@ pub fn resolve_locked_stake(
     locked_stake.resolved = true;
 
     msg!(
-        "cortex.next_staking_round.total_stake: {}",
-        cortex.next_staking_round.total_stake
+        "staking.next_staking_round.total_stake: {}",
+        staking.next_staking_round.total_stake
     );
     msg!(
-        "cortex.next_staking_round.lm_total_stake: {}",
-        cortex.next_staking_round.lm_total_stake
+        "staking.next_staking_round.lm_total_stake: {}",
+        staking.next_staking_round.lm_total_stake
     );
     msg!(
-        "cortex.resolved_staking_rounds after remove stake {:?}",
-        cortex.resolved_staking_rounds
+        "staking.resolved_staking_rounds after remove stake {:?}",
+        staking.resolved_staking_rounds
     );
     msg!(
-        "cortex.current_staking_round after remove stake {:?}",
-        cortex.current_staking_round
+        "staking.current_staking_round after remove stake {:?}",
+        staking.current_staking_round
     );
     msg!(
-        "cortex.next_staking_round after remove stake {:?}",
-        cortex.next_staking_round
+        "staking.next_staking_round after remove stake {:?}",
+        staking.next_staking_round
     );
 
     Ok(())

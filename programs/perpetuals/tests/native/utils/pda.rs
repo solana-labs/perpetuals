@@ -1,7 +1,7 @@
 use {
     perpetuals::{
         adapters::spl_governance_program_adapter,
-        state::{position::Side, staking::STAKING_THREAD_AUTHORITY_SEED},
+        state::{position::Side, user_staking::USER_STAKING_THREAD_AUTHORITY_SEED},
     },
     solana_sdk::pubkey::Pubkey,
 };
@@ -92,8 +92,15 @@ pub fn get_governance_token_mint_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(&["governance_token_mint".as_ref()], &perpetuals::id())
 }
 
-pub fn get_staking_pda(owner: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&["staking".as_ref(), owner.as_ref()], &perpetuals::id())
+pub fn get_user_staking_pda(owner: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &["user_staking".as_ref(), owner.as_ref()],
+        &perpetuals::id(),
+    )
+}
+
+pub fn get_staking_pda() -> (Pubkey, u8) {
+    Pubkey::find_program_address(&["staking".as_ref()], &perpetuals::id())
 }
 
 pub fn get_thread_address(staking_thread_authority: &Pubkey, thread_id: Vec<u8>) -> Pubkey {
@@ -102,7 +109,7 @@ pub fn get_thread_address(staking_thread_authority: &Pubkey, thread_id: Vec<u8>)
 
 pub fn get_staking_thread_authority(owner: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
-        &[STAKING_THREAD_AUTHORITY_SEED, owner.as_ref()],
+        &[USER_STAKING_THREAD_AUTHORITY_SEED, owner.as_ref()],
         &perpetuals::id(),
     )
 }

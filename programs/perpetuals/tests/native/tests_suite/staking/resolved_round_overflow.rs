@@ -6,7 +6,10 @@ use {
     maplit::hashmap,
     perpetuals::{
         instructions::{AddLiquidStakeParams, AddLiquidityParams, AddVestParams},
-        state::cortex::{Cortex, StakingRound},
+        state::{
+            cortex::Cortex,
+            staking::{Staking, StakingRound},
+        },
     },
 };
 
@@ -134,12 +137,12 @@ pub async fn resolved_round_overflow() {
         utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
             as u64;
 
-    test_instructions::init_staking(
+    test_instructions::init_user_staking(
         &mut test_setup.program_test_ctx.borrow_mut(),
         alice,
         &test_setup.payer_keypair,
         &cortex_stake_reward_mint,
-        perpetuals::instructions::InitStakingParams {
+        perpetuals::instructions::InitUserStakingParams {
             stakes_claim_cron_thread_id,
         },
     )
@@ -162,17 +165,19 @@ pub async fn resolved_round_overflow() {
 
     utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
-    let cortex_pda = pda::get_cortex_pda().0;
+    let staking_pda = pda::get_staking_pda().0;
 
     // Check initial state of resolved rounds
     {
-        let cortex =
-            utils::get_account::<Cortex>(&mut test_setup.program_test_ctx.borrow_mut(), cortex_pda)
-                .await;
+        let staking = utils::get_account::<Staking>(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            staking_pda,
+        )
+        .await;
 
-        assert_eq!(cortex.resolved_staking_rounds.len(), 0);
-        assert_eq!(cortex.resolved_reward_token_amount, 0);
-        assert_eq!(cortex.resolved_stake_token_amount, 0);
+        assert_eq!(staking.resolved_staking_rounds.len(), 0);
+        assert_eq!(staking.resolved_reward_token_amount, 0);
+        assert_eq!(staking.resolved_stake_token_amount, 0);
     }
 
     //
@@ -240,9 +245,11 @@ pub async fn resolved_round_overflow() {
             .unwrap();
         }
 
-        let cortex_before =
-            utils::get_account::<Cortex>(&mut test_setup.program_test_ctx.borrow_mut(), cortex_pda)
-                .await;
+        let staking_before = utils::get_account::<Staking>(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            staking_pda,
+        )
+        .await;
 
         {
             utils::warp_forward(
@@ -262,30 +269,32 @@ pub async fn resolved_round_overflow() {
             .unwrap();
         }
 
-        let cortex_after =
-            utils::get_account::<Cortex>(&mut test_setup.program_test_ctx.borrow_mut(), cortex_pda)
-                .await;
+        let staking_after = utils::get_account::<Staking>(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            staking_pda,
+        )
+        .await;
 
         assert_eq!(
-            cortex_before.resolved_staking_rounds.len(),
+            staking_before.resolved_staking_rounds.len(),
             StakingRound::MAX_RESOLVED_ROUNDS,
         );
 
         assert_eq!(
-            cortex_after.resolved_staking_rounds.len(),
+            staking_after.resolved_staking_rounds.len(),
             StakingRound::MAX_RESOLVED_ROUNDS
         );
 
         // rounds should be the same except the last one
         for i in 0..(StakingRound::MAX_RESOLVED_ROUNDS - 1) {
             assert_eq!(
-                cortex_before.resolved_staking_rounds[i + 1],
-                cortex_after.resolved_staking_rounds[i],
+                staking_before.resolved_staking_rounds[i + 1],
+                staking_after.resolved_staking_rounds[i],
             );
         }
 
         assert_eq!(
-            cortex_before.resolved_staking_rounds.len(),
+            staking_before.resolved_staking_rounds.len(),
             StakingRound::MAX_RESOLVED_ROUNDS,
         );
     }

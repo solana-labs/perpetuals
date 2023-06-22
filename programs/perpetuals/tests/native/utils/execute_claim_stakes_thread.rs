@@ -4,7 +4,7 @@ use {
         utils::{self, pda},
     },
     anchor_lang::{prelude::Pubkey, AnchorSerialize, ToAccountMetas},
-    perpetuals::state::staking::Staking,
+    perpetuals::state::user_staking::UserStaking,
     solana_program::instruction::AccountMeta,
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
@@ -25,7 +25,8 @@ pub async fn execute_claim_stakes_thread(
     staking_reward_token_mint: &Pubkey,
 ) -> std::result::Result<bool, BanksClientError> {
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
-    let staking_pda = pda::get_staking_pda(&owner.pubkey()).0;
+    let user_staking_pda = pda::get_user_staking_pda(&owner.pubkey()).0;
+    let staking_pda = pda::get_staking_pda().0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
@@ -36,11 +37,12 @@ pub async fn execute_claim_stakes_thread(
     let staking_reward_token_account_pda = pda::get_staking_reward_token_account_pda().0;
     let staking_lm_reward_token_account_pda = pda::get_staking_lm_reward_token_account_pda().0;
     let thread_authority = pda::get_staking_thread_authority(&owner.pubkey()).0;
-    let staking_account = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
+    let user_staking_account =
+        utils::get_account::<UserStaking>(program_test_ctx, user_staking_pda).await;
 
     let stakes_claim_cron_thread_address = pda::get_thread_address(
         &thread_authority,
-        staking_account
+        user_staking_account
             .stakes_claim_cron_thread_id
             .try_to_vec()
             .unwrap(),
@@ -52,7 +54,7 @@ pub async fn execute_claim_stakes_thread(
         payer,
         clockwork_signatory,
         &thread_authority,
-        staking_account
+        user_staking_account
             .stakes_claim_cron_thread_id
             .try_to_vec()
             .unwrap(),
@@ -76,6 +78,7 @@ pub async fn execute_claim_stakes_thread(
         staking_reward_token_account: staking_reward_token_account_pda,
         staking_lm_reward_token_account: staking_lm_reward_token_account_pda,
         transfer_authority: transfer_authority_pda,
+        user_staking: user_staking_pda,
         staking: staking_pda,
         cortex: cortex_pda,
         perpetuals: perpetuals_pda,
@@ -100,7 +103,7 @@ pub async fn execute_claim_stakes_thread(
         payer,
         clockwork_signatory,
         &thread_authority,
-        staking_account
+        user_staking_account
             .stakes_claim_cron_thread_id
             .try_to_vec()
             .unwrap(),

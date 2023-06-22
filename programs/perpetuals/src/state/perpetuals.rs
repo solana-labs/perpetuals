@@ -285,6 +285,7 @@ impl Perpetuals {
         stake_reward_token_custody_token_account: AccountInfo<'a>,
         staking_reward_token_account: AccountInfo<'a>,
         staking_reward_token_mint: AccountInfo<'a>,
+        staking: AccountInfo<'a>,
         lm_token_mint: AccountInfo<'a>,
         token_program: AccountInfo<'a>,
         perpetuals_program: AccountInfo<'a>,
@@ -313,6 +314,7 @@ impl Perpetuals {
             staking_reward_token_account,
             lm_token_mint,
             staking_reward_token_mint,
+            staking,
             token_program,
             perpetuals_program: perpetuals_program.clone(),
         };

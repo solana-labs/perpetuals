@@ -244,8 +244,11 @@ pub mod perpetuals {
         instructions::get_assets_under_management(ctx, &params)
     }
 
-    pub fn init_staking(ctx: Context<InitStaking>, params: InitStakingParams) -> Result<()> {
-        instructions::init_staking(ctx, &params)
+    pub fn init_user_staking(
+        ctx: Context<InitUserStaking>,
+        params: InitUserStakingParams,
+    ) -> Result<()> {
+        instructions::init_user_staking(ctx, &params)
     }
 
     pub fn add_liquid_stake(

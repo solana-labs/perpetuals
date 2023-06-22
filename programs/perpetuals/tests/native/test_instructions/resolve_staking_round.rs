@@ -20,6 +20,7 @@ pub async fn resolve_staking_round(
     let staking_reward_token_account_pda = pda::get_staking_reward_token_account_pda().0;
     let staking_lm_reward_token_account_pda = pda::get_staking_lm_reward_token_account_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+    let staking_pda = pda::get_staking_pda().0;
 
     // // ==== WHEN ==============================================================
 
@@ -31,6 +32,7 @@ pub async fn resolve_staking_round(
             staking_reward_token_account: staking_reward_token_account_pda,
             staking_lm_reward_token_account: staking_lm_reward_token_account_pda,
             transfer_authority: transfer_authority_pda,
+            staking: staking_pda,
             cortex: cortex_pda,
             perpetuals: perpetuals_pda,
             lm_token_mint: lm_token_mint_pda,

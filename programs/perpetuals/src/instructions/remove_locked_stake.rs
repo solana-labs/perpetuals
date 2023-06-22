@@ -8,7 +8,8 @@ use {
         state::{
             cortex::Cortex,
             perpetuals::Perpetuals,
-            staking::{Staking, STAKING_THREAD_AUTHORITY_SEED},
+            staking::Staking,
+            user_staking::{UserStaking, USER_STAKING_THREAD_AUTHORITY_SEED},
         },
     },
     anchor_lang::prelude::*,
@@ -40,7 +41,7 @@ pub struct RemoveLockedStake<'info> {
         token::mint = lm_token_mint,
         token::authority = transfer_authority,
         seeds = [b"staking_token_account"],
-        bump = cortex.staking_token_account_bump
+        bump = staking.staking_token_account_bump
     )]
     pub staking_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -49,7 +50,7 @@ pub struct RemoveLockedStake<'info> {
         mut,
         token::mint = staking_reward_token_mint,
         seeds = [b"staking_reward_token_account"],
-        bump = cortex.staking_reward_token_account_bump
+        bump = staking.staking_reward_token_account_bump
     )]
     pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -58,7 +59,7 @@ pub struct RemoveLockedStake<'info> {
         mut,
         token::mint = lm_token_mint,
         seeds = [b"staking_lm_reward_token_account"],
-        bump = cortex.staking_lm_reward_token_account_bump
+        bump = staking.staking_lm_reward_token_account_bump
     )]
     pub staking_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -71,9 +72,17 @@ pub struct RemoveLockedStake<'info> {
 
     #[account(
         mut,
-        seeds = [b"staking",
+        seeds = [b"user_staking",
                  owner.key().as_ref()],
-        bump = staking.bump
+        bump = user_staking.bump,
+    )]
+    pub user_staking: Box<Account<'info, UserStaking>>,
+
+    #[account(
+        mut,
+        seeds = [b"staking"],
+        bump = staking.bump,
+        has_one = staking_reward_token_mint
     )]
     pub staking: Box<Account<'info, Staking>>,
 
@@ -81,7 +90,6 @@ pub struct RemoveLockedStake<'info> {
         mut,
         seeds = [b"cortex"],
         bump = cortex.bump,
-        has_one = staking_reward_token_mint
     )]
     pub cortex: Box<Account<'info, Cortex>>,
 
@@ -131,8 +139,8 @@ pub struct RemoveLockedStake<'info> {
 
     /// CHECK: empty PDA, authority for threads
     #[account(
-        seeds = [STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
-        bump = staking.thread_authority_bump
+        seeds = [USER_STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
+        bump = user_staking.thread_authority_bump
     )]
     pub staking_thread_authority: AccountInfo<'info>,
 
@@ -170,6 +178,7 @@ pub fn remove_locked_stake(
                 .staking_lm_reward_token_account
                 .to_account_info(),
             transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
+            user_staking: ctx.accounts.user_staking.to_account_info(),
             staking: ctx.accounts.staking.to_account_info(),
             cortex: ctx.accounts.cortex.to_account_info(),
             perpetuals: ctx.accounts.perpetuals.to_account_info(),
@@ -197,10 +206,10 @@ pub fn remove_locked_stake(
         }
     }
 
-    let staking = ctx.accounts.staking.as_mut();
+    let user_staking = ctx.accounts.user_staking.as_mut();
 
     let token_amount_to_unstake = {
-        let locked_stake = staking
+        let locked_stake = user_staking
             .locked_stakes
             .get(params.locked_stake_index)
             .ok_or(PerpetualsError::CannotFoundStake)?;
@@ -218,7 +227,7 @@ pub fn remove_locked_stake(
         let token_amount_to_unstake = locked_stake.amount;
 
         // Remove the stake from the list
-        staking.locked_stakes.remove(params.locked_stake_index);
+        user_staking.locked_stakes.remove(params.locked_stake_index);
 
         token_amount_to_unstake
     };
@@ -240,8 +249,8 @@ pub fn remove_locked_stake(
     // pause auto-claim if there are no more staked token,
     {
         if !ctx.accounts.stakes_claim_cron_thread.paused
-            && staking.liquid_stake.amount == 0
-            && staking.locked_stakes.is_empty()
+            && user_staking.liquid_stake.amount == 0
+            && user_staking.locked_stakes.is_empty()
         {
             clockwork_sdk::cpi::thread_pause(CpiContext::new_with_signer(
                 ctx.accounts.clockwork_program.to_account_info(),
@@ -250,9 +259,9 @@ pub fn remove_locked_stake(
                     thread: ctx.accounts.stakes_claim_cron_thread.to_account_info(),
                 },
                 &[&[
-                    STAKING_THREAD_AUTHORITY_SEED,
+                    USER_STAKING_THREAD_AUTHORITY_SEED,
                     ctx.accounts.owner.key().as_ref(),
-                    &[ctx.accounts.staking.thread_authority_bump],
+                    &[ctx.accounts.user_staking.thread_authority_bump],
                 ]],
             ))?;
         }

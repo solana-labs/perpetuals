@@ -12,6 +12,7 @@ use {
             perpetuals::Perpetuals,
             pool::Pool,
             position::{Position, Side},
+            staking::Staking,
         },
     },
     anchor_lang::prelude::*,
@@ -49,9 +50,16 @@ pub struct OpenPosition<'info> {
 
     #[account(
         mut,
+        seeds = [b"staking"],
+        bump = staking.bump,
+        has_one = staking_reward_token_mint
+    )]
+    pub staking: Box<Account<'info, Staking>>,
+
+    #[account(
+        mut,
         seeds = [b"cortex"],
         bump = cortex.bump,
-        has_one = staking_reward_token_mint
     )]
     pub cortex: Box<Account<'info, Cortex>>,
 
@@ -149,9 +157,9 @@ pub struct OpenPosition<'info> {
     // staking reward token vault (receiving fees swapped to `staking_reward_token_mint`)
     #[account(
         mut,
-        token::mint = cortex.staking_reward_token_mint,
+        token::mint = staking.staking_reward_token_mint,
         seeds = [b"staking_reward_token_account"],
-        bump = cortex.staking_reward_token_account_bump
+        bump = staking.staking_reward_token_account_bump
     )]
     pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -511,6 +519,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
                     .to_account_info(),
                 ctx.accounts.staking_reward_token_account.to_account_info(),
                 ctx.accounts.staking_reward_token_mint.to_account_info(),
+                ctx.accounts.staking.to_account_info(),
                 ctx.accounts.lm_token_mint.to_account_info(),
                 ctx.accounts.token_program.to_account_info(),
                 ctx.accounts.perpetuals_program.to_account_info(),

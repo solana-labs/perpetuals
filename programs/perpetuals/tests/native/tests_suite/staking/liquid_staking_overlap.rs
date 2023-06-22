@@ -3,7 +3,7 @@ use {
     maplit::hashmap,
     perpetuals::{
         instructions::{AddLiquidStakeParams, AddLiquidityParams, AddVestParams},
-        state::cortex::{Cortex, StakingRound},
+        state::{cortex::Cortex, staking::StakingRound},
     },
     solana_sdk::signer::Signer,
 };
@@ -154,12 +154,12 @@ pub async fn liquid_staking_overlap() {
 
     // Alice stake
     {
-        test_instructions::init_staking(
+        test_instructions::init_user_staking(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,
             &cortex_stake_reward_mint,
-            perpetuals::instructions::InitStakingParams {
+            perpetuals::instructions::InitUserStakingParams {
                 stakes_claim_cron_thread_id,
             },
         )
@@ -182,12 +182,12 @@ pub async fn liquid_staking_overlap() {
 
     // Martin stake (so we can see how much share of rewards alice get)
     {
-        test_instructions::init_staking(
+        test_instructions::init_user_staking(
             &mut test_setup.program_test_ctx.borrow_mut(),
             martin,
             &test_setup.payer_keypair,
             &cortex_stake_reward_mint,
-            perpetuals::instructions::InitStakingParams {
+            perpetuals::instructions::InitUserStakingParams {
                 stakes_claim_cron_thread_id,
             },
         )

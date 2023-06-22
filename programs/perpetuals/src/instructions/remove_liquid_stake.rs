@@ -8,7 +8,8 @@ use {
         state::{
             cortex::Cortex,
             perpetuals::Perpetuals,
-            staking::{Staking, STAKING_THREAD_AUTHORITY_SEED},
+            staking::Staking,
+            user_staking::{UserStaking, USER_STAKING_THREAD_AUTHORITY_SEED},
         },
     },
     anchor_lang::prelude::*,
@@ -41,7 +42,7 @@ pub struct RemoveLiquidStake<'info> {
         token::mint = lm_token_mint,
         token::authority = transfer_authority,
         seeds = [b"staking_token_account"],
-        bump = cortex.staking_token_account_bump
+        bump = staking.staking_token_account_bump
     )]
     pub staking_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -50,7 +51,7 @@ pub struct RemoveLiquidStake<'info> {
         mut,
         token::mint = staking_reward_token_mint,
         seeds = [b"staking_reward_token_account"],
-        bump = cortex.staking_reward_token_account_bump
+        bump = staking.staking_reward_token_account_bump
     )]
     pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -59,7 +60,7 @@ pub struct RemoveLiquidStake<'info> {
         mut,
         token::mint = lm_token_mint,
         seeds = [b"staking_lm_reward_token_account"],
-        bump = cortex.staking_lm_reward_token_account_bump
+        bump = staking.staking_lm_reward_token_account_bump
     )]
     pub staking_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -72,9 +73,17 @@ pub struct RemoveLiquidStake<'info> {
 
     #[account(
         mut,
-        seeds = [b"staking",
+        seeds = [b"user_staking",
                  owner.key().as_ref()],
-        bump = staking.bump
+        bump = user_staking.bump
+    )]
+    pub user_staking: Box<Account<'info, UserStaking>>,
+
+    #[account(
+        mut,
+        seeds = [b"staking"],
+        bump = staking.bump,
+        has_one = staking_reward_token_mint
     )]
     pub staking: Box<Account<'info, Staking>>,
 
@@ -82,7 +91,6 @@ pub struct RemoveLiquidStake<'info> {
         mut,
         seeds = [b"cortex"],
         bump = cortex.bump,
-        has_one = staking_reward_token_mint
     )]
     pub cortex: Box<Account<'info, Cortex>>,
 
@@ -132,8 +140,8 @@ pub struct RemoveLiquidStake<'info> {
 
     /// CHECK: empty PDA, authority for threads
     #[account(
-        seeds = [STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
-        bump = staking.thread_authority_bump
+        seeds = [USER_STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
+        bump = user_staking.thread_authority_bump
     )]
     pub staking_thread_authority: AccountInfo<'info>,
 
@@ -177,6 +185,7 @@ pub fn remove_liquid_stake(
                 .staking_lm_reward_token_account
                 .to_account_info(),
             transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
+            user_staking: ctx.accounts.user_staking.to_account_info(),
             staking: ctx.accounts.staking.to_account_info(),
             cortex: ctx.accounts.cortex.to_account_info(),
             perpetuals: ctx.accounts.perpetuals.to_account_info(),
@@ -196,7 +205,7 @@ pub fn remove_liquid_stake(
             ctx.accounts.lm_token_account.reload()?;
             ctx.accounts.staking_reward_token_account.reload()?;
             ctx.accounts.staking_lm_reward_token_account.reload()?;
-            ctx.accounts.staking.reload()?;
+            ctx.accounts.user_staking.reload()?;
             ctx.accounts.cortex.reload()?;
             ctx.accounts.perpetuals.reload()?;
             ctx.accounts.lm_token_mint.reload()?;
@@ -205,14 +214,14 @@ pub fn remove_liquid_stake(
     }
 
     let staking = ctx.accounts.staking.as_mut();
+    let user_staking = ctx.accounts.user_staking.as_mut();
     let perpetuals = ctx.accounts.perpetuals.as_mut();
-    let cortex = ctx.accounts.cortex.as_mut();
 
     {
         // verify user staked balance
         {
             require!(
-                staking.liquid_stake.amount >= params.amount,
+                user_staking.liquid_stake.amount >= params.amount,
                 PerpetualsError::InvalidStakeState
             );
         }
@@ -237,48 +246,59 @@ pub fn remove_liquid_stake(
         }
 
         // apply delta to user stake
-        staking.liquid_stake.amount =
-            math::checked_sub(staking.liquid_stake.amount, params.amount)?;
+        user_staking.liquid_stake.amount =
+            math::checked_sub(user_staking.liquid_stake.amount, params.amount)?;
 
         // Apply delta to current and next round
         {
             // forfeit current round participation, if any
-            if staking
+            if user_staking
                 .liquid_stake
-                .qualifies_for_rewards_from(&cortex.current_staking_round)
+                .qualifies_for_rewards_from(&staking.current_staking_round)
             {
                 // overlap
-                if staking.liquid_stake.overlap_amount > 0
-                    && staking.liquid_stake.overlap_time >= cortex.current_staking_round.start_time
+                if user_staking.liquid_stake.overlap_amount > 0
+                    && user_staking.liquid_stake.overlap_time
+                        >= staking.current_staking_round.start_time
                 {
                     // In case of overlap, takes overlapped tokens first (last tokens put in staking)
                     //
                     // if there are not enough tokens, takes it up from long lasting staked tokens reserve
-                    if params.amount > staking.liquid_stake.overlap_amount {
-                        staking.liquid_stake.overlap_amount = 0;
+                    if params.amount > user_staking.liquid_stake.overlap_amount {
+                        user_staking.liquid_stake.overlap_amount = 0;
 
-                        cortex.current_staking_round.total_stake = math::checked_sub(
-                            cortex.current_staking_round.total_stake,
-                            math::checked_sub(params.amount, staking.liquid_stake.overlap_amount)?,
+                        staking.current_staking_round.total_stake = math::checked_sub(
+                            staking.current_staking_round.total_stake,
+                            math::checked_sub(
+                                params.amount,
+                                user_staking.liquid_stake.overlap_amount,
+                            )?,
                         )?;
                     } else {
-                        staking.liquid_stake.overlap_amount =
-                            math::checked_sub(staking.liquid_stake.overlap_amount, params.amount)?;
+                        user_staking.liquid_stake.overlap_amount = math::checked_sub(
+                            user_staking.liquid_stake.overlap_amount,
+                            params.amount,
+                        )?;
 
-                        cortex.current_staking_round.total_stake = math::checked_sub(
-                            cortex.current_staking_round.total_stake,
-                            math::checked_sub(params.amount, staking.liquid_stake.overlap_amount)?,
+                        staking.current_staking_round.total_stake = math::checked_sub(
+                            staking.current_staking_round.total_stake,
+                            math::checked_sub(
+                                params.amount,
+                                user_staking.liquid_stake.overlap_amount,
+                            )?,
                         )?;
                     }
                 } else {
-                    cortex.current_staking_round.total_stake =
-                        math::checked_sub(cortex.current_staking_round.total_stake, params.amount)?;
+                    staking.current_staking_round.total_stake = math::checked_sub(
+                        staking.current_staking_round.total_stake,
+                        params.amount,
+                    )?;
                 }
             }
 
             // apply delta to next round
-            cortex.next_staking_round.total_stake =
-                math::checked_sub(cortex.next_staking_round.total_stake, params.amount)?;
+            staking.next_staking_round.total_stake =
+                math::checked_sub(staking.next_staking_round.total_stake, params.amount)?;
         }
     };
 
@@ -299,8 +319,8 @@ pub fn remove_liquid_stake(
     // pause auto-claim if there are no more staked token,
     {
         if !ctx.accounts.stakes_claim_cron_thread.paused
-            && staking.liquid_stake.amount == 0
-            && staking.locked_stakes.is_empty()
+            && user_staking.liquid_stake.amount == 0
+            && user_staking.locked_stakes.is_empty()
         {
             clockwork_sdk::cpi::thread_pause(CpiContext::new_with_signer(
                 ctx.accounts.clockwork_program.to_account_info(),
@@ -309,9 +329,9 @@ pub fn remove_liquid_stake(
                     thread: ctx.accounts.stakes_claim_cron_thread.to_account_info(),
                 },
                 &[&[
-                    STAKING_THREAD_AUTHORITY_SEED,
+                    USER_STAKING_THREAD_AUTHORITY_SEED,
                     ctx.accounts.owner.key().as_ref(),
-                    &[ctx.accounts.staking.thread_authority_bump],
+                    &[ctx.accounts.user_staking.thread_authority_bump],
                 ]],
             ))?;
         }

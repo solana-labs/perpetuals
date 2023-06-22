@@ -3,7 +3,9 @@
 use {
     crate::{
         math, program,
-        state::{cortex::Cortex, perpetuals::Perpetuals, staking::Staking},
+        state::{
+            cortex::Cortex, perpetuals::Perpetuals, staking::Staking, user_staking::UserStaking,
+        },
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
@@ -45,7 +47,7 @@ pub struct ClaimStakes<'info> {
         mut,
         token::mint = staking_reward_token_mint,
         seeds = [b"staking_reward_token_account"],
-        bump = cortex.staking_reward_token_account_bump
+        bump = staking.staking_reward_token_account_bump
     )]
     pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -54,7 +56,7 @@ pub struct ClaimStakes<'info> {
         mut,
         token::mint = lm_token_mint,
         seeds = [b"staking_lm_reward_token_account"],
-        bump = cortex.staking_lm_reward_token_account_bump
+        bump = staking.staking_lm_reward_token_account_bump
     )]
     pub staking_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -67,9 +69,17 @@ pub struct ClaimStakes<'info> {
 
     #[account(
         mut,
-        seeds = [b"staking",
+        seeds = [b"user_staking",
                  owner.key().as_ref()],
-        bump = staking.bump
+        bump = user_staking.bump
+    )]
+    pub user_staking: Box<Account<'info, UserStaking>>,
+
+    #[account(
+        mut,
+        seeds = [b"staking"],
+        bump = staking.bump,
+        has_one = staking_reward_token_mint
     )]
     pub staking: Box<Account<'info, Staking>>,
 
@@ -77,7 +87,6 @@ pub struct ClaimStakes<'info> {
         mut,
         seeds = [b"cortex"],
         bump = cortex.bump,
-        has_one = staking_reward_token_mint
     )]
     pub cortex: Box<Account<'info, Cortex>>,
 
@@ -103,7 +112,7 @@ pub struct ClaimStakes<'info> {
 
 pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
     let staking = ctx.accounts.staking.as_mut();
-    let cortex = ctx.accounts.cortex.as_mut();
+    let user_staking = ctx.accounts.user_staking.as_mut();
 
     msg!("Process resolved rounds & rewards calculation");
 
@@ -119,9 +128,9 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
         // prints compute budget before
         sol_log_compute_units();
 
-        let resolved_staking_rounds_len_before = cortex.resolved_staking_rounds.len();
-        let stake_token_decimals = cortex.stake_token_decimals as i32;
-        let stake_reward_token_decimals = cortex.stake_reward_token_decimals as i32;
+        let resolved_staking_rounds_len_before = staking.resolved_staking_rounds.len();
+        let stake_token_decimals = staking.stake_token_decimals as i32;
+        let stake_reward_token_decimals = staking.stake_reward_token_decimals as i32;
 
         let mut rewards_token_amount: u64 = 0;
         let mut lm_rewards_token_amount: u64 = 0;
@@ -132,15 +141,15 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
 
         msg!(
             "{} resolved rounds to evaluate",
-            cortex.resolved_staking_rounds.len()
+            staking.resolved_staking_rounds.len()
         );
 
         // For each resolved staking rounds
-        cortex.resolved_staking_rounds.retain_mut(|round| {
+        staking.resolved_staking_rounds.retain_mut(|round| {
             // Calculate rewards for locked stakes
             {
                 // For each user locked stakes
-                for locked_stake in staking.locked_stakes.iter_mut() {
+                for locked_stake in user_staking.locked_stakes.iter_mut() {
                     // Stake is elligible for rewards
                     if locked_stake.qualifies_for_rewards_from(round) {
                         {
@@ -207,11 +216,11 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
             // Calculate rewards for liquid stake
             {
                 // Stake is elligible for rewards
-                if staking.liquid_stake.qualifies_for_rewards_from(round) {
+                if user_staking.liquid_stake.qualifies_for_rewards_from(round) {
                     msg!("Liquid stake: Qualifying for rewards :)");
 
-                    let stake_amount = if staking.liquid_stake.overlap_amount > 0
-                        && staking.liquid_stake.overlap_time >= round.start_time
+                    let stake_amount = if user_staking.liquid_stake.overlap_amount > 0
+                        && user_staking.liquid_stake.overlap_time >= round.start_time
                     {
                         // there is an overlap, which means that current_round staked amount is different that
                         // the staked amount in the resolved round
@@ -226,19 +235,19 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
                         // now we are in the case where claim is called for the resolved round. User is not entitled to 30 stake tokens worth or rewards
                         // but 10
                         let stake_amount = math::checked_sub(
-                            staking.liquid_stake.amount,
-                            staking.liquid_stake.overlap_amount,
+                            user_staking.liquid_stake.amount,
+                            user_staking.liquid_stake.overlap_amount,
                         )
                         .unwrap();
 
                         msg!("overlap");
 
-                        staking.liquid_stake.overlap_amount = 0;
-                        staking.liquid_stake.overlap_time = 0;
+                        user_staking.liquid_stake.overlap_amount = 0;
+                        user_staking.liquid_stake.overlap_time = 0;
 
                         stake_amount
                     } else {
-                        staking.liquid_stake.amount
+                        user_staking.liquid_stake.amount
                     };
 
                     let liquid_rewards_token_amount = math::checked_decimal_mul(
@@ -275,7 +284,7 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
         // Realloc Cortex to account for dropped staking rounds if needed
         {
             let staking_rounds_delta = math::checked_sub(
-                cortex.resolved_staking_rounds.len() as i32,
+                staking.resolved_staking_rounds.len() as i32,
                 resolved_staking_rounds_len_before as i32,
             )?;
 
@@ -284,9 +293,9 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
 
                 Perpetuals::realloc(
                     ctx.accounts.payer.to_account_info(),
-                    cortex.to_account_info(),
+                    staking.to_account_info(),
                     ctx.accounts.system_program.to_account_info(),
-                    cortex.size(),
+                    staking.size(),
                     true,
                 )?;
             }
@@ -352,58 +361,58 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
     {
         // refresh claim time while keeping the claim time out of the current round
         // so that the user stay eligible for current round rewards
-        let claim_time = math::checked_sub(cortex.current_staking_round.start_time, 1)?;
+        let claim_time = math::checked_sub(staking.current_staking_round.start_time, 1)?;
 
         // Locked staking
-        for mut locked_stake in staking.locked_stakes.iter_mut() {
+        for mut locked_stake in user_staking.locked_stakes.iter_mut() {
             locked_stake.claim_time = claim_time;
         }
 
         // Liquid staking
-        staking.liquid_stake.claim_time = claim_time;
+        user_staking.liquid_stake.claim_time = claim_time;
     }
 
     // Adapt current/next round
     {
         {
             // update resolved stake token amount left, by removing the previously staked amount
-            cortex.resolved_stake_token_amount = math::checked_sub(
-                cortex.resolved_stake_token_amount,
+            staking.resolved_stake_token_amount = math::checked_sub(
+                staking.resolved_stake_token_amount,
                 stake_amount_with_reward_multiplier as u128,
             )?;
 
             // update resolved reward token amount left
-            cortex.resolved_reward_token_amount =
-                math::checked_sub(cortex.resolved_reward_token_amount, rewards_token_amount)?;
+            staking.resolved_reward_token_amount =
+                math::checked_sub(staking.resolved_reward_token_amount, rewards_token_amount)?;
         }
 
         {
             // update resolved lm stake token amount left, by removing the previously staked amount
-            cortex.resolved_lm_stake_token_amount = math::checked_sub(
-                cortex.resolved_lm_stake_token_amount,
+            staking.resolved_lm_stake_token_amount = math::checked_sub(
+                staking.resolved_lm_stake_token_amount,
                 stake_amount_with_lm_reward_multiplier as u128,
             )?;
 
             // update resolved reward token amount left
-            cortex.resolved_lm_reward_token_amount = math::checked_sub(
-                cortex.resolved_lm_reward_token_amount,
+            staking.resolved_lm_reward_token_amount = math::checked_sub(
+                staking.resolved_lm_reward_token_amount,
                 lm_rewards_token_amount,
             )?;
         }
 
         msg!(
-            "cortex.resolved_reward_token_amount after claim stake {:?}",
-            cortex.resolved_reward_token_amount
+            "staking.resolved_reward_token_amount after claim stake {:?}",
+            staking.resolved_reward_token_amount
         );
 
         msg!(
-            "cortex.resolved_lm_reward_token_amount after claim stake {:?}",
-            cortex.resolved_lm_reward_token_amount
+            "staking.resolved_lm_reward_token_amount after claim stake {:?}",
+            staking.resolved_lm_reward_token_amount
         );
 
         msg!(
-            "cortex.resolved_staking_rounds after claim stake {:?}",
-            cortex.resolved_staking_rounds
+            "staking.resolved_staking_rounds after claim stake {:?}",
+            staking.resolved_staking_rounds
         );
     }
 

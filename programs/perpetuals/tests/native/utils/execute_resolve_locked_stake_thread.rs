@@ -4,7 +4,7 @@ use {
         utils::{self, pda},
     },
     anchor_lang::{prelude::Pubkey, AnchorSerialize, ToAccountMetas},
-    perpetuals::{adapters::spl_governance_program_adapter, state::staking::Staking},
+    perpetuals::{adapters::spl_governance_program_adapter, state::user_staking::UserStaking},
     solana_program::instruction::AccountMeta,
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
@@ -20,7 +20,8 @@ pub async fn execute_resolve_locked_stake_thread(
     locked_stake_index: usize,
 ) -> std::result::Result<(), BanksClientError> {
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
-    let staking_pda = pda::get_staking_pda(&owner.pubkey()).0;
+    let user_staking_pda = pda::get_user_staking_pda(&owner.pubkey()).0;
+    let staking_pda = pda::get_staking_pda().0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
@@ -42,10 +43,11 @@ pub async fn execute_resolve_locked_stake_thread(
 
     let thread_authority = pda::get_staking_thread_authority(&owner.pubkey()).0;
 
-    let staking_account = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
+    let user_staking_account =
+        utils::get_account::<UserStaking>(program_test_ctx, user_staking_pda).await;
 
     let stake_resolution_thread_id =
-        staking_account.locked_stakes[locked_stake_index].stake_resolution_thread_id;
+        user_staking_account.locked_stakes[locked_stake_index].stake_resolution_thread_id;
 
     let stake_resolution_thread_pda = pda::get_clockwork_thread_pda(
         &thread_authority,
@@ -68,6 +70,7 @@ pub async fn execute_resolve_locked_stake_thread(
         caller: stake_resolution_thread_pda,
         owner: owner.pubkey(),
         transfer_authority: transfer_authority_pda,
+        user_staking: user_staking_pda,
         staking: staking_pda,
         cortex: cortex_pda,
         perpetuals: perpetuals_pda,

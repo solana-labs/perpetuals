@@ -1,16 +1,17 @@
 use {
     crate::utils::{self, pda},
     anchor_lang::{
-        prelude::{AccountMeta, Clock, Pubkey},
+        prelude::{AccountMeta, Pubkey},
         ToAccountMetas,
     },
     perpetuals::{
         adapters::spl_governance_program_adapter,
         instructions::InitParams,
         state::{
-            cortex::{Cortex, StakingRound},
+            cortex::Cortex,
             multisig::Multisig,
             perpetuals::Perpetuals,
+            staking::{Staking, StakingRound},
         },
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
@@ -28,6 +29,7 @@ pub async fn init(
     // ==== WHEN ==============================================================
     let perpetuals_program_data_pda = pda::get_program_data_pda().0;
     let (multisig_pda, multisig_bump) = pda::get_multisig_pda();
+    let (staking_pda, staking_bump) = pda::get_staking_pda();
     let (transfer_authority_pda, transfer_authority_bump) = pda::get_transfer_authority_pda();
     let (perpetuals_pda, perpetuals_bump) = pda::get_perpetuals_pda();
     let (cortex_pda, cortex_bump) = pda::get_cortex_pda();
@@ -46,6 +48,7 @@ pub async fn init(
             upgrade_authority: upgrade_authority.pubkey(),
             multisig: multisig_pda,
             transfer_authority: transfer_authority_pda,
+            staking: staking_pda,
             cortex: cortex_pda,
             lm_token_mint: lm_token_mint_pda,
             governance_token_mint: governance_token_mint_pda,
@@ -114,7 +117,6 @@ pub async fn init(
     let cortex_account = utils::get_account::<Cortex>(program_test_ctx, cortex_pda).await;
     // Assert cortex
     {
-        let clock = program_test_ctx.banks_client.get_sysvar::<Clock>().await?;
         assert_eq!(cortex_account.bump, cortex_bump);
         assert_eq!(cortex_account.lm_token_bump, lm_token_mint_bump);
         assert_eq!(
@@ -122,28 +124,6 @@ pub async fn init(
             governance_token_mint_bump
         );
         assert_eq!(cortex_account.inception_epoch, 0);
-        assert_eq!(
-            cortex_account.staking_token_account_bump,
-            staking_token_account_bump
-        );
-        assert_eq!(
-            cortex_account.staking_reward_token_account_bump,
-            staking_reward_token_account_bump
-        );
-        assert_eq!(
-            cortex_account.staking_lm_reward_token_account_bump,
-            staking_lm_reward_token_account_bump
-        );
-        assert_eq!(
-            cortex_account.staking_reward_token_mint,
-            *staking_reward_token_mint
-        );
-        assert_eq!(
-            cortex_account.current_staking_round,
-            StakingRound::new(clock.unix_timestamp)
-        );
-        assert_eq!(cortex_account.next_staking_round, StakingRound::new(0));
-        assert_eq!(cortex_account.resolved_staking_rounds.len(), 0);
     }
 
     let multisig_account = utils::get_account::<Multisig>(program_test_ctx, multisig_pda).await;
@@ -158,6 +138,32 @@ pub async fn init(
                 assert_eq!(multisig_account.signers[i], signer.pubkey());
             }
         }
+    }
+
+    let staking_account = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
+    // Assert staking account
+    {
+        assert_eq!(staking_account.bump, staking_bump);
+
+        assert_eq!(
+            staking_account.staking_token_account_bump,
+            staking_token_account_bump
+        );
+        assert_eq!(
+            staking_account.staking_reward_token_account_bump,
+            staking_reward_token_account_bump
+        );
+        assert_eq!(
+            staking_account.staking_lm_reward_token_account_bump,
+            staking_lm_reward_token_account_bump
+        );
+
+        assert_eq!(staking_account.resolved_reward_token_amount, u64::MIN);
+        assert_eq!(staking_account.resolved_stake_token_amount, u128::MIN);
+        assert_eq!(staking_account.resolved_lm_reward_token_amount, u64::MIN);
+        assert_eq!(staking_account.resolved_lm_stake_token_amount, u128::MIN);
+        assert_eq!(staking_account.next_staking_round, StakingRound::new(0));
+        assert!(staking_account.resolved_staking_rounds.is_empty());
     }
 
     Ok(())

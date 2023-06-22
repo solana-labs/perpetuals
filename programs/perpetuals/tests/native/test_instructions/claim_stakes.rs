@@ -14,7 +14,8 @@ pub async fn claim_stakes(
 ) -> std::result::Result<(), BanksClientError> {
     // ==== GIVEN =============================================================
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
-    let staking_pda = pda::get_staking_pda(&owner.pubkey()).0;
+    let user_staking_pda = pda::get_user_staking_pda(&owner.pubkey()).0;
+    let staking_pda = pda::get_staking_pda().0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
     let staking_reward_token_account_pda = pda::get_staking_reward_token_account_pda().0;
@@ -40,6 +41,7 @@ pub async fn claim_stakes(
             staking_reward_token_account: staking_reward_token_account_pda,
             staking_lm_reward_token_account: staking_lm_reward_token_account_pda,
             transfer_authority: transfer_authority_pda,
+            user_staking: user_staking_pda,
             staking: staking_pda,
             cortex: cortex_pda,
             perpetuals: perpetuals_pda,

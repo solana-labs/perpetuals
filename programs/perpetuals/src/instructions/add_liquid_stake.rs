@@ -7,7 +7,8 @@ use {
         state::{
             cortex::Cortex,
             perpetuals::Perpetuals,
-            staking::{Staking, STAKING_THREAD_AUTHORITY_SEED},
+            staking::Staking,
+            user_staking::{UserStaking, USER_STAKING_THREAD_AUTHORITY_SEED},
         },
     },
     anchor_lang::prelude::*,
@@ -48,7 +49,7 @@ pub struct AddLiquidStake<'info> {
         token::mint = lm_token_mint,
         token::authority = transfer_authority,
         seeds = [b"staking_token_account"],
-        bump = cortex.staking_token_account_bump,
+        bump = staking.staking_token_account_bump,
     )]
     pub staking_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -57,7 +58,7 @@ pub struct AddLiquidStake<'info> {
         mut,
         token::mint = staking_reward_token_mint,
         seeds = [b"staking_reward_token_account"],
-        bump = cortex.staking_reward_token_account_bump
+        bump = staking.staking_reward_token_account_bump
     )]
     pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -66,7 +67,7 @@ pub struct AddLiquidStake<'info> {
         mut,
         token::mint = lm_token_mint,
         seeds = [b"staking_lm_reward_token_account"],
-        bump = cortex.staking_lm_reward_token_account_bump
+        bump = staking.staking_lm_reward_token_account_bump
     )]
     pub staking_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -79,9 +80,17 @@ pub struct AddLiquidStake<'info> {
 
     #[account(
         mut,
-        seeds = [b"staking",
+        seeds = [b"user_staking",
                  owner.key().as_ref()],
-        bump = staking.bump
+        bump = user_staking.bump
+    )]
+    pub user_staking: Box<Account<'info, UserStaking>>,
+
+    #[account(
+        mut,
+        seeds = [b"staking"],
+        bump = staking.bump,
+        has_one = staking_reward_token_mint
     )]
     pub staking: Box<Account<'info, Staking>>,
 
@@ -89,7 +98,6 @@ pub struct AddLiquidStake<'info> {
         mut,
         seeds = [b"cortex"],
         bump = cortex.bump,
-        has_one = staking_reward_token_mint
     )]
     pub cortex: Box<Account<'info, Cortex>>,
 
@@ -139,8 +147,8 @@ pub struct AddLiquidStake<'info> {
 
     /// CHECK: empty PDA, authority for threads
     #[account(
-        seeds = [STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
-        bump = staking.thread_authority_bump
+        seeds = [USER_STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
+        bump = user_staking.thread_authority_bump
     )]
     pub staking_thread_authority: AccountInfo<'info>,
 
@@ -166,20 +174,21 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
     }
 
     let staking = ctx.accounts.staking.as_mut();
+    let user_staking = ctx.accounts.user_staking.as_mut();
     let perpetuals = ctx.accounts.perpetuals.as_mut();
     let cortex = ctx.accounts.cortex.as_mut();
 
-    // Add stake to Staking account
+    // Add stake to UserStaking account
     {
         // If liquid staking is already ongoing
-        if staking.liquid_stake.amount > 0 {
+        if user_staking.liquid_stake.amount > 0 {
             msg!(
                 "===== Before: claim_time {}",
-                staking.liquid_stake.claim_time
+                user_staking.liquid_stake.claim_time
             );
             msg!(
                 "===== Before: stake_time {}",
-                staking.liquid_stake.stake_time
+                user_staking.liquid_stake.stake_time
             );
 
             // Claim rewards
@@ -200,6 +209,7 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
                         .staking_lm_reward_token_account
                         .to_account_info(),
                     transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
+                    user_staking: user_staking.to_account_info(),
                     staking: staking.to_account_info(),
                     cortex: cortex.to_account_info(),
                     perpetuals: perpetuals.to_account_info(),
@@ -223,6 +233,7 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
                     ctx.accounts.staking_reward_token_account.reload()?;
                     ctx.accounts.staking_lm_reward_token_account.reload()?;
                     staking.reload()?;
+                    user_staking.reload()?;
                     cortex.reload()?;
                     perpetuals.reload()?;
                     ctx.accounts.lm_token_mint.reload()?;
@@ -233,15 +244,15 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
             // Set an overlap time to know when the current round should be treated differently than next round
             //
             // will be used during claim_stakes to calculate appropriate rewards
-            staking.liquid_stake.overlap_time = perpetuals.get_time()?;
-            staking.liquid_stake.overlap_amount =
-                math::checked_add(staking.liquid_stake.overlap_amount, params.amount)?;
+            user_staking.liquid_stake.overlap_time = perpetuals.get_time()?;
+            user_staking.liquid_stake.overlap_amount =
+                math::checked_add(user_staking.liquid_stake.overlap_amount, params.amount)?;
         } else {
-            staking.liquid_stake.stake_time = perpetuals.get_time()?;
+            user_staking.liquid_stake.stake_time = perpetuals.get_time()?;
         }
 
-        staking.liquid_stake.amount =
-            math::checked_add(staking.liquid_stake.amount, params.amount)?;
+        user_staking.liquid_stake.amount =
+            math::checked_add(user_staking.liquid_stake.amount, params.amount)?;
     };
 
     // transfer newly staked tokens to Stake PDA
@@ -281,8 +292,8 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
     // update Cortex data
     {
         // apply delta to next round taking into account real yield multiplier
-        cortex.next_staking_round.total_stake =
-            math::checked_add(cortex.next_staking_round.total_stake, params.amount)?;
+        staking.next_staking_round.total_stake =
+            math::checked_add(staking.next_staking_round.total_stake, params.amount)?;
     }
 
     // If auto claim thread is paused, resume it
@@ -295,9 +306,9 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
                     thread: ctx.accounts.stakes_claim_cron_thread.to_account_info(),
                 },
                 &[&[
-                    STAKING_THREAD_AUTHORITY_SEED,
+                    USER_STAKING_THREAD_AUTHORITY_SEED,
                     ctx.accounts.owner.key().as_ref(),
-                    &[ctx.accounts.staking.thread_authority_bump],
+                    &[ctx.accounts.user_staking.thread_authority_bump],
                 ]],
             ))?;
         }

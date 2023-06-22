@@ -6,10 +6,7 @@ use {
             AddLiquidStakeParams, AddVestParams, ClosePositionParams, OpenPositionParams,
             RemoveLiquidStakeParams, RemoveLiquidityParams, SwapParams,
         },
-        state::{
-            cortex::{Cortex, StakingRound},
-            position::Side,
-        },
+        state::{cortex::Cortex, position::Side, staking::StakingRound},
     },
     solana_sdk::signer::Signer,
 };
@@ -249,18 +246,18 @@ pub async fn basic_interactions() {
         .unwrap();
     }
 
-    // Staking
+    // UserStaking
     {
         let stakes_claim_cron_thread_id =
             utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
                 as u64;
 
-        test_instructions::init_staking(
+        test_instructions::init_user_staking(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,
             &cortex_stake_reward_mint,
-            perpetuals::instructions::InitStakingParams {
+            perpetuals::instructions::InitUserStakingParams {
                 stakes_claim_cron_thread_id,
             },
         )

@@ -30,6 +30,7 @@ pub async fn swap(
     let receiving_custody_token_account_pda =
         pda::get_custody_token_account_pda(pool_pda, receiving_custody_token_mint).0;
     let cortex_pda = pda::get_cortex_pda().0;
+    let staking_pda = pda::get_staking_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
 
     let funding_account_address =
@@ -79,6 +80,7 @@ pub async fn swap(
             receiving_account: receiving_account_address,
             lm_token_account: lm_token_account_address,
             transfer_authority: transfer_authority_pda,
+            staking: staking_pda,
             cortex: cortex_pda,
             perpetuals: perpetuals_pda,
             pool: *pool_pda,

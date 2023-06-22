@@ -6,7 +6,10 @@ use {
     maplit::hashmap,
     perpetuals::{
         instructions::{AddLiquidStakeParams, AddLockedStakeParams, AddVestParams},
-        state::cortex::{Cortex, StakingRound},
+        state::{
+            cortex::Cortex,
+            staking::{Staking, StakingRound},
+        },
     },
     solana_sdk::signer::Signer,
 };
@@ -162,12 +165,12 @@ pub async fn multiple_stakers_get_correct_rewards() {
                 as u64;
 
         for user in users {
-            test_instructions::init_staking(
+            test_instructions::init_user_staking(
                 &mut test_setup.program_test_ctx.borrow_mut(),
                 user,
                 &test_setup.payer_keypair,
                 &cortex_stake_reward_mint,
-                perpetuals::instructions::InitStakingParams {
+                perpetuals::instructions::InitUserStakingParams {
                     stakes_claim_cron_thread_id,
                 },
             )
@@ -368,13 +371,15 @@ pub async fn multiple_stakers_get_correct_rewards() {
 
     // Assert all rewards got distributed
     {
-        let cortex_pda = pda::get_cortex_pda().0;
+        let staking_pda = pda::get_staking_pda().0;
 
-        let cortex_account =
-            utils::get_account::<Cortex>(&mut test_setup.program_test_ctx.borrow_mut(), cortex_pda)
-                .await;
+        let staking_account = utils::get_account::<Staking>(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            staking_pda,
+        )
+        .await;
 
         // Accept dust due to precision loss
-        assert!(cortex_account.resolved_reward_token_amount <= 100);
+        assert!(staking_account.resolved_reward_token_amount <= 100);
     }
 }

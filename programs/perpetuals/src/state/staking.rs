@@ -1,215 +1,85 @@
-//! Stake state and routines
-//!
-//! Stake represent the LM staking account of a user of the platform.
-//! Staking of LM token grant access to a share of the platform revenues
-//! proportionnal to the amount of staked tokens.
-//! To ensure fair distribution, rewards are per rounds.
-//! A round has a fixed minimum duration, after which it will be available for resolution.
-//! Resolution of a round closes it, define the amount of reward per staked token during that round,
-//! and initialize the next staking round.
-//!
-//! User can claim their `Stake`, by doing so the program will read the vec of `StakeRound`s in the `Cortex`
-//! and determined based on the `Stake.inception_timestamp` if the user is elegible for the round rewards.
-//! The `StakeRound` will increase it's `token_claim` property, and once it matches the `token_stake` one,
-//! will remove itself from the record.
-//!
-//! Since there is a hard limitation on the data stored onchain on solana (10mb per accounts), the `stake_rounds`
-//! property of the `Cortex` have a upper limit. Once the limit is nearing, the `claim_stake` for `Stake`
-//! where the `inception_timestamp` is old enough will offer % of the reward to the caller, similar to a liquidation.
-//!
-//! This should ensure that the `stake_rounds` vec never grow beyond what's storable, in a decentralized fashion.
-//! (Adrena will run a claim-bot until decentralized enough, but anyone can partake)
-//!
-
 use {
-    super::{
-        cortex::{StakingRound, HOURS_PER_DAY, SECONDS_PER_HOURS},
-        perpetuals::Perpetuals,
-    },
-    crate::{error::PerpetualsError, math},
+    super::{cortex::SECONDS_PER_HOURS, user_staking::UserStaking},
+    crate::math,
     anchor_lang::prelude::*,
 };
-
-pub const STAKING_THREAD_AUTHORITY_SEED: &[u8] = b"staking-thread-authority";
-
-pub const CLOCKWORK_PAYER_PUBKEY: &str = "C1ockworkPayer11111111111111111111111111111";
 
 #[account]
 #[derive(Default, Debug)]
 pub struct Staking {
     pub bump: u8,
-    pub thread_authority_bump: u8,
+    pub staking_token_account_bump: u8,
+    pub staking_reward_token_account_bump: u8,
+    pub staking_lm_reward_token_account_bump: u8,
 
-    pub stakes_claim_cron_thread_id: u64,
-
-    pub liquid_stake: LiquidStake,
-    pub locked_stakes: Vec<LockedStake>,
+    pub staking_reward_token_mint: Pubkey,
+    pub stake_token_decimals: u8,
+    pub stake_reward_token_decimals: u8,
+    // amount of rewards allocated to resolved rounds, claimable (excluding current/next round)
+    pub resolved_reward_token_amount: u64,
+    // amount of staked token locked in resolved rounds, claimable (excluding current/next round)
+    pub resolved_stake_token_amount: u128,
+    // amount of lm rewards allocated to resolved rounds, claimable (excluding current/next round)
+    pub resolved_lm_reward_token_amount: u64,
+    // amount of lm staked token locked in resolved rounds, claimable (excluding current/next round)
+    pub resolved_lm_stake_token_amount: u128,
+    pub current_staking_round: StakingRound,
+    pub next_staking_round: StakingRound,
+    // must be the last element of the struct for reallocs
+    pub resolved_staking_rounds: Vec<StakingRound>,
 }
 
-#[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
-pub struct LiquidStake {
-    pub amount: u64,
-    pub stake_time: i64,
-
-    // Time used for claim purpose, to know wherever the stake is elligible for round reward
-    pub claim_time: i64,
-
-    // When user add stake when a stake is already live
-    pub overlap_time: i64,
-    pub overlap_amount: u64,
+#[derive(Default, Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
+pub struct StakingRound {
+    pub start_time: i64,
+    //
+    pub rate: u64, // the amount of reward you get per staked stake-token for that round - set at Round's resolution
+    pub total_stake: u64, // - set at Round's resolution
+    pub total_claim: u64, // - set at Round's resolution
+    //
+    pub lm_rate: u64, // the amount of lm reward you get per staked stake-token for that round - set at Round's resolution
+    pub lm_total_stake: u64, // - set at Round's resolution
+    pub lm_total_claim: u64, // - set at Round's resolution
 }
 
-#[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Debug)]
-pub struct LockedStake {
-    pub amount: u64,
-    pub stake_time: i64,
+impl StakingRound {
+    pub const LEN: usize = std::mem::size_of::<StakingRound>();
+    // a staking round can be resolved after at least 6 hours
+    const ROUND_MIN_DURATION_HOURS: i64 = 6;
+    pub const ROUND_MIN_DURATION_SECONDS: i64 = Self::ROUND_MIN_DURATION_HOURS * SECONDS_PER_HOURS;
+    // A UserStaking account max age is 365, this is due to computing limit in the claim instruction.
+    // This is also arbitrarily used as the max theoretical amount of staking rounds
+    // stored if all were persisting (rounds get cleaned up once their rewards are fully claimed by their participants).
+    // This is done to ensure the Cortex.resolved_staking_rounds doesn't grow out of proportion, primarily to facilitate
+    // the fetching from front end.
+    pub const MAX_RESOLVED_ROUNDS: usize = ((UserStaking::MAX_AGE_SECONDS / SECONDS_PER_HOURS)
+        / Self::ROUND_MIN_DURATION_HOURS) as usize;
 
-    // Last time tokens have been claimed for this stake
-    pub claim_time: i64,
-
-    // In seconds
-    pub lock_duration: u64,
-
-    // In BPS
-    pub reward_multiplier: u32,
-    pub lm_reward_multiplier: u32,
-    pub vote_multiplier: u32,
-
-    // Persisted data to save-up computation during claim etc.
-    // amount with base reward multiplier applied to it
-    pub amount_with_reward_multiplier: u64,
-    // amount with base reward multiplier applied to it
-    pub amount_with_lm_reward_multiplier: u64,
-
-    // locked stake needs to be resolved before removing it
-    // doesn't apply to liquid stake (lock_duration == 0)
-    pub resolved: bool,
-
-    pub stake_resolution_thread_id: u64,
-}
-
-impl LiquidStake {
-    pub const LEN: usize = std::mem::size_of::<LockedStake>();
-
-    pub fn qualifies_for_rewards_from(&self, staking_round: &StakingRound) -> bool {
-        msg!("self.stake_time: {}", self.stake_time);
-        msg!("staking_round.start_time: {}", staking_round.start_time);
-
-        self.stake_time > 0
-            && self.stake_time < staking_round.start_time
-            && (self.claim_time == 0 || self.claim_time < staking_round.start_time)
+    pub fn new(start_time: i64) -> Self {
+        Self {
+            start_time,
+            rate: u64::MIN,
+            total_stake: u64::MIN,
+            total_claim: u64::MIN,
+            lm_rate: u64::MIN,
+            lm_total_stake: u64::MIN,
+            lm_total_claim: u64::MIN,
+        }
     }
 }
-
-impl LockedStake {
-    pub const LEN: usize = std::mem::size_of::<LockedStake>();
-
-    pub fn qualifies_for_rewards_from(&self, staking_round: &StakingRound) -> bool {
-        self.stake_time > 0
-            && self.stake_time < staking_round.start_time
-            && (self.claim_time == 0 || self.claim_time < staking_round.start_time)
-    }
-
-    pub fn has_ended(&self, current_time: i64) -> bool {
-        (self.stake_time + self.lock_duration as i64) < current_time
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub struct LockedStakingOption {
-    pub locked_days: u32,
-    pub reward_multiplier: u32,
-    pub lm_reward_multiplier: u32,
-    pub vote_multiplier: u32,
-}
-
-impl LockedStakingOption {
-    pub fn calculate_end_of_staking(&self, start: i64) -> Result<i64> {
-        math::checked_add(
-            start,
-            math::checked_mul(SECONDS_PER_HOURS * HOURS_PER_DAY, self.locked_days as i64)?,
-        )
-    }
-}
-
-// List of valid locked staking options and the related multipliers
-pub const LOCKED_STAKING_OPTIONS: [&LockedStakingOption; 6] = [
-    &LockedStakingOption {
-        locked_days: 30,
-        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.25) as u32,
-        lm_reward_multiplier: Perpetuals::BPS_POWER as u32,
-        vote_multiplier: (Perpetuals::BPS_POWER as f64 * 1.21) as u32,
-    },
-    &LockedStakingOption {
-        locked_days: 60,
-        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.56) as u32,
-        lm_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.25) as u32,
-        vote_multiplier: (Perpetuals::BPS_POWER as f64 * 1.33) as u32,
-    },
-    &LockedStakingOption {
-        locked_days: 90,
-        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.95) as u32,
-        lm_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.56) as u32,
-        vote_multiplier: (Perpetuals::BPS_POWER as f64 * 1.46) as u32,
-    },
-    &LockedStakingOption {
-        locked_days: 180,
-        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 2.44) as u32,
-        lm_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.95) as u32,
-        vote_multiplier: (Perpetuals::BPS_POWER as f64 * 1.61) as u32,
-    },
-    &LockedStakingOption {
-        locked_days: 360,
-        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 3.05) as u32,
-        lm_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 2.44) as u32,
-        vote_multiplier: (Perpetuals::BPS_POWER as f64 * 1.78) as u32,
-    },
-    &LockedStakingOption {
-        locked_days: 720,
-        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 3.81) as u32,
-        lm_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 3.05) as u32,
-        vote_multiplier: (Perpetuals::BPS_POWER as f64 * 1.95) as u32,
-    },
-];
 
 impl Staking {
-    pub const LEN: usize = 8 + std::mem::size_of::<Staking>();
+    pub const LEN: usize = std::mem::size_of::<Staking>();
 
-    // The max age of a Staking account in the system, 9 days
-    pub const MAX_AGE_SECONDS: i64 = 8 * HOURS_PER_DAY * SECONDS_PER_HOURS;
-
-    // Run cron every 7 days, leaving 1 days of buffering in case cron doesn't execute as it should have
-    pub const AUTO_CLAIM_CRON_DAYS_PERIODICITY: u8 = 7;
-
-    // Cover ~10 years of auto-claim fees (530 calls * 7 days between calls = 3710 days covered ~= 10.1643835616 years)
-    pub const AUTO_CLAIM_FEE_COVERED_CALLS: u64 = 530;
-
-    // Fee paid for the execution of one automated action using clockwork
-    pub const AUTOMATION_EXEC_FEE: u64 = 1_000;
-
-    pub fn get_locked_staking_option(&self, locked_days: u32) -> Result<LockedStakingOption> {
-        let staking_option = LOCKED_STAKING_OPTIONS
-            .into_iter()
-            .find(|period| period.locked_days == locked_days);
-
-        require!(
-            staking_option.is_some(),
-            PerpetualsError::InvalidStakingLockingTime
-        );
-
-        Ok(*staking_option.unwrap())
+    pub fn current_staking_round_is_resolvable(&self, current_time: i64) -> Result<bool> {
+        Ok(current_time
+            >= math::checked_add(
+                self.current_staking_round.start_time,
+                StakingRound::ROUND_MIN_DURATION_SECONDS,
+            )?)
     }
 
-    // returns the current size of the Staking
     pub fn size(&self) -> usize {
-        Staking::LEN + self.locked_stakes.len() * LockedStake::LEN
-    }
-
-    // returns the new size of the structure after adding/removing stakings
-    pub fn new_size(&self, staking_delta: i32) -> Result<usize> {
-        math::checked_as_usize(math::checked_add(
-            self.size() as i32,
-            math::checked_mul(staking_delta, LockedStake::LEN as i32)?,
-        )?)
+        Staking::LEN + self.resolved_staking_rounds.len() * StakingRound::LEN
     }
 }

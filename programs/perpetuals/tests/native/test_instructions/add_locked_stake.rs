@@ -5,7 +5,7 @@ use {
         adapters::spl_governance_program_adapter,
         instructions::AddLockedStakeParams,
         math,
-        state::{perpetuals::Perpetuals, staking::Staking},
+        state::{perpetuals::Perpetuals, user_staking::UserStaking},
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
@@ -21,7 +21,8 @@ pub async fn add_locked_stake(
 ) -> std::result::Result<(), BanksClientError> {
     // ==== GIVEN =============================================================
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
-    let staking_pda = pda::get_staking_pda(&owner.pubkey()).0;
+    let user_staking_pda = pda::get_user_staking_pda(&owner.pubkey()).0;
+    let staking_pda = pda::get_staking_pda().0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
     let staking_token_account_pda = pda::get_staking_token_account_pda().0;
@@ -56,7 +57,8 @@ pub async fn add_locked_stake(
 
     // // ==== WHEN ==============================================================
     // save account state before tx execution
-    let staking_account_before = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
+    let user_staking_account_before =
+        utils::get_account::<UserStaking>(program_test_ctx, user_staking_pda).await;
     let governance_governing_token_holding_balance_before =
         utils::get_token_account_balance(program_test_ctx, governance_governing_token_holding_pda)
             .await;
@@ -65,7 +67,7 @@ pub async fn add_locked_stake(
 
     let stakes_claim_cron_thread_address = pda::get_thread_address(
         &staking_thread_authority_pda,
-        staking_account_before
+        user_staking_account_before
             .stakes_claim_cron_thread_id
             .try_to_vec()
             .unwrap(),
@@ -80,6 +82,7 @@ pub async fn add_locked_stake(
             staking_token_account: staking_token_account_pda,
             staking_reward_token_account: staking_reward_token_account_pda,
             transfer_authority: transfer_authority_pda,
+            user_staking: user_staking_pda,
             staking: staking_pda,
             cortex: cortex_pda,
             perpetuals: perpetuals_pda,
@@ -117,7 +120,8 @@ pub async fn add_locked_stake(
         utils::get_token_account_balance(program_test_ctx, governance_governing_token_holding_pda)
             .await;
 
-    let staking_account_after = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
+    let user_staking_account_after =
+        utils::get_account::<UserStaking>(program_test_ctx, user_staking_pda).await;
 
     let funding_account_after =
         utils::get_token_account_balance(program_test_ctx, lm_token_account_address).await;
@@ -125,8 +129,8 @@ pub async fn add_locked_stake(
     // Check changes in staking account
     {
         assert_eq!(
-            staking_account_after.locked_stakes.len(),
-            staking_account_before.locked_stakes.len() + 1
+            user_staking_account_after.locked_stakes.len(),
+            user_staking_account_before.locked_stakes.len() + 1
         );
     }
 
@@ -141,7 +145,7 @@ pub async fn add_locked_stake(
     // Check voting power
     {
         // Depending on the lock duration, vote multiplier will differ
-        let staking_option = staking_account_after
+        let staking_option = user_staking_account_after
             .get_locked_staking_option(params.locked_days)
             .unwrap();
 

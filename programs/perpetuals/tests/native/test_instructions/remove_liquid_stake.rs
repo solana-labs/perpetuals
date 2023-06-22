@@ -3,7 +3,7 @@ use {
     anchor_lang::{prelude::Pubkey, AnchorSerialize, ToAccountMetas},
     perpetuals::{
         adapters::spl_governance_program_adapter, instructions::RemoveLiquidStakeParams,
-        state::staking::Staking,
+        state::user_staking::UserStaking,
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
@@ -19,9 +19,10 @@ pub async fn remove_liquid_stake(
 ) -> std::result::Result<(), BanksClientError> {
     // ==== GIVEN =============================================================
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
-    let staking_pda = pda::get_staking_pda(&owner.pubkey()).0;
+    let user_staking_pda = pda::get_user_staking_pda(&owner.pubkey()).0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
+    let staking_pda = pda::get_staking_pda().0;
     let staking_token_account_pda = pda::get_staking_token_account_pda().0;
     let staking_reward_token_account_pda = pda::get_staking_reward_token_account_pda().0;
     let staking_lm_reward_token_account_pda = pda::get_staking_lm_reward_token_account_pda().0;
@@ -51,14 +52,15 @@ pub async fn remove_liquid_stake(
 
     // // ==== WHEN ==============================================================
     // save account state before tx execution
-    let staking_account_before = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
+    let user_staking_account_before =
+        utils::get_account::<UserStaking>(program_test_ctx, user_staking_pda).await;
 
     let owner_staked_token_account_before =
         utils::get_token_account_balance(program_test_ctx, lm_token_account_address).await;
 
     let stakes_claim_cron_thread_address = pda::get_thread_address(
         &staking_thread_authority_pda,
-        staking_account_before
+        user_staking_account_before
             .stakes_claim_cron_thread_id
             .try_to_vec()
             .unwrap(),
@@ -74,6 +76,7 @@ pub async fn remove_liquid_stake(
             staking_reward_token_account: staking_reward_token_account_pda,
             staking_lm_reward_token_account: staking_lm_reward_token_account_pda,
             transfer_authority: transfer_authority_pda,
+            user_staking: user_staking_pda,
             staking: staking_pda,
             cortex: cortex_pda,
             perpetuals: perpetuals_pda,
@@ -105,7 +108,8 @@ pub async fn remove_liquid_stake(
 
     // ==== THEN ==============================================================
 
-    let staking_account_after = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
+    let user_staking_account_after =
+        utils::get_account::<UserStaking>(program_test_ctx, user_staking_pda).await;
 
     let owner_staked_token_account_after =
         utils::get_token_account_balance(program_test_ctx, lm_token_account_address).await;
@@ -113,8 +117,8 @@ pub async fn remove_liquid_stake(
     // Check staking account
     {
         assert_eq!(
-            staking_account_after.liquid_stake.amount,
-            staking_account_before.liquid_stake.amount - params.amount,
+            user_staking_account_after.liquid_stake.amount,
+            user_staking_account_before.liquid_stake.amount - params.amount,
         );
     }
 

@@ -8,7 +8,8 @@ use {
         state::{
             cortex::Cortex,
             perpetuals::Perpetuals,
-            staking::{LockedStake, Staking, STAKING_THREAD_AUTHORITY_SEED},
+            staking::Staking,
+            user_staking::{LockedStake, UserStaking, USER_STAKING_THREAD_AUTHORITY_SEED},
         },
     },
     anchor_lang::{prelude::*, InstructionData},
@@ -41,7 +42,7 @@ pub struct AddLockedStake<'info> {
         token::mint = lm_token_mint,
         token::authority = transfer_authority,
         seeds = [b"staking_token_account"],
-        bump = cortex.staking_token_account_bump,
+        bump = staking.staking_token_account_bump,
     )]
     pub staking_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -50,7 +51,7 @@ pub struct AddLockedStake<'info> {
         mut,
         token::mint = staking_reward_token_mint,
         seeds = [b"staking_reward_token_account"],
-        bump = cortex.staking_reward_token_account_bump
+        bump = staking.staking_reward_token_account_bump
     )]
     pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
 
@@ -63,9 +64,17 @@ pub struct AddLockedStake<'info> {
 
     #[account(
         mut,
-        seeds = [b"staking",
+        seeds = [b"user_staking",
                  owner.key().as_ref()],
-        bump = staking.bump
+        bump = user_staking.bump
+    )]
+    pub user_staking: Box<Account<'info, UserStaking>>,
+
+    #[account(
+        mut,
+        seeds = [b"staking"],
+        bump = staking.bump,
+        has_one = staking_reward_token_mint
     )]
     pub staking: Box<Account<'info, Staking>>,
 
@@ -73,7 +82,6 @@ pub struct AddLockedStake<'info> {
         mut,
         seeds = [b"cortex"],
         bump = cortex.bump,
-        has_one = staking_reward_token_mint
     )]
     pub cortex: Box<Account<'info, Cortex>>,
 
@@ -127,8 +135,8 @@ pub struct AddLockedStake<'info> {
 
     /// CHECK: empty PDA, authority for threads
     #[account(
-        seeds = [STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
-        bump = staking.thread_authority_bump
+        seeds = [USER_STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
+        bump = user_staking.thread_authority_bump
     )]
     pub staking_thread_authority: AccountInfo<'info>,
 
@@ -158,15 +166,16 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
         }
 
         ctx.accounts
-            .staking
+            .user_staking
             .get_locked_staking_option(params.locked_days)
     }?;
 
     let staking = ctx.accounts.staking.as_mut();
+    let user_staking = ctx.accounts.user_staking.as_mut();
     let perpetuals = ctx.accounts.perpetuals.as_mut();
     let cortex = ctx.accounts.cortex.as_mut();
 
-    // Add stake to Staking account
+    // Add stake to UserStaking account
     let (stake_amount_with_reward_multiplier, stake_amount_with_lm_reward_multiplier) = {
         let stake_amount_with_reward_multiplier = math::checked_as_u64(math::checked_div(
             math::checked_mul(params.amount, staking_option.reward_multiplier as u64)? as u128,
@@ -179,7 +188,7 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
         )?)?;
 
         // Add the new locked staking to the list
-        staking.locked_stakes.push(LockedStake {
+        user_staking.locked_stakes.push(LockedStake {
             amount: params.amount,
             stake_time: perpetuals.get_time()?,
             claim_time: 0,
@@ -200,21 +209,11 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
         // Adapt the size of the staking account
         Perpetuals::realloc(
             ctx.accounts.owner.to_account_info(),
-            staking.clone().to_account_info(),
+            user_staking.clone().to_account_info(),
             ctx.accounts.system_program.to_account_info(),
-            staking.size(),
+            user_staking.size(),
             false,
         )?;
-
-        msg!("BEFORE THREAD CREATION");
-        msg!(
-            "ctx.accounts.stake_resolution_thread.key(): {}",
-            ctx.accounts.stake_resolution_thread.key()
-        );
-        msg!(
-            "ctx.accounts.staking_thread_authority.key(): {}",
-            ctx.accounts.staking_thread_authority.key()
-        );
 
         // Create a clockwork thread to auto-resolve the staking when it ends
         {
@@ -228,14 +227,14 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
                         authority: ctx.accounts.staking_thread_authority.to_account_info(),
                     },
                     &[&[
-                        STAKING_THREAD_AUTHORITY_SEED,
+                        USER_STAKING_THREAD_AUTHORITY_SEED,
                         ctx.accounts.owner.key().as_ref(),
-                        &[ctx.accounts.staking.thread_authority_bump],
+                        &[user_staking.thread_authority_bump],
                     ]],
                 ),
                 // Lamports paid to the clockwork worker executing the thread
                 math::checked_add(
-                    Staking::AUTOMATION_EXEC_FEE,
+                    UserStaking::AUTOMATION_EXEC_FEE,
                     // Provide enough for the thread account to be rent exempt
                     Rent::get()?.minimum_balance(ctx.accounts.stake_resolution_thread.data_len()),
                 )?,
@@ -248,7 +247,8 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
                         caller: ctx.accounts.stake_resolution_thread.to_account_info(),
                         owner: ctx.accounts.owner.to_account_info(),
                         transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
-                        staking: ctx.accounts.staking.to_account_info(),
+                        user_staking: user_staking.to_account_info(),
+                        staking: staking.to_account_info(),
                         cortex: cortex.to_account_info(),
                         perpetuals: perpetuals.to_account_info(),
                         lm_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
@@ -336,13 +336,13 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
 
     // update Cortex data
     {
-        cortex.next_staking_round.total_stake = math::checked_add(
-            cortex.next_staking_round.total_stake,
+        staking.next_staking_round.total_stake = math::checked_add(
+            staking.next_staking_round.total_stake,
             stake_amount_with_reward_multiplier,
         )?;
 
-        cortex.next_staking_round.lm_total_stake = math::checked_add(
-            cortex.next_staking_round.lm_total_stake,
+        staking.next_staking_round.lm_total_stake = math::checked_add(
+            staking.next_staking_round.lm_total_stake,
             stake_amount_with_lm_reward_multiplier,
         )?;
     }
@@ -357,9 +357,9 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
                     thread: ctx.accounts.stakes_claim_cron_thread.to_account_info(),
                 },
                 &[&[
-                    STAKING_THREAD_AUTHORITY_SEED,
+                    USER_STAKING_THREAD_AUTHORITY_SEED,
                     ctx.accounts.owner.key().as_ref(),
-                    &[ctx.accounts.staking.thread_authority_bump],
+                    &[ctx.accounts.user_staking.thread_authority_bump],
                 ]],
             ))?;
         }
