@@ -36,24 +36,23 @@ pub struct AddLockedStake<'info> {
     )]
     pub reward_token_account: Box<Account<'info, TokenAccount>>,
 
-    // staked token vault
     #[account(
         mut,
         token::mint = lm_token_mint,
         token::authority = transfer_authority,
-        seeds = [b"staking_token_account"],
-        bump = staking.staking_token_account_bump,
+        seeds = [b"staking_staked_token_vault"],
+        bump = staking.staked_token_vault_bump,
     )]
-    pub staking_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_staked_token_vault: Box<Account<'info, TokenAccount>>,
 
     // staking reward token vault
     #[account(
         mut,
         token::mint = staking_reward_token_mint,
-        seeds = [b"staking_reward_token_account"],
-        bump = staking.staking_reward_token_account_bump
+        seeds = [b"staking_reward_token_vault"],
+        bump = staking.reward_token_vault_bump
     )]
-    pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: empty PDA, authority for token accounts
     #[account(
@@ -74,7 +73,7 @@ pub struct AddLockedStake<'info> {
         mut,
         seeds = [b"staking"],
         bump = staking.bump,
-        has_one = staking_reward_token_mint
+        constraint = staking.reward_token_mint.key() == staking_reward_token_mint.key()
     )]
     pub staking: Box<Account<'info, Staking>>,
 
@@ -299,7 +298,7 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
     {
         perpetuals.transfer_tokens_from_user(
             ctx.accounts.funding_account.to_account_info(),
-            ctx.accounts.staking_token_account.to_account_info(),
+            ctx.accounts.staking_staked_token_vault.to_account_info(),
             ctx.accounts.owner.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
             params.amount,

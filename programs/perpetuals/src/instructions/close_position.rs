@@ -50,7 +50,7 @@ pub struct ClosePosition<'info> {
         mut,
         seeds = [b"staking"],
         bump = staking.bump,
-        has_one = staking_reward_token_mint
+        constraint = staking.reward_token_mint.key() == staking_reward_token_mint.key()
     )]
     pub staking: Box<Account<'info, Staking>>,
 
@@ -149,11 +149,11 @@ pub struct ClosePosition<'info> {
     // staking reward token vault (receiving fees swapped to `staking_reward_token_mint`)
     #[account(
         mut,
-        token::mint = staking.staking_reward_token_mint,
-        seeds = [b"staking_reward_token_account"],
-        bump = staking.staking_reward_token_account_bump
+        token::mint = staking.reward_token_mint,
+        seeds = [b"staking_reward_token_vault"],
+        bump = staking.reward_token_vault_bump
     )]
-    pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
@@ -419,7 +419,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
                 ctx.accounts
                     .collateral_custody_token_account
                     .to_account_info(),
-                ctx.accounts.staking_reward_token_account.to_account_info(),
+                ctx.accounts.staking_reward_token_vault.to_account_info(),
                 ctx.accounts.transfer_authority.to_account_info(),
                 ctx.accounts.token_program.to_account_info(),
                 fee_amount,
@@ -432,7 +432,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
                 ctx.accounts
                     .collateral_custody_token_account
                     .to_account_info(),
-                ctx.accounts.staking_reward_token_account.to_account_info(),
+                ctx.accounts.staking_reward_token_vault.to_account_info(),
                 ctx.accounts.lm_token_account.to_account_info(),
                 ctx.accounts.cortex.to_account_info(),
                 perpetuals.to_account_info(),
@@ -456,7 +456,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
                 ctx.accounts
                     .stake_reward_token_custody_token_account
                     .to_account_info(),
-                ctx.accounts.staking_reward_token_account.to_account_info(),
+                ctx.accounts.staking_reward_token_vault.to_account_info(),
                 ctx.accounts.staking_reward_token_mint.to_account_info(),
                 ctx.accounts.staking.to_account_info(),
                 ctx.accounts.lm_token_mint.to_account_info(),

@@ -46,19 +46,19 @@ pub struct ClaimStakes<'info> {
     #[account(
         mut,
         token::mint = staking_reward_token_mint,
-        seeds = [b"staking_reward_token_account"],
-        bump = staking.staking_reward_token_account_bump
+        seeds = [b"staking_reward_token_vault"],
+        bump = staking.reward_token_vault_bump
     )]
-    pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     // staking lm reward token vault
     #[account(
         mut,
         token::mint = lm_token_mint,
-        seeds = [b"staking_lm_reward_token_account"],
-        bump = staking.staking_lm_reward_token_account_bump
+        seeds = [b"staking_lm_reward_token_vault"],
+        bump = staking.lm_reward_token_vault_bump
     )]
-    pub staking_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_lm_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: empty PDA, authority for token accounts
     #[account(
@@ -79,7 +79,7 @@ pub struct ClaimStakes<'info> {
         mut,
         seeds = [b"staking"],
         bump = staking.bump,
-        has_one = staking_reward_token_mint
+        constraint = staking.reward_token_mint.key() == staking_reward_token_mint.key()
     )]
     pub staking: Box<Account<'info, Staking>>,
 
@@ -129,8 +129,8 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
         sol_log_compute_units();
 
         let resolved_staking_rounds_len_before = staking.resolved_staking_rounds.len();
-        let stake_token_decimals = staking.stake_token_decimals as i32;
-        let stake_reward_token_decimals = staking.stake_reward_token_decimals as i32;
+        let stake_token_decimals = staking.staked_token_decimals as i32;
+        let stake_reward_token_decimals = staking.reward_token_decimals as i32;
 
         let mut rewards_token_amount: u64 = 0;
         let mut lm_rewards_token_amount: u64 = 0;
@@ -321,7 +321,7 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
             let perpetuals = ctx.accounts.perpetuals.as_mut();
 
             perpetuals.transfer_tokens(
-                ctx.accounts.staking_reward_token_account.to_account_info(),
+                ctx.accounts.staking_reward_token_vault.to_account_info(),
                 ctx.accounts.reward_token_account.to_account_info(),
                 ctx.accounts.transfer_authority.to_account_info(),
                 ctx.accounts.token_program.to_account_info(),
@@ -344,9 +344,7 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
             let perpetuals = ctx.accounts.perpetuals.as_mut();
 
             perpetuals.transfer_tokens(
-                ctx.accounts
-                    .staking_lm_reward_token_account
-                    .to_account_info(),
+                ctx.accounts.staking_lm_reward_token_vault.to_account_info(),
                 ctx.accounts.lm_token_account.to_account_info(),
                 ctx.accounts.transfer_authority.to_account_info(),
                 ctx.accounts.token_program.to_account_info(),

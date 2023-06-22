@@ -25,8 +25,8 @@ pub async fn add_locked_stake(
     let staking_pda = pda::get_staking_pda().0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
-    let staking_token_account_pda = pda::get_staking_token_account_pda().0;
-    let staking_reward_token_account_pda = pda::get_staking_reward_token_account_pda().0;
+    let staking_staked_token_vault_pda = pda::get_staking_staked_token_vault_pda().0;
+    let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
     let governance_token_mint_pda = pda::get_governance_token_mint_pda().0;
 
@@ -79,8 +79,8 @@ pub async fn add_locked_stake(
             owner: owner.pubkey(),
             funding_account: lm_token_account_address,
             reward_token_account: staking_reward_token_account_address,
-            staking_token_account: staking_token_account_pda,
-            staking_reward_token_account: staking_reward_token_account_pda,
+            staking_staked_token_vault: staking_staked_token_vault_pda,
+            staking_reward_token_vault: staking_reward_token_vault_pda,
             transfer_authority: transfer_authority_pda,
             user_staking: user_staking_pda,
             staking: staking_pda,

@@ -7,14 +7,25 @@ use {
 #[account]
 #[derive(Default, Debug)]
 pub struct Staking {
+    //
+    // Bumps
+    //
     pub bump: u8,
-    pub staking_token_account_bump: u8,
-    pub staking_reward_token_account_bump: u8,
-    pub staking_lm_reward_token_account_bump: u8,
+    pub staked_token_vault_bump: u8,
+    pub reward_token_vault_bump: u8,
+    pub lm_reward_token_vault_bump: u8,
 
-    pub staking_reward_token_mint: Pubkey,
-    pub stake_token_decimals: u8,
-    pub stake_reward_token_decimals: u8,
+    //
+    // Token to stake
+    //
+    pub staked_token_mint: Pubkey,
+    pub staked_token_decimals: u8,
+    //
+    // Token received as reward
+    //
+    pub reward_token_mint: Pubkey,
+    pub reward_token_decimals: u8,
+    //
     // amount of rewards allocated to resolved rounds, claimable (excluding current/next round)
     pub resolved_reward_token_amount: u64,
     // amount of staked token locked in resolved rounds, claimable (excluding current/next round)
@@ -23,6 +34,7 @@ pub struct Staking {
     pub resolved_lm_reward_token_amount: u64,
     // amount of lm staked token locked in resolved rounds, claimable (excluding current/next round)
     pub resolved_lm_stake_token_amount: u128,
+
     pub current_staking_round: StakingRound,
     pub next_staking_round: StakingRound,
     // must be the last element of the struct for reallocs

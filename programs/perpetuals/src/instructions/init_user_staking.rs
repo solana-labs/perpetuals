@@ -43,19 +43,19 @@ pub struct InitUserStaking<'info> {
     #[account(
         mut,
         token::mint = staking_reward_token_mint,
-        seeds = [b"staking_reward_token_account"],
-        bump = staking.staking_reward_token_account_bump
+        seeds = [b"staking_reward_token_vault"],
+        bump = staking.reward_token_vault_bump
     )]
-    pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     // staking lm reward token vault
     #[account(
         mut,
         token::mint = lm_token_mint,
-        seeds = [b"staking_lm_reward_token_account"],
-        bump = staking.staking_lm_reward_token_account_bump
+        seeds = [b"staking_lm_reward_token_vault"],
+        bump = staking.lm_reward_token_vault_bump
     )]
-    pub staking_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_lm_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     #[account(
         init,
@@ -95,7 +95,7 @@ pub struct InitUserStaking<'info> {
     #[account(
         seeds = [b"staking"],
         bump = staking.bump,
-        has_one = staking_reward_token_mint
+        constraint = staking.reward_token_mint.key() == staking_reward_token_mint.key()
     )]
     pub staking: Box<Account<'info, Staking>>,
 
@@ -195,13 +195,13 @@ pub fn init_user_staking(
                     owner: ctx.accounts.owner.to_account_info(),
                     reward_token_account: ctx.accounts.reward_token_account.to_account_info(),
                     lm_token_account: ctx.accounts.lm_token_account.to_account_info(),
-                    staking_reward_token_account: ctx
+                    staking_reward_token_vault: ctx
                         .accounts
-                        .staking_reward_token_account
+                        .staking_reward_token_vault
                         .to_account_info(),
-                    staking_lm_reward_token_account: ctx
+                    staking_lm_reward_token_vault: ctx
                         .accounts
-                        .staking_lm_reward_token_account
+                        .staking_lm_reward_token_vault
                         .to_account_info(),
                     transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
                     user_staking: user_staking.to_account_info(),

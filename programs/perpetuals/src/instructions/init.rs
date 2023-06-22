@@ -81,16 +81,15 @@ pub struct Init<'info> {
     )]
     pub governance_token_mint: Box<Account<'info, Mint>>,
 
-    // staked token vault
     #[account(
         init,
         payer = upgrade_authority,
         token::mint = lm_token_mint,
         token::authority = transfer_authority,
-        seeds = [b"staking_token_account"],
+        seeds = [b"staking_staked_token_vault"],
         bump
     )]
-    pub staking_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_staked_token_vault: Box<Account<'info, TokenAccount>>,
 
     // staking reward token vault
     #[account(
@@ -98,10 +97,10 @@ pub struct Init<'info> {
         payer = upgrade_authority,
         token::mint = staking_reward_token_mint,
         token::authority = transfer_authority,
-        seeds = [b"staking_reward_token_account"],
+        seeds = [b"staking_reward_token_vault"],
         bump
     )]
-    pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     // staking lm reward token vault
     #[account(
@@ -109,10 +108,10 @@ pub struct Init<'info> {
         payer = upgrade_authority,
         token::mint = lm_token_mint,
         token::authority = transfer_authority,
-        seeds = [b"staking_lm_reward_token_account"],
+        seeds = [b"staking_lm_reward_token_vault"],
         bump
     )]
-    pub staking_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_lm_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     #[account(
         init,
@@ -258,21 +257,22 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
             let staking = ctx.accounts.staking.as_mut();
 
             staking.bump = *ctx.bumps.get("staking").ok_or(ProgramError::InvalidSeeds)?;
-            staking.staking_token_account_bump = *ctx
+            staking.staked_token_vault_bump = *ctx
                 .bumps
-                .get("staking_token_account")
+                .get("staking_staked_token_vault")
                 .ok_or(ProgramError::InvalidSeeds)?;
-            staking.staking_reward_token_account_bump = *ctx
+            staking.reward_token_vault_bump = *ctx
                 .bumps
-                .get("staking_reward_token_account")
+                .get("staking_reward_token_vault")
                 .ok_or(ProgramError::InvalidSeeds)?;
-            staking.staking_lm_reward_token_account_bump = *ctx
+            staking.lm_reward_token_vault_bump = *ctx
                 .bumps
-                .get("staking_lm_reward_token_account")
+                .get("staking_lm_reward_token_vault")
                 .ok_or(ProgramError::InvalidSeeds)?;
 
-            staking.stake_token_decimals = ctx.accounts.lm_token_mint.decimals;
-            staking.stake_reward_token_decimals = ctx.accounts.staking_reward_token_mint.decimals;
+            staking.staked_token_mint = ctx.accounts.lm_token_mint.key();
+            staking.staked_token_decimals = ctx.accounts.lm_token_mint.decimals;
+            staking.reward_token_decimals = ctx.accounts.staking_reward_token_mint.decimals;
             staking.resolved_reward_token_amount = u64::MIN;
             staking.resolved_stake_token_amount = u128::MIN;
             staking.resolved_lm_reward_token_amount = u64::MIN;
@@ -280,7 +280,7 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
             staking.current_staking_round = StakingRound::new(perpetuals.get_time()?);
             staking.next_staking_round = StakingRound::new(0);
             staking.resolved_staking_rounds = Vec::new();
-            staking.staking_reward_token_mint = ctx.accounts.staking_reward_token_mint.key();
+            staking.reward_token_mint = ctx.accounts.staking_reward_token_mint.key();
         }
     }
 

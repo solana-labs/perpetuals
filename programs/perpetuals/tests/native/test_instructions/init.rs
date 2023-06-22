@@ -36,12 +36,12 @@ pub async fn init(
     let (lm_token_mint_pda, lm_token_mint_bump) = pda::get_lm_token_mint_pda();
     let (governance_token_mint_pda, governance_token_mint_bump) =
         pda::get_governance_token_mint_pda();
-    let (staking_token_account_pda, staking_token_account_bump) =
-        pda::get_staking_token_account_pda();
-    let (staking_reward_token_account_pda, staking_reward_token_account_bump) =
-        pda::get_staking_reward_token_account_pda();
-    let (staking_lm_reward_token_account_pda, staking_lm_reward_token_account_bump) =
-        pda::get_staking_lm_reward_token_account_pda();
+    let (staking_staked_token_vault_pda, staking_token_account_bump) =
+        pda::get_staking_staked_token_vault_pda();
+    let (staking_reward_token_vault_pda, staking_reward_token_account_bump) =
+        pda::get_staking_reward_token_vault_pda();
+    let (staking_lm_reward_token_vault_pda, staking_lm_reward_token_account_bump) =
+        pda::get_staking_lm_reward_token_vault_pda();
 
     let accounts_meta = {
         let accounts = perpetuals::accounts::Init {
@@ -52,9 +52,9 @@ pub async fn init(
             cortex: cortex_pda,
             lm_token_mint: lm_token_mint_pda,
             governance_token_mint: governance_token_mint_pda,
-            staking_token_account: staking_token_account_pda,
-            staking_reward_token_account: staking_reward_token_account_pda,
-            staking_lm_reward_token_account: staking_lm_reward_token_account_pda,
+            staking_staked_token_vault: staking_staked_token_vault_pda,
+            staking_reward_token_vault: staking_reward_token_vault_pda,
+            staking_lm_reward_token_vault: staking_lm_reward_token_vault_pda,
             perpetuals: perpetuals_pda,
             perpetuals_program: perpetuals::ID,
             perpetuals_program_data: perpetuals_program_data_pda,
@@ -146,15 +146,15 @@ pub async fn init(
         assert_eq!(staking_account.bump, staking_bump);
 
         assert_eq!(
-            staking_account.staking_token_account_bump,
+            staking_account.staked_token_vault_bump,
             staking_token_account_bump
         );
         assert_eq!(
-            staking_account.staking_reward_token_account_bump,
+            staking_account.reward_token_vault_bump,
             staking_reward_token_account_bump
         );
         assert_eq!(
-            staking_account.staking_lm_reward_token_account_bump,
+            staking_account.lm_reward_token_vault_bump,
             staking_lm_reward_token_account_bump
         );
 

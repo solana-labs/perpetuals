@@ -43,33 +43,32 @@ pub struct AddLiquidStake<'info> {
     )]
     pub lm_token_account: Box<Account<'info, TokenAccount>>,
 
-    // staked token vault
     #[account(
         mut,
         token::mint = lm_token_mint,
         token::authority = transfer_authority,
-        seeds = [b"staking_token_account"],
-        bump = staking.staking_token_account_bump,
+        seeds = [b"staking_staked_token_vault"],
+        bump = staking.staked_token_vault_bump,
     )]
-    pub staking_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_staked_token_vault: Box<Account<'info, TokenAccount>>,
 
     // staking reward token vault
     #[account(
         mut,
         token::mint = staking_reward_token_mint,
-        seeds = [b"staking_reward_token_account"],
-        bump = staking.staking_reward_token_account_bump
+        seeds = [b"staking_reward_token_vault"],
+        bump = staking.reward_token_vault_bump
     )]
-    pub staking_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     // staking lm reward token vault
     #[account(
         mut,
         token::mint = lm_token_mint,
-        seeds = [b"staking_lm_reward_token_account"],
-        bump = staking.staking_lm_reward_token_account_bump
+        seeds = [b"staking_lm_reward_token_vault"],
+        bump = staking.lm_reward_token_vault_bump
     )]
-    pub staking_lm_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_lm_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: empty PDA, authority for token accounts
     #[account(
@@ -90,7 +89,7 @@ pub struct AddLiquidStake<'info> {
         mut,
         seeds = [b"staking"],
         bump = staking.bump,
-        has_one = staking_reward_token_mint
+        constraint = staking.reward_token_mint.key() == staking_reward_token_mint.key()
     )]
     pub staking: Box<Account<'info, Staking>>,
 
@@ -182,15 +181,6 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
     {
         // If liquid staking is already ongoing
         if user_staking.liquid_stake.amount > 0 {
-            msg!(
-                "===== Before: claim_time {}",
-                user_staking.liquid_stake.claim_time
-            );
-            msg!(
-                "===== Before: stake_time {}",
-                user_staking.liquid_stake.stake_time
-            );
-
             // Claim rewards
             {
                 let cpi_accounts = crate::cpi::accounts::ClaimStakes {
@@ -199,14 +189,14 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
                     owner: ctx.accounts.owner.to_account_info(),
                     reward_token_account: ctx.accounts.reward_token_account.to_account_info(),
                     lm_token_account: ctx.accounts.lm_token_account.to_account_info(),
-                    staking_reward_token_account: ctx
+                    staking_reward_token_vault: ctx
                         .accounts
-                        .staking_reward_token_account
+                        .staking_reward_token_vault
                         .to_account_info(),
 
-                    staking_lm_reward_token_account: ctx
+                    staking_lm_reward_token_vault: ctx
                         .accounts
-                        .staking_lm_reward_token_account
+                        .staking_lm_reward_token_vault
                         .to_account_info(),
                     transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
                     user_staking: user_staking.to_account_info(),
@@ -230,8 +220,8 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
                 {
                     ctx.accounts.reward_token_account.reload()?;
                     ctx.accounts.lm_token_account.reload()?;
-                    ctx.accounts.staking_reward_token_account.reload()?;
-                    ctx.accounts.staking_lm_reward_token_account.reload()?;
+                    ctx.accounts.staking_reward_token_vault.reload()?;
+                    ctx.accounts.staking_lm_reward_token_vault.reload()?;
                     staking.reload()?;
                     user_staking.reload()?;
                     cortex.reload()?;
@@ -260,7 +250,7 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
     {
         perpetuals.transfer_tokens_from_user(
             ctx.accounts.funding_account.to_account_info(),
-            ctx.accounts.staking_token_account.to_account_info(),
+            ctx.accounts.staking_staked_token_vault.to_account_info(),
             ctx.accounts.owner.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
             params.amount,
@@ -289,7 +279,7 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
         )?;
     }
 
-    // update Cortex data
+    // update Staking data
     {
         // apply delta to next round taking into account real yield multiplier
         staking.next_staking_round.total_stake =
