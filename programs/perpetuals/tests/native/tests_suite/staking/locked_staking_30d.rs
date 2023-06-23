@@ -263,7 +263,6 @@ pub async fn locked_staking_30d() {
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
             eth_mint,
-            &cortex_stake_reward_mint,
             AddLiquidityParams {
                 amount_in: utils::scale_f64(0.25, ETH_DECIMALS),
                 min_lp_amount_out: 1,

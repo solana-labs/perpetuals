@@ -7,7 +7,7 @@ use {
     bonfida_test_utils::ProgramTestContextExt,
     perpetuals::{
         instructions::AddLiquidityParams,
-        state::{custody::Custody, pool::Pool},
+        state::{custody::Custody, pool::Pool, staking::Staking},
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
@@ -19,7 +19,6 @@ pub async fn add_liquidity(
     payer: &Keypair,
     pool_pda: &Pubkey,
     custody_token_mint: &Pubkey,
-    staking_reward_token_mint: &Pubkey,
     params: AddLiquidityParams,
 ) -> std::result::Result<(), BanksClientError> {
     // ==== WHEN ==============================================================
@@ -32,7 +31,7 @@ pub async fn add_liquidity(
     let lp_token_mint_pda = pda::get_lp_token_mint_pda(pool_pda).0;
     let cortex_pda = pda::get_cortex_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
-    let staking_pda = pda::get_staking_pda(perpetuals::state::staking::StakingType::LM).0;
+    let staking_pda = pda::get_staking_pda(&lm_token_mint_pda).0;
 
     let funding_account_address =
         utils::find_associated_token_account(&owner.pubkey(), custody_token_mint).0;
@@ -46,9 +45,11 @@ pub async fn add_liquidity(
 
     let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda(&staking_pda).0;
 
-    let srt_custody_pda = pda::get_custody_pda(pool_pda, staking_reward_token_mint).0;
+    let staking_account = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
+
+    let srt_custody_pda = pda::get_custody_pda(pool_pda, &staking_account.reward_token_mint).0;
     let srt_custody_token_account_pda =
-        pda::get_custody_token_account_pda(pool_pda, staking_reward_token_mint).0;
+        pda::get_custody_token_account_pda(pool_pda, &staking_account.reward_token_mint).0;
     let srt_custody_account =
         utils::get_account::<Custody>(program_test_ctx, srt_custody_pda).await;
     let srt_custody_oracle_account_address = srt_custody_account.oracle.oracle_account;
@@ -91,7 +92,7 @@ pub async fn add_liquidity(
             staking_reward_token_vault: staking_reward_token_vault_pda, // the stake reward vault
             lp_token_mint: lp_token_mint_pda,
             lm_token_mint: lm_token_mint_pda,
-            staking_reward_token_mint: *staking_reward_token_mint,
+            staking_reward_token_mint: staking_account.reward_token_mint,
             token_program: anchor_spl::token::ID,
             perpetuals_program: perpetuals::ID,
         };

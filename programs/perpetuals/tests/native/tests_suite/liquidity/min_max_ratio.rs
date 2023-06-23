@@ -94,7 +94,6 @@ pub async fn min_max_ratio() {
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
         usdc_mint,
-        &cortex_stake_reward_mint,
         AddLiquidityParams {
             amount_in: utils::scale(1_000, USDC_DECIMALS),
             min_lp_amount_out: 1

@@ -95,7 +95,6 @@ pub async fn insuffisient_fund() {
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
         usdc_mint,
-        &cortex_stake_reward_mint,
         AddLiquidityParams {
             amount_in: utils::scale(1_000_000, USDC_DECIMALS),
             min_lp_amount_out: 1
@@ -112,7 +111,6 @@ pub async fn insuffisient_fund() {
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
             usdc_mint,
-            &cortex_stake_reward_mint,
             AddLiquidityParams {
                 amount_in: utils::scale(15_000, USDC_DECIMALS),
                 min_lp_amount_out: 1,
@@ -127,7 +125,6 @@ pub async fn insuffisient_fund() {
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
             eth_mint,
-            &cortex_stake_reward_mint,
             AddLiquidityParams {
                 amount_in: utils::scale(10, ETH_DECIMALS),
                 min_lp_amount_out: 1,

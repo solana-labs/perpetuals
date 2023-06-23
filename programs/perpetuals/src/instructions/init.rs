@@ -44,7 +44,7 @@ pub struct Init<'info> {
         init,
         payer = upgrade_authority,
         space = Staking::LEN,
-        seeds = [b"staking", (StakingType::LM as u64).to_be_bytes().as_ref()],
+        seeds = [b"staking", lm_token_mint.key().as_ref()],
         bump
     )]
     pub lm_staking: Box<Account<'info, Staking>>,
@@ -274,6 +274,7 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
             lm_staking.staking_type = StakingType::LM;
             lm_staking.staked_token_mint = ctx.accounts.lm_token_mint.key();
             lm_staking.staked_token_decimals = ctx.accounts.lm_token_mint.decimals;
+            lm_staking.reward_token_mint = ctx.accounts.lm_staking_reward_token_mint.key();
             lm_staking.reward_token_decimals = ctx.accounts.lm_staking_reward_token_mint.decimals;
             lm_staking.resolved_reward_token_amount = u64::MIN;
             lm_staking.resolved_staked_token_amount = u128::MIN;
@@ -282,7 +283,6 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
             lm_staking.current_staking_round = StakingRound::new(perpetuals.get_time()?);
             lm_staking.next_staking_round = StakingRound::new(0);
             lm_staking.resolved_staking_rounds = Vec::new();
-            lm_staking.reward_token_mint = ctx.accounts.lm_staking_reward_token_mint.key();
         }
     }
 

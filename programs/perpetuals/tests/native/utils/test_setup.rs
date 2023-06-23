@@ -357,6 +357,7 @@ impl TestSetup {
                 payer_keypair,
                 pool_name,
                 &multisig_signers,
+                cortex_stake_reward_mint,
             )
             .await
             .unwrap();
@@ -501,7 +502,6 @@ impl TestSetup {
                     payer_keypair,
                     &pool_pda,
                     &mint_info.pubkey,
-                    cortex_stake_reward_mint,
                     AddLiquidityParams {
                         amount_in: custody_param.liquidity_amount,
                         min_lp_amount_out: 1,

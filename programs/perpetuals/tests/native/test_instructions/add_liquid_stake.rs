@@ -2,8 +2,9 @@ use {
     crate::utils::{self, pda},
     anchor_lang::{prelude::Pubkey, AnchorSerialize, ToAccountMetas},
     perpetuals::{
-        adapters::spl_governance_program_adapter, instructions::AddLiquidStakeParams,
-        state::user_staking::UserStaking,
+        adapters::spl_governance_program_adapter,
+        instructions::AddLiquidStakeParams,
+        state::{staking::Staking, user_staking::UserStaking},
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
@@ -14,24 +15,26 @@ pub async fn add_liquid_stake(
     owner: &Keypair,
     payer: &Keypair,
     params: AddLiquidStakeParams,
-    staking_reward_token_mint: &Pubkey,
     governance_realm_pda: &Pubkey,
+    staked_token_mint: &Pubkey,
 ) -> std::result::Result<(), BanksClientError> {
     // ==== GIVEN =============================================================
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
     let user_staking_pda = pda::get_user_staking_pda(&owner.pubkey()).0;
-    let staking_pda = pda::get_staking_pda(perpetuals::state::staking::StakingType::LM).0;
+    let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+    let staking_pda = pda::get_staking_pda(&staked_token_mint).0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
     let staking_staked_token_vault_pda = pda::get_staking_staked_token_vault_pda(&staking_pda).0;
     let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda(&staking_pda).0;
     let staking_lm_reward_token_vault_pda =
         pda::get_staking_lm_reward_token_vault_pda(&staking_pda).0;
-    let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
     let governance_token_mint_pda = pda::get_governance_token_mint_pda().0;
 
+    let staking_account = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
+
     let reward_token_account_address =
-        utils::find_associated_token_account(&owner.pubkey(), staking_reward_token_mint).0;
+        utils::find_associated_token_account(&owner.pubkey(), &staking_account.reward_token_mint).0;
     let lm_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), &lm_token_mint_pda).0;
 
@@ -87,7 +90,7 @@ pub async fn add_liquid_stake(
             perpetuals: perpetuals_pda,
             lm_token_mint: lm_token_mint_pda,
             governance_token_mint: governance_token_mint_pda,
-            staking_reward_token_mint: *staking_reward_token_mint,
+            staking_reward_token_mint: staking_account.reward_token_mint,
             governance_realm: *governance_realm_pda,
             governance_realm_config: governance_realm_config_pda,
             governance_governing_token_holding: governance_governing_token_holding_pda,

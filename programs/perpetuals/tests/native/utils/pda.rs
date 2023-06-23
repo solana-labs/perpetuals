@@ -1,9 +1,7 @@
 use {
     perpetuals::{
         adapters::spl_governance_program_adapter,
-        state::{
-            position::Side, staking::StakingType, user_staking::USER_STAKING_THREAD_AUTHORITY_SEED,
-        },
+        state::{position::Side, user_staking::USER_STAKING_THREAD_AUTHORITY_SEED},
     },
     solana_sdk::pubkey::Pubkey,
 };
@@ -101,12 +99,9 @@ pub fn get_user_staking_pda(owner: &Pubkey) -> (Pubkey, u8) {
     )
 }
 
-pub fn get_staking_pda(staking_type: StakingType) -> (Pubkey, u8) {
+pub fn get_staking_pda(staked_token_mint: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
-        &[
-            "staking".as_ref(),
-            (staking_type as u64).to_be_bytes().as_ref(),
-        ],
+        &["staking".as_ref(), staked_token_mint.as_ref()],
         &perpetuals::id(),
     )
 }

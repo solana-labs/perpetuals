@@ -1,5 +1,8 @@
 use {
-    crate::{test_instructions, utils},
+    crate::{
+        test_instructions,
+        utils::{self, pda},
+    },
     maplit::hashmap,
     perpetuals::{
         instructions::{
@@ -109,6 +112,8 @@ pub async fn basic_interactions() {
 
     let usdc_mint = &test_setup.get_mint_by_name("usdc");
     let eth_mint = &test_setup.get_mint_by_name("eth");
+
+    let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
 
     utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
@@ -272,8 +277,8 @@ pub async fn basic_interactions() {
             AddLiquidStakeParams {
                 amount: utils::scale(1, Cortex::LM_DECIMALS),
             },
-            &cortex_stake_reward_mint,
             &test_setup.governance_realm_pda,
+            &lm_token_mint_pda,
         )
         .await
         .unwrap();

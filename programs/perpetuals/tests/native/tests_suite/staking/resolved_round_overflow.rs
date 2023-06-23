@@ -95,6 +95,8 @@ pub async fn resolved_round_overflow() {
     let cortex_stake_reward_mint = test_setup.get_cortex_stake_reward_mint();
     let multisig_signers = test_setup.get_multisig_signers();
 
+    let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+
     // Prep work: Alice get 2 governance tokens using vesting
     {
         let current_time =
@@ -157,15 +159,16 @@ pub async fn resolved_round_overflow() {
         AddLiquidStakeParams {
             amount: utils::scale(1, Cortex::LM_DECIMALS),
         },
-        &cortex_stake_reward_mint,
         &test_setup.governance_realm_pda,
+        &lm_token_mint_pda,
     )
     .await
     .unwrap();
 
     utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
-    let staking_pda = pda::get_staking_pda(perpetuals::state::staking::StakingType::LM).0;
+    let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+    let staking_pda = pda::get_staking_pda(&lm_token_mint_pda).0;
 
     // Check initial state of resolved rounds
     {
@@ -195,7 +198,6 @@ pub async fn resolved_round_overflow() {
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
                 &eth_mint,
-                &cortex_stake_reward_mint,
                 AddLiquidityParams {
                     amount_in: utils::scale_f64(0.01, ETH_DECIMALS),
                     min_lp_amount_out: 1,
@@ -235,7 +237,6 @@ pub async fn resolved_round_overflow() {
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
                 &eth_mint,
-                &cortex_stake_reward_mint,
                 AddLiquidityParams {
                     amount_in: utils::scale_f64(0.01, ETH_DECIMALS),
                     min_lp_amount_out: 1,

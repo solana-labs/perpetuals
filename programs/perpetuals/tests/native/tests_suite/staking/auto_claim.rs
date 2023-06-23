@@ -1,5 +1,8 @@
 use {
-    crate::{test_instructions, utils},
+    crate::{
+        test_instructions,
+        utils::{self, pda},
+    },
     maplit::hashmap,
     perpetuals::{
         instructions::{AddLiquidStakeParams, AddLiquidityParams, AddVestParams},
@@ -95,6 +98,8 @@ pub async fn auto_claim() {
 
     let alice_usdc_ata = utils::find_associated_token_account(&alice.pubkey(), &usdc_mint).0;
 
+    let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+
     // Prep work: Alice get 2 governance tokens using vesting
     {
         let current_time =
@@ -157,8 +162,8 @@ pub async fn auto_claim() {
         AddLiquidStakeParams {
             amount: utils::scale(1, Cortex::LM_DECIMALS),
         },
-        &cortex_stake_reward_mint,
         &test_setup.governance_realm_pda,
+        &lm_token_mint_pda,
     )
     .await
     .unwrap();
@@ -186,7 +191,6 @@ pub async fn auto_claim() {
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
                 &eth_mint,
-                &cortex_stake_reward_mint,
                 AddLiquidityParams {
                     amount_in: utils::scale_f64(0.01, ETH_DECIMALS),
                     min_lp_amount_out: 1,

@@ -40,7 +40,7 @@ pub struct ResolveLockedStake<'info> {
 
     #[account(
         mut,
-        seeds = [b"staking", (staking.staking_type as u64).to_be_bytes().as_ref()],
+        seeds = [b"staking", staking.staked_token_mint.as_ref()],
         bump = staking.bump,
     )]
     pub staking: Box<Account<'info, Staking>>,

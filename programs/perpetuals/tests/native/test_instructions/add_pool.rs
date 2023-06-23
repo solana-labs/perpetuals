@@ -20,6 +20,7 @@ pub async fn add_pool(
     payer: &Keypair,
     pool_name: &str,
     multisig_signers: &[&Keypair],
+    lp_staking_reward_token_mint: &Pubkey,
 ) -> std::result::Result<(Pubkey, u8, Pubkey, u8), BanksClientError> {
     // ==== WHEN ==============================================================
     let multisig_pda = pda::get_multisig_pda().0;
@@ -27,7 +28,15 @@ pub async fn add_pool(
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let (pool_pda, pool_bump) = pda::get_pool_pda(&String::from_str(pool_name).unwrap());
     let (lp_token_mint_pda, lp_token_mint_bump) = pda::get_lp_token_mint_pda(&pool_pda);
-
+    let lp_staking_pda = pda::get_staking_pda(&lp_token_mint_pda).0;
+    let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+    let cortex_pda = pda::get_cortex_pda().0;
+    let lp_staking_staked_token_vault_pda =
+        pda::get_staking_staked_token_vault_pda(&lp_staking_pda).0;
+    let lp_staking_reward_token_vault_pda =
+        pda::get_staking_reward_token_vault_pda(&lp_staking_pda).0;
+    let lp_staking_lm_reward_token_vault_pda =
+        pda::get_staking_lm_reward_token_vault_pda(&lp_staking_pda).0;
     let multisig_account = utils::get_account::<Multisig>(program_test_ctx, multisig_pda).await;
 
     // One Tx per multisig signer
@@ -39,9 +48,16 @@ pub async fn add_pool(
                 admin: admin.pubkey(),
                 multisig: multisig_pda,
                 transfer_authority: transfer_authority_pda,
+                lp_staking: lp_staking_pda,
+                lm_token_mint: lm_token_mint_pda,
+                cortex: cortex_pda,
                 perpetuals: perpetuals_pda,
                 pool: pool_pda,
                 lp_token_mint: lp_token_mint_pda,
+                lp_staking_staked_token_vault: lp_staking_staked_token_vault_pda,
+                lp_staking_reward_token_vault: lp_staking_reward_token_vault_pda,
+                lp_staking_lm_reward_token_vault: lp_staking_lm_reward_token_vault_pda,
+                lp_staking_reward_token_mint: *lp_staking_reward_token_mint,
                 system_program: anchor_lang::system_program::ID,
                 token_program: anchor_spl::token::ID,
                 rent: solana_program::sysvar::rent::ID,
@@ -87,6 +103,8 @@ pub async fn add_pool(
         utils::get_current_unix_timestamp(program_test_ctx).await,
         pool_account.inception_time
     );
+
+    // @TODO check the new staking account
 
     Ok((pool_pda, pool_bump, lp_token_mint_pda, lp_token_mint_bump))
 }

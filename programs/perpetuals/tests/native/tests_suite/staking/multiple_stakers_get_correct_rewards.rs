@@ -112,6 +112,8 @@ pub async fn multiple_stakers_get_correct_rewards() {
     let cortex_stake_reward_mint = test_setup.get_cortex_stake_reward_mint();
     let multisig_signers = test_setup.get_multisig_signers();
 
+    let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+
     // Prep work: alice/martin/paul get 2 governance tokens using vesting
     {
         let current_time =
@@ -190,8 +192,8 @@ pub async fn multiple_stakers_get_correct_rewards() {
             AddLiquidStakeParams {
                 amount: utils::scale(1, Cortex::LM_DECIMALS),
             },
-            &cortex_stake_reward_mint,
             &test_setup.governance_realm_pda,
+            &lm_token_mint_pda,
         )
         .await
         .unwrap();
@@ -371,7 +373,8 @@ pub async fn multiple_stakers_get_correct_rewards() {
 
     // Assert all rewards got distributed
     {
-        let staking_pda = pda::get_staking_pda(perpetuals::state::staking::StakingType::LM).0;
+        let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+        let staking_pda = pda::get_staking_pda(&lm_token_mint_pda).0;
 
         let staking_account = utils::get_account::<Staking>(
             &mut test_setup.program_test_ctx.borrow_mut(),

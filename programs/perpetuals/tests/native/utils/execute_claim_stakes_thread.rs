@@ -26,10 +26,10 @@ pub async fn execute_claim_stakes_thread(
 ) -> std::result::Result<bool, BanksClientError> {
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
     let user_staking_pda = pda::get_user_staking_pda(&owner.pubkey()).0;
-    let staking_pda = pda::get_staking_pda(perpetuals::state::staking::StakingType::LM).0;
+    let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+    let staking_pda = pda::get_staking_pda(&lm_token_mint_pda).0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
-    let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
     let reward_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), staking_reward_token_mint).0;
     let lm_token_account_address =
