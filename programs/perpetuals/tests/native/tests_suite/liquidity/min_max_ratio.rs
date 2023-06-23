@@ -83,8 +83,6 @@ pub async fn min_max_ratio() {
 
     let alice = test_setup.get_user_keypair_by_name("alice");
 
-    let cortex_stake_reward_mint = test_setup.get_cortex_stake_reward_mint();
-
     let usdc_mint = &test_setup.get_mint_by_name("usdc");
 
     // Go over 60% ratio should trigger error
@@ -119,7 +117,6 @@ pub async fn min_max_ratio() {
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
         usdc_mint,
-        &cortex_stake_reward_mint,
         RemoveLiquidityParams {
             lp_amount_in: alice_lp_token_account_balance * 35 / 100,
             min_amount_out: 1

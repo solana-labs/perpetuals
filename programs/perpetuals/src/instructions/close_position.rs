@@ -48,11 +48,11 @@ pub struct ClosePosition<'info> {
 
     #[account(
         mut,
-        seeds = [b"staking", staking.staked_token_mint.as_ref()],
-        bump = staking.bump,
-        constraint = staking.reward_token_mint.key() == staking_reward_token_mint.key()
+        seeds = [b"staking", lm_staking.staked_token_mint.as_ref()],
+        bump = lm_staking.bump,
+        constraint = lm_staking.reward_token_mint.key() == lm_staking_reward_token_mint.key()
     )]
-    pub staking: Box<Account<'info, Staking>>,
+    pub lm_staking: Box<Account<'info, Staking>>,
 
     #[account(
         mut,
@@ -94,7 +94,7 @@ pub struct ClosePosition<'info> {
                  pool.key().as_ref(),
                  stake_reward_token_custody.mint.as_ref()],
         bump = stake_reward_token_custody.bump,
-        constraint = stake_reward_token_custody.mint == staking_reward_token_mint.key(),
+        constraint = stake_reward_token_custody.mint == lm_staking_reward_token_mint.key(),
     )]
     pub stake_reward_token_custody: Box<Account<'info, Custody>>,
 
@@ -148,11 +148,11 @@ pub struct ClosePosition<'info> {
 
     #[account(
         mut,
-        token::mint = staking.reward_token_mint,
-        seeds = [b"staking_reward_token_vault", staking.key().as_ref()],
-        bump = staking.reward_token_vault_bump
+        token::mint = lm_staking.reward_token_mint,
+        seeds = [b"staking_reward_token_vault", lm_staking.key().as_ref()],
+        bump = lm_staking.reward_token_vault_bump
     )]
-    pub staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
+    pub lm_staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
@@ -162,7 +162,7 @@ pub struct ClosePosition<'info> {
     pub lm_token_mint: Box<Account<'info, Mint>>,
 
     #[account()]
-    pub staking_reward_token_mint: Box<Account<'info, Mint>>,
+    pub lm_staking_reward_token_mint: Box<Account<'info, Mint>>,
 
     token_program: Program<'info, Token>,
     perpetuals_program: Program<'info, Perpetuals>,
@@ -418,7 +418,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
                 ctx.accounts
                     .collateral_custody_token_account
                     .to_account_info(),
-                ctx.accounts.staking_reward_token_vault.to_account_info(),
+                ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
                 ctx.accounts.transfer_authority.to_account_info(),
                 ctx.accounts.token_program.to_account_info(),
                 fee_amount,
@@ -431,7 +431,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
                 ctx.accounts
                     .collateral_custody_token_account
                     .to_account_info(),
-                ctx.accounts.staking_reward_token_vault.to_account_info(),
+                ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
                 ctx.accounts.lm_token_account.to_account_info(),
                 ctx.accounts.cortex.to_account_info(),
                 perpetuals.to_account_info(),
@@ -455,9 +455,9 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
                 ctx.accounts
                     .stake_reward_token_custody_token_account
                     .to_account_info(),
-                ctx.accounts.staking_reward_token_vault.to_account_info(),
-                ctx.accounts.staking_reward_token_mint.to_account_info(),
-                ctx.accounts.staking.to_account_info(),
+                ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
+                ctx.accounts.lm_staking_reward_token_mint.to_account_info(),
+                ctx.accounts.lm_staking.to_account_info(),
                 ctx.accounts.lm_token_mint.to_account_info(),
                 ctx.accounts.token_program.to_account_info(),
                 ctx.accounts.perpetuals_program.to_account_info(),

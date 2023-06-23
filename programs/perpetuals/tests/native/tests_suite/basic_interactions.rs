@@ -126,7 +126,6 @@ pub async fn basic_interactions() {
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
             eth_mint,
-            &cortex_stake_reward_mint,
             OpenPositionParams {
                 // max price paid (slippage implied)
                 price: utils::scale(1_550, USDC_DECIMALS),
@@ -146,7 +145,6 @@ pub async fn basic_interactions() {
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
             eth_mint,
-            &cortex_stake_reward_mint,
             &position_pda,
             ClosePositionParams {
                 // lowest exit price paid (slippage implied)
@@ -168,7 +166,6 @@ pub async fn basic_interactions() {
             eth_mint,
             // The program receives USDC
             usdc_mint,
-            &cortex_stake_reward_mint,
             SwapParams {
                 amount_in: utils::scale(150, USDC_DECIMALS),
 
@@ -201,7 +198,6 @@ pub async fn basic_interactions() {
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
             usdc_mint,
-            &cortex_stake_reward_mint,
             RemoveLiquidityParams {
                 lp_amount_in: alice_lp_token_balance,
                 min_amount_out: 1,

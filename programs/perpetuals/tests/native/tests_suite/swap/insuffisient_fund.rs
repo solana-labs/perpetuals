@@ -91,8 +91,6 @@ pub async fn test_staking_rewards_from_swap() {
 
     let martin = test_setup.get_user_keypair_by_name("martin");
 
-    let cortex_stake_reward_mint = test_setup.get_cortex_stake_reward_mint();
-
     let usdc_mint = &test_setup.get_mint_by_name("usdc");
     let eth_mint = &test_setup.get_mint_by_name("eth");
 
@@ -107,7 +105,6 @@ pub async fn test_staking_rewards_from_swap() {
             eth_mint,
             // The program receives USDC
             usdc_mint,
-            &cortex_stake_reward_mint,
             SwapParams {
                 amount_in: utils::scale(5_000, USDC_DECIMALS),
                 min_amount_out: 0,
@@ -128,7 +125,6 @@ pub async fn test_staking_rewards_from_swap() {
             usdc_mint,
             // The program receives ETH
             eth_mint,
-            &cortex_stake_reward_mint,
             SwapParams {
                 amount_in: utils::scale(10, ETH_DECIMALS),
                 min_amount_out: 0,

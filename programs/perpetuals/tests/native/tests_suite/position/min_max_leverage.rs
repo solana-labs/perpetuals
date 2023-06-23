@@ -98,8 +98,6 @@ pub async fn min_max_leverage() {
 
     let martin = test_setup.get_user_keypair_by_name("martin");
 
-    let cortex_stake_reward_mint = test_setup.get_cortex_stake_reward_mint();
-
     let eth_mint = &test_setup.get_mint_by_name("eth");
 
     // Martin: Open 1 ETH long position x10 should fail
@@ -110,7 +108,6 @@ pub async fn min_max_leverage() {
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
         eth_mint,
-        &cortex_stake_reward_mint,
         OpenPositionParams {
             // max price paid (slippage implied)
             price: utils::scale(1_550, ETH_DECIMALS),
@@ -129,7 +126,6 @@ pub async fn min_max_leverage() {
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
         eth_mint,
-        &cortex_stake_reward_mint,
         OpenPositionParams {
             // max price paid (slippage implied)
             price: utils::scale(1_550, ETH_DECIMALS),

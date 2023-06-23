@@ -100,7 +100,6 @@ pub async fn staking_rewards_generation() {
 
     let admin_a = test_setup.get_multisig_member_keypair_by_name("admin_a");
 
-    let cortex_stake_reward_mint = test_setup.get_cortex_stake_reward_mint();
     let multisig_signers = test_setup.get_multisig_signers();
 
     let eth_mint = &test_setup.get_mint_by_name("eth");
@@ -204,7 +203,6 @@ pub async fn staking_rewards_generation() {
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
             eth_mint,
-            &cortex_stake_reward_mint,
             OpenPositionParams {
                 // max price paid (slippage implied)
                 price: utils::scale(1_550, ETH_DECIMALS),
@@ -252,7 +250,6 @@ pub async fn staking_rewards_generation() {
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
             eth_mint,
-            &cortex_stake_reward_mint,
             &position_pda,
             ClosePositionParams {
                 // lowest exit price paid (slippage implied)
@@ -297,7 +294,6 @@ pub async fn staking_rewards_generation() {
             eth_mint,
             // The program receives USDC
             usdc_mint,
-            &cortex_stake_reward_mint,
             SwapParams {
                 amount_in: utils::scale(150, USDC_DECIMALS),
 
@@ -344,7 +340,6 @@ pub async fn staking_rewards_generation() {
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
             eth_mint,
-            &cortex_stake_reward_mint,
             RemoveLiquidityParams {
                 lp_amount_in: utils::scale(1, Perpetuals::LP_DECIMALS),
                 min_amount_out: 0,

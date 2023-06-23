@@ -4,7 +4,7 @@ use {
     bonfida_test_utils::ProgramTestContextExt,
     perpetuals::{
         instructions::OpenPositionParams,
-        state::{custody::Custody, position::Position},
+        state::{custody::Custody, position::Position, staking::Staking},
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
@@ -16,7 +16,6 @@ pub async fn open_position(
     payer: &Keypair,
     pool_pda: &Pubkey,
     custody_token_mint: &Pubkey,
-    staking_reward_token_mint: &Pubkey,
     params: OpenPositionParams,
 ) -> std::result::Result<(Pubkey, u8), BanksClientError> {
     // ==== WHEN ==============================================================
@@ -31,7 +30,7 @@ pub async fn open_position(
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
     let (position_pda, position_bump) =
         pda::get_position_pda(&owner.pubkey(), pool_pda, &custody_pda, params.side);
-    let staking_pda = pda::get_staking_pda(&lm_token_mint_pda).0;
+    let lm_staking_pda = pda::get_staking_pda(&lm_token_mint_pda).0;
 
     let funding_account_address =
         utils::find_associated_token_account(&owner.pubkey(), custody_token_mint).0;
@@ -41,11 +40,14 @@ pub async fn open_position(
     let custody_account = utils::get_account::<Custody>(program_test_ctx, custody_pda).await;
     let custody_oracle_account_address = custody_account.oracle.oracle_account;
 
-    let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda(&staking_pda).0;
+    let lm_staking_reward_token_vault_pda =
+        pda::get_staking_reward_token_vault_pda(&lm_staking_pda).0;
 
-    let srt_custody_pda = pda::get_custody_pda(pool_pda, staking_reward_token_mint).0;
+    let lm_staking_account = utils::get_account::<Staking>(program_test_ctx, lm_staking_pda).await;
+
+    let srt_custody_pda = pda::get_custody_pda(pool_pda, &lm_staking_account.reward_token_mint).0;
     let srt_custody_token_account_pda =
-        pda::get_custody_token_account_pda(pool_pda, staking_reward_token_mint).0;
+        pda::get_custody_token_account_pda(pool_pda, &lm_staking_account.reward_token_mint).0;
     let srt_custody_account =
         utils::get_account::<Custody>(program_test_ctx, srt_custody_pda).await;
     let srt_custody_oracle_account_address = srt_custody_account.oracle.oracle_account;
@@ -71,7 +73,7 @@ pub async fn open_position(
             funding_account: funding_account_address,
             lm_token_account: lm_token_account_address,
             transfer_authority: transfer_authority_pda,
-            staking: staking_pda,
+            lm_staking: lm_staking_pda,
             cortex: cortex_pda,
             perpetuals: perpetuals_pda,
             pool: *pool_pda,
@@ -81,9 +83,9 @@ pub async fn open_position(
             stake_reward_token_custody: srt_custody_pda,
             stake_reward_token_custody_oracle_account: srt_custody_oracle_account_address,
             stake_reward_token_custody_token_account: srt_custody_token_account_pda,
-            staking_reward_token_vault: staking_reward_token_vault_pda, // the stake reward vault
+            lm_staking_reward_token_vault: lm_staking_reward_token_vault_pda, // the stake reward vault
             lm_token_mint: lm_token_mint_pda,
-            staking_reward_token_mint: *staking_reward_token_mint,
+            lm_staking_reward_token_mint: lm_staking_account.reward_token_mint,
             collateral_custody: custody_pda,
             collateral_custody_oracle_account: custody_oracle_account_address,
             collateral_custody_token_account: custody_token_account_pda,

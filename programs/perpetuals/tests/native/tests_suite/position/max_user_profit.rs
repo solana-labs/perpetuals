@@ -97,8 +97,6 @@ pub async fn max_user_profit() {
 
     let martin = test_setup.get_user_keypair_by_name("martin");
 
-    let cortex_stake_reward_mint = test_setup.get_cortex_stake_reward_mint();
-
     let admin_a = test_setup.get_multisig_member_keypair_by_name("admin_a");
 
     let multisig_signers = test_setup.get_multisig_signers();
@@ -112,7 +110,6 @@ pub async fn max_user_profit() {
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
         eth_mint,
-        &cortex_stake_reward_mint,
         OpenPositionParams {
             // max price paid (slippage implied)
             price: utils::scale(1_550, ETH_DECIMALS),
@@ -160,7 +157,6 @@ pub async fn max_user_profit() {
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
         eth_mint,
-        &cortex_stake_reward_mint,
         &position_pda,
         ClosePositionParams {
             // lowest exit price paid (slippage implied)
