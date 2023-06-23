@@ -8,7 +8,7 @@ use {
         instructions::{
             AddLiquidStakeParams, AddLiquidityParams, AddVestParams, RemoveLiquidStakeParams,
         },
-        state::{cortex::Cortex, staking::StakingRound},
+        state::{cortex::Cortex, perpetuals::Perpetuals, staking::StakingRound},
     },
     solana_sdk::signer::Signer,
 };
@@ -164,7 +164,7 @@ pub async fn liquid_staking() {
     .await
     .unwrap();
 
-    // Alice: add liquid staking
+    // Alice: add LM liquid staking
     test_instructions::add_liquid_stake(
         &mut test_setup.program_test_ctx.borrow_mut(),
         alice,
@@ -311,7 +311,7 @@ pub async fn liquid_staking() {
         .unwrap();
     }
 
-    // Alice: add liquid staking when staking is already pending
+    // Alice: add LM liquid stake when staking is already pending
     test_instructions::add_liquid_stake(
         &mut test_setup.program_test_ctx.borrow_mut(),
         alice,
@@ -429,4 +429,26 @@ pub async fn liquid_staking() {
     )
     .await
     .unwrap();
+
+    {
+        //
+        //
+        //
+        //
+        //
+
+        // Alice: add LP liquid staking
+        test_instructions::add_liquid_stake(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            &test_setup.payer_keypair,
+            AddLiquidStakeParams {
+                amount: utils::scale(1, Perpetuals::LP_DECIMALS),
+            },
+            &test_setup.governance_realm_pda,
+            &test_setup.lp_token_mint_pda,
+        )
+        .await
+        .unwrap();
+    }
 }

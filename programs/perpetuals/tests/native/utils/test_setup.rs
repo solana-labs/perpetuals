@@ -6,11 +6,14 @@ use {
     },
     bonfida_test_utils::ProgramTestExt,
     perpetuals::{
-        instructions::{AddCustodyParams, AddLiquidityParams, SetCustomOraclePriceParams},
+        instructions::{
+            AddCustodyParams, AddLiquidityParams, InitStakingParams, SetCustomOraclePriceParams,
+        },
         state::{
             custody::{BorrowRateParams, Fees, PricingParams},
             perpetuals::Permissions,
             pool::TokenRatios,
+            staking::StakingType,
         },
     },
     solana_program::pubkey::Pubkey,
@@ -236,10 +239,7 @@ impl TestSetup {
 
         let multisig_signers: Vec<&Keypair> = multisig_members.values().collect();
 
-        let cortex_stake_reward_mint = &mints
-            .get(&cortex_stake_reward_mint_name.to_string())
-            .unwrap()
-            .pubkey;
+        let staking_reward_token_mint = &mints.get(cortex_stake_reward_mint_name).unwrap().pubkey;
 
         let governance_realm_pda = pda::get_governance_realm_pda(governance_realm_name.to_string());
         let gov_token_mint_pda = pda::get_governance_token_mint_pda().0;
@@ -256,7 +256,7 @@ impl TestSetup {
                 ecosystem_bucket_allocation,
             ),
             &governance_realm_pda,
-            cortex_stake_reward_mint,
+            staking_reward_token_mint,
             &multisig_signers,
         )
         .await
@@ -357,7 +357,6 @@ impl TestSetup {
                 payer_keypair,
                 pool_name,
                 &multisig_signers,
-                cortex_stake_reward_mint,
             )
             .await
             .unwrap();
@@ -463,6 +462,23 @@ impl TestSetup {
 
             custodies_info
         };
+
+        // Initialize LP staking
+        {
+            test_instructions::init_staking(
+                &mut program_test_ctx.borrow_mut(),
+                &multisig_members_keypairs[0],
+                payer_keypair,
+                staking_reward_token_mint,
+                &lp_token_mint_pda,
+                &InitStakingParams {
+                    staking_type: StakingType::LP,
+                },
+                &multisig_signers,
+            )
+            .await
+            .unwrap();
+        }
 
         // Initialize users token accounts for lp token mint
         {

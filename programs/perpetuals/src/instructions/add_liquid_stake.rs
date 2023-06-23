@@ -7,7 +7,7 @@ use {
         state::{
             cortex::Cortex,
             perpetuals::Perpetuals,
-            staking::Staking,
+            staking::{Staking, StakingType},
             user_staking::{UserStaking, USER_STAKING_THREAD_AUTHORITY_SEED},
         },
     },
@@ -277,8 +277,15 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
         )?;
     }
 
-    // update Staking data
-    {
+    // LP Staking receive LM token rewards, but no extra real yield rewards
+    if staking.staking_type.eq(&StakingType::LP) {
+        // apply delta to next round taking into account real yield multiplier
+        staking.next_staking_round.total_stake =
+            math::checked_add(staking.next_staking_round.total_stake, params.amount)?;
+    }
+
+    // LM Staking receive extra real yield rewards but no LM token rewards
+    if staking.staking_type.eq(&StakingType::LM) {
         // apply delta to next round taking into account real yield multiplier
         staking.next_staking_round.total_stake =
             math::checked_add(staking.next_staking_round.total_stake, params.amount)?;

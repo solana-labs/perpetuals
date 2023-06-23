@@ -32,7 +32,10 @@ pub mod perpetuals {
     use super::*;
 
     // admin instructions
-    pub fn init(ctx: Context<Init>, params: InitParams) -> Result<()> {
+    pub fn init<'info>(
+        ctx: Context<'_, '_, '_, 'info, Init<'info>>,
+        params: InitParams,
+    ) -> Result<()> {
         instructions::init(ctx, &params)
     }
 
@@ -249,6 +252,13 @@ pub mod perpetuals {
         params: InitUserStakingParams,
     ) -> Result<()> {
         instructions::init_user_staking(ctx, &params)
+    }
+
+    pub fn init_staking<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitStaking<'info>>,
+        params: InitStakingParams,
+    ) -> Result<u8> {
+        instructions::init_staking(ctx, &params)
     }
 
     pub fn add_liquid_stake(

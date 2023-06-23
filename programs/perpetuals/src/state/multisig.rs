@@ -37,6 +37,7 @@ pub enum AdminInstruction {
     SetTestTime,
     UpgradeCustody,
     MintLmTokensFromBucket,
+    InitStaking,
 }
 
 impl Multisig {

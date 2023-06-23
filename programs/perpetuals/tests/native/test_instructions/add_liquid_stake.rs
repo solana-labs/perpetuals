@@ -31,6 +31,9 @@ pub async fn add_liquid_stake(
         pda::get_staking_lm_reward_token_vault_pda(&staking_pda).0;
     let governance_token_mint_pda = pda::get_governance_token_mint_pda().0;
 
+    let funding_account_address =
+        utils::find_associated_token_account(&owner.pubkey(), staked_token_mint).0;
+
     let staking_account = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
 
     let reward_token_account_address =
@@ -63,7 +66,7 @@ pub async fn add_liquid_stake(
         utils::get_token_account_balance(program_test_ctx, governance_governing_token_holding_pda)
             .await;
     let funding_account_before =
-        utils::get_token_account_balance(program_test_ctx, lm_token_account_address).await;
+        utils::get_token_account_balance(program_test_ctx, funding_account_address).await;
 
     let stakes_claim_cron_thread_address = pda::get_thread_address(
         &user_staking_thread_authority_pda,
@@ -77,7 +80,7 @@ pub async fn add_liquid_stake(
         program_test_ctx,
         perpetuals::accounts::AddLiquidStake {
             owner: owner.pubkey(),
-            funding_account: lm_token_account_address,
+            funding_account: funding_account_address,
             reward_token_account: reward_token_account_address,
             lm_token_account: lm_token_account_address,
             staking_staked_token_vault: staking_staked_token_vault_pda,
@@ -123,7 +126,7 @@ pub async fn add_liquid_stake(
         utils::get_account::<UserStaking>(program_test_ctx, user_staking_pda).await;
 
     let funding_account_after =
-        utils::get_token_account_balance(program_test_ctx, lm_token_account_address).await;
+        utils::get_token_account_balance(program_test_ctx, funding_account_address).await;
 
     // Check changes in staking account
     {

@@ -63,6 +63,7 @@ pub async fn init(
             lm_staking_reward_token_mint: *staking_reward_token_mint,
             system_program: anchor_lang::system_program::ID,
             token_program: anchor_spl::token::ID,
+            rent: solana_program::sysvar::rent::ID,
         };
 
         let mut accounts_meta = accounts.to_account_metas(None);
