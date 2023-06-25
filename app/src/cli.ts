@@ -68,7 +68,7 @@ async function addCustody(
   let oracleConfig = {
     maxPriceError: new BN(10000),
     maxPriceAgeSec: 60,
-    oracleType: { pyth: {} },
+    oracleType: { custom: {} },
     oracleAccount: tokenOracle,
   };
   let pricingConfig = {
@@ -159,6 +159,58 @@ async function upgradeCustody(poolName: string, tokenMint: PublicKey) {
   client.upgradeCustody(poolName, tokenMint);
 }
 
+async function setCustomOraclePrice(
+  poolName: string,
+  tokenMint: PublicKey,
+  price: number,
+  exponent: number,
+  confidence: number,
+  ema: number
+) {
+  let priceConfig = {
+    price: new BN(price),
+    expo: exponent,
+    conf: new BN(confidence),
+    ema: new BN(ema),
+    publishTime: new BN(client.getTime()),
+  };
+  client.setCustomOraclePrice(poolName, tokenMint, priceConfig);
+}
+
+async function addLiquidity(
+  poolName: string,
+  tokenMint: PublicKey,
+  amountIn: number,
+  minLpAmountOut: number
+) {
+  client.addLiquidity(
+    poolName,
+    tokenMint,
+    new BN(amountIn),
+    new BN(minLpAmountOut)
+  );
+}
+
+async function openPosition(
+  poolName: string,
+  tokenMint: PublicKey,
+  collateralMint: PublicKey,
+  side: string,
+  price: number,
+  collateral: number,
+  size: number
+) {
+  client.openPosition(
+    poolName,
+    tokenMint,
+    collateralMint,
+    side,
+    new BN(price),
+    new BN(collateral),
+    new BN(size)
+  );
+}
+
 async function getUserPosition(
   wallet: PublicKey,
   poolName: string,
@@ -239,6 +291,16 @@ async function getOraclePrice(
   useEma: boolean
 ) {
   client.prettyPrint(await client.getOraclePrice(poolName, tokenMint, useEma));
+}
+
+async function getCustomOracleAccount(poolName: string, tokenMint: PublicKey) {
+  client.prettyPrint(
+    await client.getCustodyCustomOracleAccountKey(poolName, tokenMint)
+  );
+}
+
+async function getLpTokenMint(poolName: string) {
+  client.prettyPrint(await client.getPoolLpTokenKey(poolName));
 }
 
 async function getLiquidationPrice(
@@ -462,6 +524,67 @@ async function getAum(poolName: string) {
     });
 
   program
+    .command("set-oracle-price")
+    .description("Set custom oracle price")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .requiredOption("-p, --price <int>", "Current price as integer")
+    .requiredOption("-e, --exponent <int>", "Price exponent")
+    .requiredOption("-c, --confidence <int>", "Confidence")
+    .requiredOption("-m, --ema <int>", "EMA price as integer")
+    .action(async (poolName, tokenMint, options) => {
+      await setCustomOraclePrice(
+        poolName,
+        new PublicKey(tokenMint),
+        options.price,
+        options.exponent,
+        options.confidence,
+        options.ema
+      );
+    });
+
+  program
+    .command("add-liquidity")
+    .description("Deposit liquidity to the custody")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .requiredOption("-i, --amount-in <int>", "Amount to deposit")
+    .requiredOption(
+      "-o, --min-amount-out <int>",
+      "Minimum LP amount to receive"
+    )
+    .action(async (poolName, tokenMint, options) => {
+      await addLiquidity(
+        poolName,
+        new PublicKey(tokenMint),
+        options.amountIn,
+        options.minAmountOut
+      );
+    });
+
+  program
+    .command("open-position")
+    .description("Open a new perpetuals position")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .argument("<pubkey>", "Collateral mint")
+    .argument("<string>", "Position side (long / short)")
+    .requiredOption("-p, --price <int>", "Entry price")
+    .requiredOption("-c, --collateral <int>", "Collateral amount")
+    .requiredOption("-s, --size <int>", "Position size")
+    .action(async (poolName, tokenMint, collateralMint, side, options) => {
+      await openPosition(
+        poolName,
+        new PublicKey(tokenMint),
+        new PublicKey(collateralMint),
+        side,
+        options.price,
+        options.collateral,
+        options.size
+      );
+    });
+
+  program
     .command("get-user-position")
     .description("Print user position metadata")
     .argument("<pubkey>", "User wallet")
@@ -573,6 +696,23 @@ async function getAum(poolName: string) {
     .option("-e, --ema", "Return EMA price")
     .action(async (poolName, tokenMint, options) => {
       await getOraclePrice(poolName, new PublicKey(tokenMint), options.ema);
+    });
+
+  program
+    .command("get-custom-oracle-account")
+    .description("Get custom oracle account address for the token")
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Token mint")
+    .action(async (poolName, tokenMint, options) => {
+      await getCustomOracleAccount(poolName, new PublicKey(tokenMint));
+    });
+
+  program
+    .command("get-lp-token-mint")
+    .description("Get LP token mint address for the pool")
+    .argument("<string>", "Pool name")
+    .action(async (poolName, options) => {
+      await getLpTokenMint(poolName);
     });
 
   program
