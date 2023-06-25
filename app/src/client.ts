@@ -14,7 +14,11 @@ import {
   Keypair,
   SYSVAR_RENT_PUBKEY,
 } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import {
+  getAssociatedTokenAddress,
+  getOrCreateAssociatedTokenAccount,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
 import { sha256 } from "js-sha256";
 import { encode } from "bs58";
 import { readFileSync } from "fs";
@@ -151,22 +155,20 @@ export class PerpetualsClient {
   getCustodies = async (poolName: string) => {
     //return this.program.account.custody.all();
     let pool = await this.getPool(poolName);
-    return this.program.account.custody.fetchMultiple(
-      pool.tokens.map((t) => t.custody)
-    );
+    return this.program.account.custody.fetchMultiple(pool.custodies);
   };
 
   getCustodyMetas = async (poolName: string) => {
     let pool = await this.getPool(poolName);
     let custodies = await this.program.account.custody.fetchMultiple(
-      pool.tokens.map((t) => t.custody)
+      pool.custodies
     );
     let custodyMetas = [];
-    for (const token of pool.tokens) {
+    for (const custody of pool.custodies) {
       custodyMetas.push({
         isSigner: false,
         isWritable: false,
-        pubkey: token.custody,
+        pubkey: custody,
       });
     }
     for (const custody of custodies) {
@@ -232,7 +234,7 @@ export class PerpetualsClient {
     let positions = await this.provider.connection.getProgramAccounts(
       this.program.programId,
       {
-        filters: [{ dataSize: 200 }, { memcmp: { bytes: data, offset: 0 } }],
+        filters: [{ dataSize: 232 }, { memcmp: { bytes: data, offset: 0 } }],
       }
     );
     return Promise.all(
@@ -251,7 +253,7 @@ export class PerpetualsClient {
     let positions = await this.provider.connection.getProgramAccounts(
       this.program.programId,
       {
-        filters: [{ dataSize: 200 }, { memcmp: { bytes: data, offset: 40 } }],
+        filters: [{ dataSize: 232 }, { memcmp: { bytes: data, offset: 40 } }],
       }
     );
     return Promise.all(
@@ -268,6 +270,13 @@ export class PerpetualsClient {
   getAccountDiscriminator = (name: string) => {
     return Buffer.from(sha256.digest(`account:${name}`)).slice(0, 8);
   };
+
+  getTime() {
+    const now = new Date();
+    const utcMilllisecondsSinceEpoch =
+      now.getTime() + now.getTimezoneOffset() * 60 * 1000;
+    return utcMilllisecondsSinceEpoch / 1000;
+  }
 
   log = (...message: string) => {
     let date = new Date();
@@ -478,6 +487,76 @@ export class PerpetualsClient {
       });
   };
 
+  setCustomOraclePrice = async (
+    poolName: string,
+    tokenMint: PublicKey,
+    priceConfig
+  ) => {
+    await this.program.methods
+      .setCustomOraclePrice(priceConfig)
+      .accounts({
+        admin: this.admin.publicKey,
+        multisig: this.multisig.publicKey,
+        perpetuals: this.perpetuals.publicKey,
+        pool: this.getPoolKey(poolName),
+        custody: this.getCustodyKey(poolName, tokenMint),
+        oracleAccount: this.getCustodyCustomOracleAccountKey(
+          poolName,
+          tokenMint
+        ),
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([this.admin])
+      .rpc()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
+  };
+
+  addLiquidity = async (
+    poolName: string,
+    tokenMint: PublicKey,
+    amountIn: BN,
+    minLpAmountOut: BN
+  ) => {
+    let lpTokenMint = this.getPoolLpTokenKey(poolName);
+
+    return await this.program.methods
+      .addLiquidity({ amountIn, minLpAmountOut })
+      .accounts({
+        owner: this.provider.wallet.publicKey,
+        fundingAccount: await getAssociatedTokenAddress(
+          tokenMint,
+          this.provider.wallet.publicKey
+        ),
+        lpTokenAccount: await getAssociatedTokenAddress(
+          lpTokenMint,
+          this.provider.wallet.publicKey
+        ),
+        transferAuthority: this.authority.publicKey,
+        perpetuals: this.perpetuals.publicKey,
+        pool: this.getPoolKey(poolName),
+        custody: this.getCustodyKey(poolName, tokenMint),
+        custodyOracleAccount: await this.getCustodyOracleAccountKey(
+          poolName,
+          tokenMint
+        ),
+        custodyTokenAccount: this.getCustodyTokenAccountKey(
+          poolName,
+          tokenMint
+        ),
+        lpTokenMint,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .remainingAccounts(await this.getCustodyMetas(poolName))
+      .rpc()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
+  };
+
   liquidate = async (
     wallet: PublicKey,
     poolName: string,
@@ -498,19 +577,74 @@ export class PerpetualsClient {
         pool: this.getPoolKey(poolName),
         position: this.getPositionKey(wallet, poolName, tokenMint, side),
         custody: this.getCustodyKey(poolName, tokenMint),
-        custodyOracleAccount: this.getCustodyOracleAccountKey(
+        custodyOracleAccount: await this.getCustodyOracleAccountKey(
           poolName,
           tokenMint
         ),
         collateralCustody: this.getCustodyKey(poolName, collateralMint),
-        collateralCustodyOracleAccount: this.getCustodyOracleAccountKey(
+        collateralCustodyOracleAccount: await this.getCustodyOracleAccountKey(
           poolName,
           collateralMint
         ),
         collateralCustodyTokenAccount: this.getCustodyTokenAccountKey(
           poolName,
+          collateralMint
+        ),
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .rpc()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
+  };
+
+  openPosition = async (
+    poolName: string,
+    tokenMint: PublicKey,
+    collateralMint: PublicKey,
+    side: PositionSide,
+    price: BN,
+    collateral: BN,
+    size: BN
+  ) => {
+    return await this.program.methods
+      .openPosition({
+        price,
+        collateral,
+        size,
+        side: side === "long" ? { long: {} } : { short: {} },
+      })
+      .accounts({
+        owner: this.provider.wallet.publicKey,
+        fundingAccount: await getAssociatedTokenAddress(
+          collateralMint,
+          this.provider.wallet.publicKey
+        ),
+        transferAuthority: this.authority.publicKey,
+        perpetuals: this.perpetuals.publicKey,
+        pool: this.getPoolKey(poolName),
+        position: this.getPositionKey(
+          this.provider.wallet.publicKey,
+          poolName,
+          tokenMint,
+          side
+        ),
+        custody: this.getCustodyKey(poolName, tokenMint),
+        custodyOracleAccount: await this.getCustodyOracleAccountKey(
+          poolName,
           tokenMint
         ),
+        collateralCustody: this.getCustodyKey(poolName, collateralMint),
+        collateralCustodyOracleAccount: await this.getCustodyOracleAccountKey(
+          poolName,
+          collateralMint
+        ),
+        collateralCustodyTokenAccount: this.getCustodyTokenAccountKey(
+          poolName,
+          collateralMint
+        ),
+        systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .rpc()
@@ -533,7 +667,7 @@ export class PerpetualsClient {
         perpetuals: this.perpetuals.publicKey,
         pool: this.getPoolKey(poolName),
         custody: this.getCustodyKey(poolName, tokenMint),
-        custodyOracleAccount: this.getCustodyOracleAccountKey(
+        custodyOracleAccount: await this.getCustodyOracleAccountKey(
           poolName,
           tokenMint
         ),
@@ -558,13 +692,13 @@ export class PerpetualsClient {
         perpetuals: this.perpetuals.publicKey,
         pool: this.getPoolKey(poolName),
         custody: this.getCustodyKey(poolName, tokenMint),
-        custodyOracleAccount: this.getCustodyOracleAccountKey(
+        custodyOracleAccount: await this.getCustodyOracleAccountKey(
           poolName,
           tokenMint
         ),
         lpTokenMint: this.getPoolLpTokenKey(poolName),
       })
-      .remainingAccounts(this.getCustodyMetas(poolName))
+      .remainingAccounts(await this.getCustodyMetas(poolName))
       .view()
       .catch((err) => {
         console.error(err);
@@ -585,13 +719,13 @@ export class PerpetualsClient {
         perpetuals: this.perpetuals.publicKey,
         pool: this.getPoolKey(poolName),
         custody: this.getCustodyKey(poolName, tokenMint),
-        custodyOracleAccount: this.getCustodyOracleAccountKey(
+        custodyOracleAccount: await this.getCustodyOracleAccountKey(
           poolName,
           tokenMint
         ),
         lpTokenMint: this.getPoolLpTokenKey(poolName),
       })
-      .remainingAccounts(this.getCustodyMetas(poolName))
+      .remainingAccounts(await this.getCustodyMetas(poolName))
       .view()
       .catch((err) => {
         console.error(err);
@@ -617,12 +751,12 @@ export class PerpetualsClient {
         perpetuals: this.perpetuals.publicKey,
         pool: this.getPoolKey(poolName),
         custody: this.getCustodyKey(poolName, tokenMint),
-        custodyOracleAccount: this.getCustodyOracleAccountKey(
+        custodyOracleAccount: await this.getCustodyOracleAccountKey(
           poolName,
           tokenMint
         ),
         collateralCustody: this.getCustodyKey(poolName, collateralMint),
-        collateralCustodyOracleAccount: this.getCustodyOracleAccountKey(
+        collateralCustodyOracleAccount: await this.getCustodyOracleAccountKey(
           poolName,
           collateralMint
         ),
@@ -647,7 +781,7 @@ export class PerpetualsClient {
         pool: this.getPoolKey(poolName),
         position: this.getPositionKey(wallet, poolName, tokenMint, side),
         custody: this.getCustodyKey(poolName, tokenMint),
-        custodyOracleAccount: this.getCustodyOracleAccountKey(
+        custodyOracleAccount: await this.getCustodyOracleAccountKey(
           poolName,
           tokenMint
         ),
@@ -678,12 +812,12 @@ export class PerpetualsClient {
         pool: this.getPoolKey(poolName),
         position: this.getPositionKey(wallet, poolName, tokenMint, side),
         custody: this.getCustodyKey(poolName, tokenMint),
-        custodyOracleAccount: this.getCustodyOracleAccountKey(
+        custodyOracleAccount: await this.getCustodyOracleAccountKey(
           poolName,
           tokenMint
         ),
         collateralCustody: this.getCustodyKey(poolName, collateralMint),
-        collateralCustodyOracleAccount: this.getCustodyOracleAccountKey(
+        collateralCustodyOracleAccount: await this.getCustodyOracleAccountKey(
           poolName,
           collateralMint
         ),
@@ -709,12 +843,12 @@ export class PerpetualsClient {
         pool: this.getPoolKey(poolName),
         position: this.getPositionKey(wallet, poolName, tokenMint, side),
         custody: this.getCustodyKey(poolName, tokenMint),
-        custodyOracleAccount: this.getCustodyOracleAccountKey(
+        custodyOracleAccount: await this.getCustodyOracleAccountKey(
           poolName,
           tokenMint
         ),
         collateralCustody: this.getCustodyKey(poolName, collateralMint),
-        collateralCustodyOracleAccount: this.getCustodyOracleAccountKey(
+        collateralCustodyOracleAccount: await this.getCustodyOracleAccountKey(
           poolName,
           collateralMint
         ),
@@ -740,12 +874,12 @@ export class PerpetualsClient {
         pool: this.getPoolKey(poolName),
         position: this.getPositionKey(wallet, poolName, tokenMint, side),
         custody: this.getCustodyKey(poolName, tokenMint),
-        custodyOracleAccount: this.getCustodyOracleAccountKey(
+        custodyOracleAccount: await this.getCustodyOracleAccountKey(
           poolName,
           tokenMint
         ),
         collateralCustody: this.getCustodyKey(poolName, collateralMint),
-        collateralCustodyOracleAccount: this.getCustodyOracleAccountKey(
+        collateralCustodyOracleAccount: await this.getCustodyOracleAccountKey(
           poolName,
           collateralMint
         ),
@@ -771,12 +905,12 @@ export class PerpetualsClient {
         perpetuals: this.perpetuals.publicKey,
         pool: this.getPoolKey(poolName),
         receivingCustody: this.getCustodyKey(poolName, tokenMintIn),
-        receivingCustodyOracleAccount: this.getCustodyOracleAccountKey(
+        receivingCustodyOracleAccount: await this.getCustodyOracleAccountKey(
           poolName,
           tokenMintIn
         ),
         dispensingCustody: this.getCustodyKey(poolName, tokenMintOut),
-        dispensingCustodyOracleAccount: this.getCustodyOracleAccountKey(
+        dispensingCustodyOracleAccount: await this.getCustodyOracleAccountKey(
           poolName,
           tokenMintOut
         ),
@@ -795,7 +929,7 @@ export class PerpetualsClient {
         perpetuals: this.perpetuals.publicKey,
         pool: this.getPoolKey(poolName),
       })
-      .remainingAccounts(this.getCustodyMetas(poolName))
+      .remainingAccounts(await this.getCustodyMetas(poolName))
       .view()
       .catch((err) => {
         console.error(err);
