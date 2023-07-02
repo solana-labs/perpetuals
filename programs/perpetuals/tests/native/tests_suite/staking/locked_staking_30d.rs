@@ -213,7 +213,7 @@ pub async fn locked_staking_30d() {
             alice,
             alice,
             &test_setup.payer_keypair,
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
         )
         .await
         .unwrap();
@@ -248,7 +248,7 @@ pub async fn locked_staking_30d() {
             alice,
             alice,
             &test_setup.payer_keypair,
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
         )
         .await
         .unwrap();
@@ -286,7 +286,7 @@ pub async fn locked_staking_30d() {
             alice,
             alice,
             &test_setup.payer_keypair,
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
         )
         .await
         .unwrap();
@@ -313,7 +313,7 @@ pub async fn locked_staking_30d() {
             alice,
             alice,
             &test_setup.payer_keypair,
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
         )
         .await
         .unwrap();
@@ -347,7 +347,7 @@ pub async fn locked_staking_30d() {
             alice,
             alice,
             &test_setup.payer_keypair,
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
         )
         .await
         .unwrap();

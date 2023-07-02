@@ -319,5 +319,11 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
         }
     }
 
+    msg!(
+        "Current staking round : {:?}",
+        staking.current_staking_round
+    );
+    msg!("Next staking round : {:?}", staking.next_staking_round);
+
     Ok(())
 }

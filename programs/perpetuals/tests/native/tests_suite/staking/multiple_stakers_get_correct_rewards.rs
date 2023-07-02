@@ -249,7 +249,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
             alice,
             alice,
             &test_setup.payer_keypair,
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
         )
         .await
         .unwrap();
@@ -269,7 +269,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
             alice,
             alice,
             &test_setup.payer_keypair,
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
         )
         .await
         .unwrap();
@@ -302,7 +302,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
                 alice,
                 alice,
                 &test_setup.payer_keypair,
-                &cortex_stake_reward_mint,
+                &lm_token_mint_pda,
             )
             .await
             .unwrap();
@@ -329,7 +329,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
                 martin,
                 martin,
                 &test_setup.payer_keypair,
-                &cortex_stake_reward_mint,
+                &lm_token_mint_pda,
             )
             .await
             .unwrap();
@@ -356,7 +356,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
                 paul,
                 paul,
                 &test_setup.payer_keypair,
-                &cortex_stake_reward_mint,
+                &lm_token_mint_pda,
             )
             .await
             .unwrap();

@@ -92,7 +92,6 @@ pub async fn resolved_round_overflow() {
 
     let admin_a = test_setup.get_multisig_member_keypair_by_name("admin_a");
 
-    let cortex_stake_reward_mint = test_setup.get_cortex_stake_reward_mint();
     let multisig_signers = test_setup.get_multisig_signers();
 
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
@@ -219,7 +218,7 @@ pub async fn resolved_round_overflow() {
                 alice,
                 alice,
                 &test_setup.payer_keypair,
-                &cortex_stake_reward_mint,
+                &lm_token_mint_pda,
             )
             .await
             .unwrap();
@@ -264,7 +263,7 @@ pub async fn resolved_round_overflow() {
                 alice,
                 alice,
                 &test_setup.payer_keypair,
-                &cortex_stake_reward_mint,
+                &lm_token_mint_pda,
             )
             .await
             .unwrap();

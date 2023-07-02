@@ -148,35 +148,72 @@ pub async fn liquid_staking() {
     let alice_staking_reward_token_account_address =
         utils::find_associated_token_account(&alice.pubkey(), &cortex_stake_reward_mint).0;
 
+    let alice_lm_token_account_address =
+        utils::find_associated_token_account(&alice.pubkey(), &lm_token_mint_pda).0;
+
     let stakes_claim_cron_thread_id =
         utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
             as u64;
 
-    test_instructions::init_user_staking(
-        &mut test_setup.program_test_ctx.borrow_mut(),
-        alice,
-        &test_setup.payer_keypair,
-        &lm_token_mint_pda,
-        perpetuals::instructions::InitUserStakingParams {
-            stakes_claim_cron_thread_id,
-        },
-    )
-    .await
-    .unwrap();
+    {
+        // LM Staking
+        test_instructions::init_user_staking(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            &test_setup.payer_keypair,
+            &lm_token_mint_pda,
+            perpetuals::instructions::InitUserStakingParams {
+                stakes_claim_cron_thread_id,
+            },
+        )
+        .await
+        .unwrap();
+
+        // LP Staking
+        test_instructions::init_user_staking(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.lp_token_mint_pda,
+            perpetuals::instructions::InitUserStakingParams {
+                stakes_claim_cron_thread_id,
+            },
+        )
+        .await
+        .unwrap();
+    }
 
     // Alice: add LM liquid staking
-    test_instructions::add_liquid_stake(
-        &mut test_setup.program_test_ctx.borrow_mut(),
-        alice,
-        &test_setup.payer_keypair,
-        AddLiquidStakeParams {
-            amount: utils::scale(1, Cortex::LM_DECIMALS),
-        },
-        &test_setup.governance_realm_pda,
-        &lm_token_mint_pda,
-    )
-    .await
-    .unwrap();
+    {
+        test_instructions::add_liquid_stake(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            &test_setup.payer_keypair,
+            AddLiquidStakeParams {
+                amount: utils::scale(1, Cortex::LM_DECIMALS),
+            },
+            &test_setup.governance_realm_pda,
+            &lm_token_mint_pda,
+        )
+        .await
+        .unwrap();
+    }
+
+    // Alice: add LP liquid staking
+    {
+        test_instructions::add_liquid_stake(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            &test_setup.payer_keypair,
+            AddLiquidStakeParams {
+                amount: utils::scale(1, Perpetuals::LP_DECIMALS),
+            },
+            &test_setup.governance_realm_pda,
+            &test_setup.lp_token_mint_pda,
+        )
+        .await
+        .unwrap();
+    }
 
     utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
@@ -188,12 +225,28 @@ pub async fn liquid_staking() {
         )
         .await;
 
+        let lm_balance_before = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice_lm_token_account_address,
+        )
+        .await;
+
         test_instructions::claim_stakes(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             alice,
             &test_setup.payer_keypair,
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
+        )
+        .await
+        .unwrap();
+
+        test_instructions::claim_stakes(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.lp_token_mint_pda,
         )
         .await
         .unwrap();
@@ -204,7 +257,14 @@ pub async fn liquid_staking() {
         )
         .await;
 
+        let lm_balance_after = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice_lm_token_account_address,
+        )
+        .await;
+
         assert_eq!(balance_before, balance_after);
+        assert_eq!(lm_balance_before, lm_balance_after);
     }
 
     // warp to the next round and resolve the current one
@@ -221,7 +281,17 @@ pub async fn liquid_staking() {
             alice,
             alice,
             &test_setup.payer_keypair,
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
+        )
+        .await
+        .unwrap();
+
+        test_instructions::resolve_staking_round(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.lp_token_mint_pda,
         )
         .await
         .unwrap();
@@ -241,7 +311,17 @@ pub async fn liquid_staking() {
             alice,
             alice,
             &test_setup.payer_keypair,
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
+        )
+        .await
+        .unwrap();
+
+        test_instructions::resolve_staking_round(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.lp_token_mint_pda,
         )
         .await
         .unwrap();
@@ -255,12 +335,28 @@ pub async fn liquid_staking() {
         )
         .await;
 
+        let lm_balance_before = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice_lm_token_account_address,
+        )
+        .await;
+
         test_instructions::claim_stakes(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             alice,
             &test_setup.payer_keypair,
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
+        )
+        .await
+        .unwrap();
+
+        test_instructions::claim_stakes(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.lp_token_mint_pda,
         )
         .await
         .unwrap();
@@ -271,7 +367,14 @@ pub async fn liquid_staking() {
         )
         .await;
 
+        let lm_balance_after = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice_lm_token_account_address,
+        )
+        .await;
+
         assert_eq!(balance_after - balance_before, 90_072_750);
+        assert_eq!(lm_balance_after - lm_balance_before, 2_000_000);
     }
 
     // warp to the next round and resolve the current one
@@ -287,7 +390,17 @@ pub async fn liquid_staking() {
             alice,
             alice,
             &test_setup.payer_keypair,
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
+        )
+        .await
+        .unwrap();
+
+        test_instructions::resolve_staking_round(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.lp_token_mint_pda,
         )
         .await
         .unwrap();
@@ -340,7 +453,17 @@ pub async fn liquid_staking() {
             alice,
             alice,
             &test_setup.payer_keypair,
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
+        )
+        .await
+        .unwrap();
+
+        test_instructions::resolve_staking_round(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.lp_token_mint_pda,
         )
         .await
         .unwrap();
@@ -355,12 +478,28 @@ pub async fn liquid_staking() {
         )
         .await;
 
+        let lm_balance_before = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice_lm_token_account_address,
+        )
+        .await;
+
         test_instructions::claim_stakes(
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             alice,
             &test_setup.payer_keypair,
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
+        )
+        .await
+        .unwrap();
+
+        test_instructions::claim_stakes(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.lp_token_mint_pda,
         )
         .await
         .unwrap();
@@ -371,7 +510,14 @@ pub async fn liquid_staking() {
         )
         .await;
 
+        let lm_balance_after = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice_lm_token_account_address,
+        )
+        .await;
+
         assert_eq!(balance_after - balance_before, 22_188);
+        assert_eq!(lm_balance_after - lm_balance_before, 2_000_000);
     }
 
     // Remove half the stake
@@ -429,38 +575,4 @@ pub async fn liquid_staking() {
     )
     .await
     .unwrap();
-
-    {
-        //
-        //
-        // ALP LIQUID STAKING
-        //
-        //
-
-        test_instructions::init_user_staking(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            alice,
-            &test_setup.payer_keypair,
-            &test_setup.lp_token_mint_pda,
-            perpetuals::instructions::InitUserStakingParams {
-                stakes_claim_cron_thread_id,
-            },
-        )
-        .await
-        .unwrap();
-
-        // Alice: add LP liquid staking
-        test_instructions::add_liquid_stake(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            alice,
-            &test_setup.payer_keypair,
-            AddLiquidStakeParams {
-                amount: utils::scale(1, Perpetuals::LP_DECIMALS),
-            },
-            &test_setup.governance_realm_pda,
-            &test_setup.lp_token_mint_pda,
-        )
-        .await
-        .unwrap();
-    }
 }
