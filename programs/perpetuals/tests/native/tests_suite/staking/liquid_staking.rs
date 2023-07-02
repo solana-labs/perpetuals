@@ -247,10 +247,6 @@ pub async fn liquid_staking() {
         .unwrap();
     }
 
-    //
-    // FAIL HERE
-    //
-
     // Claim when there is one round worth of rewards to claim
     {
         let balance_before = utils::get_token_account_balance(
