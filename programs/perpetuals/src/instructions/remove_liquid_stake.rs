@@ -71,7 +71,7 @@ pub struct RemoveLiquidStake<'info> {
     #[account(
         mut,
         seeds = [b"user_staking",
-                 owner.key().as_ref()],
+                 owner.key().as_ref(), staking.key().as_ref()],
         bump = user_staking.bump
     )]
     pub user_staking: Box<Account<'info, UserStaking>>,
@@ -137,7 +137,7 @@ pub struct RemoveLiquidStake<'info> {
 
     /// CHECK: empty PDA, authority for threads
     #[account(
-        seeds = [USER_STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
+        seeds = [USER_STAKING_THREAD_AUTHORITY_SEED, user_staking.key().as_ref()],
         bump = user_staking.thread_authority_bump
     )]
     pub user_staking_thread_authority: AccountInfo<'info>,
@@ -324,7 +324,7 @@ pub fn remove_liquid_stake(
                 },
                 &[&[
                     USER_STAKING_THREAD_AUTHORITY_SEED,
-                    ctx.accounts.owner.key().as_ref(),
+                    user_staking.key().as_ref(),
                     &[ctx.accounts.user_staking.thread_authority_bump],
                 ]],
             ))?;

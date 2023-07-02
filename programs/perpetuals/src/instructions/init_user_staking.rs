@@ -60,7 +60,7 @@ pub struct InitUserStaking<'info> {
         payer = owner,
         space = UserStaking::LEN,
         seeds = [b"user_staking",
-                 owner.key().as_ref()],
+                 owner.key().as_ref(), staking.key().as_ref()],
         bump
     )]
     pub user_staking: Box<Account<'info, UserStaking>>,
@@ -77,7 +77,7 @@ pub struct InitUserStaking<'info> {
         init,
         payer = owner,
         space = 0,
-        seeds = [USER_STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
+        seeds = [USER_STAKING_THREAD_AUTHORITY_SEED, user_staking.key().as_ref()],
         bump
     )]
     pub user_staking_thread_authority: AccountInfo<'info>,
@@ -169,7 +169,7 @@ pub fn init_user_staking(
                 },
                 &[&[
                     USER_STAKING_THREAD_AUTHORITY_SEED,
-                    ctx.accounts.owner.key().as_ref(),
+                    user_staking.key().as_ref(),
                     &[user_staking.thread_authority_bump],
                 ]],
             ),
@@ -247,7 +247,7 @@ pub fn init_user_staking(
             },
             &[&[
                 USER_STAKING_THREAD_AUTHORITY_SEED,
-                ctx.accounts.owner.key().as_ref(),
+                user_staking.key().as_ref(),
                 &[ctx.accounts.user_staking.thread_authority_bump],
             ]],
         ))?;

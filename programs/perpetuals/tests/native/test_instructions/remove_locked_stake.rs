@@ -19,9 +19,9 @@ pub async fn remove_locked_stake(
 ) -> std::result::Result<(), BanksClientError> {
     // ==== GIVEN =============================================================
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
-    let user_staking_pda = pda::get_user_staking_pda(&owner.pubkey()).0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
     let staking_pda = pda::get_staking_pda(&lm_token_mint_pda).0;
+    let user_staking_pda = pda::get_user_staking_pda(&owner.pubkey(), &staking_pda).0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
     let staking_staked_token_vault_pda = pda::get_staking_staked_token_vault_pda(&staking_pda).0;
@@ -51,7 +51,7 @@ pub async fn remove_locked_stake(
         );
 
     let user_staking_thread_authority_pda =
-        pda::get_user_staking_thread_authority(&owner.pubkey()).0;
+        pda::get_user_staking_thread_authority(&user_staking_pda).0;
 
     // // ==== WHEN ==============================================================
     // save account state before tx execution

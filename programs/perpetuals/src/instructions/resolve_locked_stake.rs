@@ -33,7 +33,7 @@ pub struct ResolveLockedStake<'info> {
     #[account(
         mut,
         seeds = [b"user_staking",
-                 owner.key().as_ref()],
+                 owner.key().as_ref(), staking.key().as_ref()],
         bump = user_staking.bump
     )]
     pub user_staking: Box<Account<'info, UserStaking>>,

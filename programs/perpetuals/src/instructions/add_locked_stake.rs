@@ -8,7 +8,7 @@ use {
         state::{
             cortex::Cortex,
             perpetuals::Perpetuals,
-            staking::Staking,
+            staking::{Staking, StakingType},
             user_staking::{LockedStake, UserStaking, USER_STAKING_THREAD_AUTHORITY_SEED},
         },
     },
@@ -63,7 +63,7 @@ pub struct AddLockedStake<'info> {
     #[account(
         mut,
         seeds = [b"user_staking",
-                 owner.key().as_ref()],
+                 owner.key().as_ref(), staking.key().as_ref()],
         bump = user_staking.bump
     )]
     pub user_staking: Box<Account<'info, UserStaking>>,
@@ -133,7 +133,7 @@ pub struct AddLockedStake<'info> {
 
     /// CHECK: empty PDA, authority for threads
     #[account(
-        seeds = [USER_STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
+        seeds = [USER_STAKING_THREAD_AUTHORITY_SEED, user_staking.key().as_ref()],
         bump = user_staking.thread_authority_bump
     )]
     pub user_staking_thread_authority: AccountInfo<'info>,
@@ -165,7 +165,7 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
 
         ctx.accounts
             .user_staking
-            .get_locked_staking_option(params.locked_days)
+            .get_locked_staking_option(params.locked_days, ctx.accounts.staking.staking_type)
     }?;
 
     let staking = ctx.accounts.staking.as_mut();
@@ -226,7 +226,7 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
                     },
                     &[&[
                         USER_STAKING_THREAD_AUTHORITY_SEED,
-                        ctx.accounts.owner.key().as_ref(),
+                        user_staking.key().as_ref(),
                         &[user_staking.thread_authority_bump],
                     ]],
                 ),
@@ -304,36 +304,54 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
         )?;
     }
 
-    // Give governing power to the Stake owner
+    //
+    //           LM Staking
+    //   ---------------------------
+    //   voting power         | x1 |
+    //   real yield rewards   | x1 |
+    //   lm rewards           | x1 |
+    //   ---------------------------
+    //
+    //           LP Staking
+    //   ---------------------------
+    //   voting power         |  0 |
+    //   real yield rewards   | x1 |
+    //   lm rewards           | x1 |
+    //   ---------------------------
+    //
+    //
     {
-        // Apply voting multiplier related to locking period
-        let voting_power = math::checked_as_u64(math::checked_div(
-            math::checked_mul(params.amount, staking_option.vote_multiplier as u64)? as u128,
-            Perpetuals::BPS_POWER,
-        )?)?;
+        if staking.staking_type == StakingType::LM {
+            // Give governing power to the Stake owner
+            {
+                // Apply voting multiplier related to locking period
+                let voting_power = math::checked_as_u64(math::checked_div(
+                    math::checked_mul(params.amount, staking_option.vote_multiplier as u64)?
+                        as u128,
+                    Perpetuals::BPS_POWER,
+                )?)?;
 
-        perpetuals.add_governing_power(
-            ctx.accounts.transfer_authority.to_account_info(),
-            ctx.accounts.owner.to_account_info(),
-            ctx.accounts.owner.to_account_info(),
-            ctx.accounts
-                .governance_governing_token_owner_record
-                .to_account_info(),
-            ctx.accounts.governance_token_mint.to_account_info(),
-            ctx.accounts.governance_realm.to_account_info(),
-            ctx.accounts.governance_realm_config.to_account_info(),
-            ctx.accounts
-                .governance_governing_token_holding
-                .to_account_info(),
-            ctx.accounts.governance_program.to_account_info(),
-            voting_power,
-            None,
-            true,
-        )?;
-    }
+                perpetuals.add_governing_power(
+                    ctx.accounts.transfer_authority.to_account_info(),
+                    ctx.accounts.owner.to_account_info(),
+                    ctx.accounts.owner.to_account_info(),
+                    ctx.accounts
+                        .governance_governing_token_owner_record
+                        .to_account_info(),
+                    ctx.accounts.governance_token_mint.to_account_info(),
+                    ctx.accounts.governance_realm.to_account_info(),
+                    ctx.accounts.governance_realm_config.to_account_info(),
+                    ctx.accounts
+                        .governance_governing_token_holding
+                        .to_account_info(),
+                    ctx.accounts.governance_program.to_account_info(),
+                    voting_power,
+                    None,
+                    true,
+                )?;
+            }
+        }
 
-    // update Cortex data
-    {
         staking.next_staking_round.total_stake = math::checked_add(
             staking.next_staking_round.total_stake,
             stake_amount_with_reward_multiplier,
@@ -356,7 +374,7 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
                 },
                 &[&[
                     USER_STAKING_THREAD_AUTHORITY_SEED,
-                    ctx.accounts.owner.key().as_ref(),
+                    user_staking.key().as_ref(),
                     &[ctx.accounts.user_staking.thread_authority_bump],
                 ]],
             ))?;

@@ -5,7 +5,7 @@ use {
         adapters::spl_governance_program_adapter,
         instructions::AddLockedStakeParams,
         math,
-        state::{perpetuals::Perpetuals, user_staking::UserStaking},
+        state::{perpetuals::Perpetuals, staking::Staking, user_staking::UserStaking},
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
@@ -21,11 +21,11 @@ pub async fn add_locked_stake(
 ) -> std::result::Result<(), BanksClientError> {
     // ==== GIVEN =============================================================
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
-    let user_staking_pda = pda::get_user_staking_pda(&owner.pubkey()).0;
-    let perpetuals_pda = pda::get_perpetuals_pda().0;
-    let cortex_pda = pda::get_cortex_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
     let staking_pda = pda::get_staking_pda(&lm_token_mint_pda).0;
+    let user_staking_pda = pda::get_user_staking_pda(&owner.pubkey(), &staking_pda).0;
+    let perpetuals_pda = pda::get_perpetuals_pda().0;
+    let cortex_pda = pda::get_cortex_pda().0;
     let staking_staked_token_vault_pda = pda::get_staking_staked_token_vault_pda(&staking_pda).0;
     let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda(&staking_pda).0;
     let governance_token_mint_pda = pda::get_governance_token_mint_pda().0;
@@ -50,11 +50,13 @@ pub async fn add_locked_stake(
         );
 
     let user_staking_thread_authority_pda =
-        pda::get_user_staking_thread_authority(&owner.pubkey()).0;
+        pda::get_user_staking_thread_authority(&user_staking_pda).0;
     let locked_stake_resolution_thread_address = pda::get_thread_address(
         &user_staking_thread_authority_pda,
         params.stake_resolution_thread_id.try_to_vec().unwrap(),
     );
+
+    let staking_account = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
 
     // // ==== WHEN ==============================================================
     // save account state before tx execution
@@ -147,7 +149,7 @@ pub async fn add_locked_stake(
     {
         // Depending on the lock duration, vote multiplier will differ
         let staking_option = user_staking_account_after
-            .get_locked_staking_option(params.locked_days)
+            .get_locked_staking_option(params.locked_days, staking_account.staking_type)
             .unwrap();
 
         let additional_voting_power = math::checked_as_u64(

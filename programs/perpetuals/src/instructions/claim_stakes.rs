@@ -4,7 +4,10 @@ use {
     crate::{
         math, program,
         state::{
-            cortex::Cortex, perpetuals::Perpetuals, staking::Staking, user_staking::UserStaking,
+            cortex::Cortex,
+            perpetuals::Perpetuals,
+            staking::{Staking, StakingType},
+            user_staking::UserStaking,
         },
     },
     anchor_lang::prelude::*,
@@ -68,7 +71,7 @@ pub struct ClaimStakes<'info> {
     #[account(
         mut,
         seeds = [b"user_staking",
-                 owner.key().as_ref()],
+                 owner.key().as_ref(), staking.key().as_ref()],
         bump = user_staking.bump
     )]
     pub user_staking: Box<Account<'info, UserStaking>>,
@@ -111,6 +114,8 @@ pub struct ClaimStakes<'info> {
 pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
     let staking = ctx.accounts.staking.as_mut();
     let user_staking = ctx.accounts.user_staking.as_mut();
+
+    let staking_type = staking.staking_type;
 
     msg!("Process resolved rounds & rewards calculation");
 
@@ -248,24 +253,51 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
                         user_staking.liquid_stake.amount
                     };
 
-                    let liquid_rewards_token_amount = math::checked_decimal_mul(
-                        stake_amount,
-                        -stake_token_decimals,
-                        round.rate,
-                        -(Perpetuals::RATE_DECIMALS as i32),
-                        -stake_reward_token_decimals,
-                    )
-                    .unwrap();
+                    if staking_type == StakingType::LM {
+                        let liquid_rewards_token_amount = math::checked_decimal_mul(
+                            stake_amount,
+                            -stake_token_decimals,
+                            round.rate,
+                            -(Perpetuals::RATE_DECIMALS as i32),
+                            -stake_reward_token_decimals,
+                        )
+                        .unwrap();
 
-                    rewards_token_amount =
-                        math::checked_add(rewards_token_amount, liquid_rewards_token_amount)
-                            .unwrap();
+                        rewards_token_amount =
+                            math::checked_add(rewards_token_amount, liquid_rewards_token_amount)
+                                .unwrap();
 
-                    round.total_claim = math::checked_add(round.total_claim, stake_amount).unwrap();
+                        round.total_claim =
+                            math::checked_add(round.total_claim, stake_amount).unwrap();
 
-                    stake_amount_with_reward_multiplier =
-                        math::checked_add(stake_amount_with_reward_multiplier, stake_amount)
-                            .unwrap();
+                        stake_amount_with_reward_multiplier =
+                            math::checked_add(stake_amount_with_reward_multiplier, stake_amount)
+                                .unwrap();
+                    }
+
+                    if staking_type == StakingType::LP {
+                        let liquid_lm_rewards_token_amount = math::checked_decimal_mul(
+                            stake_amount,
+                            -(Cortex::LM_DECIMALS as i32),
+                            round.lm_rate,
+                            -(Perpetuals::RATE_DECIMALS as i32),
+                            -(Cortex::LM_DECIMALS as i32),
+                        )
+                        .unwrap();
+
+                        lm_rewards_token_amount = math::checked_add(
+                            lm_rewards_token_amount,
+                            liquid_lm_rewards_token_amount,
+                        )
+                        .unwrap();
+
+                        round.lm_total_claim =
+                            math::checked_add(round.lm_total_claim, stake_amount).unwrap();
+
+                        stake_amount_with_lm_reward_multiplier =
+                            math::checked_add(stake_amount_with_lm_reward_multiplier, stake_amount)
+                                .unwrap();
+                    }
                 } else {
                     msg!("Liquid stake: Not qualifying for rewards :(");
                 }

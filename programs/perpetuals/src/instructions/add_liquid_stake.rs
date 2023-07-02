@@ -78,7 +78,7 @@ pub struct AddLiquidStake<'info> {
     #[account(
         mut,
         seeds = [b"user_staking",
-                 owner.key().as_ref()],
+                 owner.key().as_ref(), staking.key().as_ref()],
         bump = user_staking.bump
     )]
     pub user_staking: Box<Account<'info, UserStaking>>,
@@ -144,7 +144,7 @@ pub struct AddLiquidStake<'info> {
 
     /// CHECK: empty PDA, authority for threads
     #[account(
-        seeds = [USER_STAKING_THREAD_AUTHORITY_SEED, owner.key().as_ref()],
+        seeds = [USER_STAKING_THREAD_AUTHORITY_SEED, user_staking.key().as_ref()],
         bump = user_staking.thread_authority_bump
     )]
     pub user_staking_thread_authority: AccountInfo<'info>,
@@ -255,8 +255,16 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
         )?;
     }
 
-    // Give 1:1 governing power to the Stake owner
-    {
+    //
+    //           LM Staking
+    //   ---------------------------
+    //   voting power         | x1 |
+    //   real yield rewards   | x1 |
+    //   lm rewards           |  0 |
+    //   ---------------------------
+    //
+    if staking.staking_type == StakingType::LM {
+        // Give 1:1 governing power to the Stake owner
         perpetuals.add_governing_power(
             ctx.accounts.transfer_authority.to_account_info(),
             ctx.accounts.owner.to_account_info(),
@@ -275,20 +283,22 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
             None,
             true,
         )?;
-    }
 
-    // LP Staking receive LM token rewards, but no extra real yield rewards
-    if staking.staking_type.eq(&StakingType::LP) {
-        // apply delta to next round taking into account real yield multiplier
         staking.next_staking_round.total_stake =
             math::checked_add(staking.next_staking_round.total_stake, params.amount)?;
     }
 
-    // LM Staking receive extra real yield rewards but no LM token rewards
-    if staking.staking_type.eq(&StakingType::LM) {
-        // apply delta to next round taking into account real yield multiplier
-        staking.next_staking_round.total_stake =
-            math::checked_add(staking.next_staking_round.total_stake, params.amount)?;
+    //
+    //           LP Staking
+    //   ---------------------------
+    //   voting power         |  0 |
+    //   real yield rewards   |  0 |
+    //   lm rewards           | x1 |
+    //   ---------------------------
+    //
+    if staking.staking_type == StakingType::LP {
+        staking.next_staking_round.lm_total_stake =
+            math::checked_add(staking.next_staking_round.lm_total_stake, params.amount)?;
     }
 
     // If auto claim thread is paused, resume it
@@ -302,7 +312,7 @@ pub fn add_liquid_stake(ctx: Context<AddLiquidStake>, params: &AddLiquidStakePar
                 },
                 &[&[
                     USER_STAKING_THREAD_AUTHORITY_SEED,
-                    ctx.accounts.owner.key().as_ref(),
+                    ctx.accounts.user_staking.key().as_ref(),
                     &[ctx.accounts.user_staking.thread_authority_bump],
                 ]],
             ))?;

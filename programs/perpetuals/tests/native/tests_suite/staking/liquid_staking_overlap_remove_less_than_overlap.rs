@@ -165,7 +165,7 @@ pub async fn liquid_staking_overlap_remove_less_than_overlap() {
             &mut test_setup.program_test_ctx.borrow_mut(),
             alice,
             &test_setup.payer_keypair,
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
             perpetuals::instructions::InitUserStakingParams {
                 stakes_claim_cron_thread_id,
             },
@@ -193,7 +193,7 @@ pub async fn liquid_staking_overlap_remove_less_than_overlap() {
             &mut test_setup.program_test_ctx.borrow_mut(),
             martin,
             &test_setup.payer_keypair,
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
             perpetuals::instructions::InitUserStakingParams {
                 stakes_claim_cron_thread_id,
             },

@@ -171,7 +171,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
                 &mut test_setup.program_test_ctx.borrow_mut(),
                 user,
                 &test_setup.payer_keypair,
-                &cortex_stake_reward_mint,
+                &lm_token_mint_pda,
                 perpetuals::instructions::InitUserStakingParams {
                     stakes_claim_cron_thread_id,
                 },

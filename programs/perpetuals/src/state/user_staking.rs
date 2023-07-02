@@ -25,7 +25,7 @@ use {
     super::{
         cortex::{HOURS_PER_DAY, SECONDS_PER_HOURS},
         perpetuals::Perpetuals,
-        staking::StakingRound,
+        staking::{StakingRound, StakingType},
     },
     crate::{error::PerpetualsError, math},
     anchor_lang::prelude::*,
@@ -134,7 +134,7 @@ impl LockedStakingOption {
 }
 
 // List of valid locked staking options and the related multipliers
-pub const LOCKED_STAKING_OPTIONS: [&LockedStakingOption; 6] = [
+pub const LOCKED_LM_STAKING_OPTIONS: [&LockedStakingOption; 6] = [
     &LockedStakingOption {
         locked_days: 30,
         reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.25) as u32,
@@ -173,6 +173,45 @@ pub const LOCKED_STAKING_OPTIONS: [&LockedStakingOption; 6] = [
     },
 ];
 
+pub const LOCKED_LP_STAKING_OPTIONS: [&LockedStakingOption; 6] = [
+    &LockedStakingOption {
+        locked_days: 30,
+        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.3) as u32,
+        lm_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.3) as u32,
+        vote_multiplier: 0,
+    },
+    &LockedStakingOption {
+        locked_days: 60,
+        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.7) as u32,
+        lm_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 1.7) as u32,
+        vote_multiplier: 0,
+    },
+    &LockedStakingOption {
+        locked_days: 90,
+        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 2.2) as u32,
+        lm_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 2.2) as u32,
+        vote_multiplier: 0,
+    },
+    &LockedStakingOption {
+        locked_days: 180,
+        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 2.9) as u32,
+        lm_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 2.9) as u32,
+        vote_multiplier: 0,
+    },
+    &LockedStakingOption {
+        locked_days: 360,
+        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 3.7) as u32,
+        lm_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 3.7) as u32,
+        vote_multiplier: 0,
+    },
+    &LockedStakingOption {
+        locked_days: 720,
+        reward_multiplier: (Perpetuals::BPS_POWER as f64 * 4.8) as u32,
+        lm_reward_multiplier: (Perpetuals::BPS_POWER as f64 * 4.8) as u32,
+        vote_multiplier: 0,
+    },
+];
+
 impl UserStaking {
     pub const LEN: usize = 8 + std::mem::size_of::<UserStaking>();
 
@@ -188,8 +227,18 @@ impl UserStaking {
     // Fee paid for the execution of one automated action using clockwork
     pub const AUTOMATION_EXEC_FEE: u64 = 1_000;
 
-    pub fn get_locked_staking_option(&self, locked_days: u32) -> Result<LockedStakingOption> {
-        let staking_option = LOCKED_STAKING_OPTIONS
+    pub fn get_locked_staking_option(
+        &self,
+        locked_days: u32,
+        staking_type: StakingType,
+    ) -> Result<LockedStakingOption> {
+        let options = if staking_type == StakingType::LM {
+            LOCKED_LM_STAKING_OPTIONS
+        } else {
+            LOCKED_LP_STAKING_OPTIONS
+        };
+
+        let staking_option = options
             .into_iter()
             .find(|period| period.locked_days == locked_days);
 

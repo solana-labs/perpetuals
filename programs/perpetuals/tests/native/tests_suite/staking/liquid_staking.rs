@@ -156,7 +156,7 @@ pub async fn liquid_staking() {
         &mut test_setup.program_test_ctx.borrow_mut(),
         alice,
         &test_setup.payer_keypair,
-        &cortex_stake_reward_mint,
+        &lm_token_mint_pda,
         perpetuals::instructions::InitUserStakingParams {
             stakes_claim_cron_thread_id,
         },
@@ -246,6 +246,10 @@ pub async fn liquid_staking() {
         .await
         .unwrap();
     }
+
+    //
+    // FAIL HERE
+    //
 
     // Claim when there is one round worth of rewards to claim
     {
@@ -433,9 +437,21 @@ pub async fn liquid_staking() {
     {
         //
         //
+        // ALP LIQUID STAKING
         //
         //
-        //
+
+        test_instructions::init_user_staking(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.lp_token_mint_pda,
+            perpetuals::instructions::InitUserStakingParams {
+                stakes_claim_cron_thread_id,
+            },
+        )
+        .await
+        .unwrap();
 
         // Alice: add LP liquid staking
         test_instructions::add_liquid_stake(
