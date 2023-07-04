@@ -379,13 +379,13 @@ pub async fn staking_rewards_generation() {
         assert_eq!(
             lm_staking_reward_token_account_balance_after
                 - lm_staking_reward_token_account_balance_before,
-            3_637,
+            436_500,
         );
 
         assert_eq!(
             lp_staking_reward_token_account_balance_after
                 - lp_staking_reward_token_account_balance_before,
-            0,
+            378,
         );
     }
 

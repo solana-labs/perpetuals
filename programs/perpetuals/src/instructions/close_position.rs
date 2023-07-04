@@ -17,7 +17,6 @@ use {
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
-    num_traits::Zero,
 };
 
 #[derive(Accounts)]
@@ -53,6 +52,14 @@ pub struct ClosePosition<'info> {
         constraint = lm_staking.reward_token_mint.key() == lm_staking_reward_token_mint.key()
     )]
     pub lm_staking: Box<Account<'info, Staking>>,
+
+    #[account(
+        mut,
+        seeds = [b"staking", lp_staking.staked_token_mint.as_ref()],
+        bump = lp_staking.bump,
+        constraint = lp_staking.reward_token_mint.key() == lp_staking_reward_token_mint.key()
+    )]
+    pub lp_staking: Box<Account<'info, Staking>>,
 
     #[account(
         mut,
@@ -92,26 +99,51 @@ pub struct ClosePosition<'info> {
         mut,
         seeds = [b"custody",
                  pool.key().as_ref(),
-                 stake_reward_token_custody.mint.as_ref()],
-        bump = stake_reward_token_custody.bump,
-        constraint = stake_reward_token_custody.mint == lm_staking_reward_token_mint.key(),
+                 lm_staking_reward_token_custody.mint.as_ref()],
+        bump = lm_staking_reward_token_custody.bump,
+        constraint = lm_staking_reward_token_custody.mint == lm_staking_reward_token_mint.key(),
     )]
-    pub stake_reward_token_custody: Box<Account<'info, Custody>>,
+    pub lm_staking_reward_token_custody: Box<Account<'info, Custody>>,
 
     /// CHECK: oracle account for the stake_reward token
     #[account(
-        constraint = stake_reward_token_custody_oracle_account.key() == stake_reward_token_custody.oracle.oracle_account
+        constraint = lm_staking_reward_token_custody_oracle_account.key() == lm_staking_reward_token_custody.oracle.oracle_account
     )]
-    pub stake_reward_token_custody_oracle_account: AccountInfo<'info>,
+    pub lm_staking_reward_token_custody_oracle_account: AccountInfo<'info>,
 
     #[account(
         mut,
         seeds = [b"custody_token_account",
                  pool.key().as_ref(),
-                 stake_reward_token_custody.mint.as_ref()],
-        bump = stake_reward_token_custody.token_account_bump,
+                 lm_staking_reward_token_custody.mint.as_ref()],
+        bump = lm_staking_reward_token_custody.token_account_bump,
     )]
-    pub stake_reward_token_custody_token_account: Box<Account<'info, TokenAccount>>,
+    pub lm_staking_reward_token_custody_token_account: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        seeds = [b"custody",
+                 pool.key().as_ref(),
+                 lp_staking_reward_token_custody.mint.as_ref()],
+        bump = lp_staking_reward_token_custody.bump,
+        constraint = lp_staking_reward_token_custody.mint == lp_staking_reward_token_mint.key(),
+    )]
+    pub lp_staking_reward_token_custody: Box<Account<'info, Custody>>,
+
+    /// CHECK: oracle account for the stake_reward token
+    #[account(
+        constraint = lp_staking_reward_token_custody_oracle_account.key() == lp_staking_reward_token_custody.oracle.oracle_account
+    )]
+    pub lp_staking_reward_token_custody_oracle_account: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"custody_token_account",
+                 pool.key().as_ref(),
+                 lp_staking_reward_token_custody.mint.as_ref()],
+        bump = lp_staking_reward_token_custody.token_account_bump,
+    )]
+    pub lp_staking_reward_token_custody_token_account: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
@@ -156,13 +188,32 @@ pub struct ClosePosition<'info> {
 
     #[account(
         mut,
+        token::mint = lp_staking.reward_token_mint,
+        seeds = [b"staking_reward_token_vault", lp_staking.key().as_ref()],
+        bump = lp_staking.reward_token_vault_bump
+    )]
+    pub lp_staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
         seeds = [b"lm_token_mint"],
         bump = cortex.lm_token_bump
     )]
     pub lm_token_mint: Box<Account<'info, Mint>>,
 
+    #[account(
+        mut,
+        seeds = [b"lp_token_mint",
+                 pool.key().as_ref()],
+        bump = pool.lp_token_bump
+    )]
+    pub lp_token_mint: Box<Account<'info, Mint>>,
+
     #[account()]
     pub lm_staking_reward_token_mint: Box<Account<'info, Mint>>,
+
+    #[account()]
+    pub lp_staking_reward_token_mint: Box<Account<'info, Mint>>,
 
     token_program: Program<'info, Token>,
     perpetuals_program: Program<'info, Perpetuals>,
@@ -319,6 +370,15 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         amount
     };
 
+    //
+    // Calculate fee distribution between (Staked LM, Locked Staked LP, Organic LP)
+    //
+    let fee_distribution = ctx.accounts.cortex.calculate_fee_distribution(
+        fee_amount,
+        ctx.accounts.lp_token_mint.as_ref(),
+        ctx.accounts.lp_staking.as_ref(),
+    )?;
+
     // update custody stats
     msg!("Update custody stats");
     collateral_custody.collected_fees.close_position_usd = collateral_custody
@@ -406,66 +466,145 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         collateral_custody.update_borrow_rate(curtime)?;
     }
 
-    // if there is no collected fees, skip transfer to staking vault
-    if !protocol_fee.is_zero() {
-        // It is possible that the custody targeted by the function and the stake_reward one are the same, in that
-        // case we need to only use one else there are some complication when saving state at the end.
-        //
-        // if the collected fees are in the right denomination, skip swap
-        if custody.mint == ctx.accounts.stake_reward_token_custody.mint {
-            msg!("Transfer collected fees to stake vault (no swap)");
-            perpetuals.transfer_tokens(
-                ctx.accounts
-                    .collateral_custody_token_account
-                    .to_account_info(),
-                ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
-                ctx.accounts.transfer_authority.to_account_info(),
-                ctx.accounts.token_program.to_account_info(),
-                fee_amount,
-            )?;
-        } else {
-            // swap the collected fee_amount to stable and send to staking rewards
-            msg!("Swap collected fees to stake reward mint internally");
-            perpetuals.internal_swap(
-                ctx.accounts.transfer_authority.to_account_info(),
-                ctx.accounts
-                    .collateral_custody_token_account
-                    .to_account_info(),
-                ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
-                ctx.accounts.lm_token_account.to_account_info(),
-                ctx.accounts.cortex.to_account_info(),
-                perpetuals.to_account_info(),
-                ctx.accounts.pool.to_account_info(),
-                custody.to_account_info(),
-                ctx.accounts.custody_oracle_account.to_account_info(),
-                ctx.accounts
-                    .collateral_custody_token_account
-                    .to_account_info(),
-                ctx.accounts.stake_reward_token_custody.to_account_info(),
-                ctx.accounts
-                    .stake_reward_token_custody_oracle_account
-                    .to_account_info(),
-                ctx.accounts
-                    .stake_reward_token_custody_token_account
-                    .to_account_info(),
-                ctx.accounts.stake_reward_token_custody.to_account_info(),
-                ctx.accounts
-                    .stake_reward_token_custody_oracle_account
-                    .to_account_info(),
-                ctx.accounts
-                    .stake_reward_token_custody_token_account
-                    .to_account_info(),
-                ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
-                ctx.accounts.lm_staking_reward_token_mint.to_account_info(),
-                ctx.accounts.lm_staking.to_account_info(),
-                ctx.accounts.lm_token_mint.to_account_info(),
-                ctx.accounts.token_program.to_account_info(),
-                ctx.accounts.perpetuals_program.to_account_info(),
-                SwapParams {
-                    amount_in: protocol_fee,
-                    min_amount_out: protocol_fee,
-                },
-            )?;
+    //
+    // Redistribute fees
+    //
+
+    // redistribute to ADX stakers
+    {
+        if fee_distribution.lm_stakers_fee > 0 {
+            // It is possible that the custody targeted by the function and the stake_reward one are the same, in that
+            // case we need to only use one else there are some complication when saving state at the end.
+            //
+            // if the collected fees are in the right denomination, skip swap
+            if custody.mint == ctx.accounts.lm_staking_reward_token_custody.mint {
+                msg!("Transfer collected fees to stake vault (no swap)");
+                perpetuals.transfer_tokens(
+                    ctx.accounts
+                        .collateral_custody_token_account
+                        .to_account_info(),
+                    ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
+                    ctx.accounts.transfer_authority.to_account_info(),
+                    ctx.accounts.token_program.to_account_info(),
+                    fee_distribution.lm_stakers_fee,
+                )?;
+            } else {
+                // swap the collected fee_amount to stable and send to staking rewards
+                msg!("Swap collected fees to stake reward mint internally");
+                perpetuals.internal_swap(
+                    ctx.accounts.transfer_authority.to_account_info(),
+                    ctx.accounts
+                        .collateral_custody_token_account
+                        .to_account_info(),
+                    ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
+                    ctx.accounts.lm_token_account.to_account_info(),
+                    ctx.accounts.cortex.to_account_info(),
+                    perpetuals.to_account_info(),
+                    pool.to_account_info(),
+                    custody.to_account_info(),
+                    ctx.accounts.custody_oracle_account.to_account_info(),
+                    ctx.accounts
+                        .collateral_custody_token_account
+                        .to_account_info(),
+                    ctx.accounts
+                        .lm_staking_reward_token_custody
+                        .to_account_info(),
+                    ctx.accounts
+                        .lm_staking_reward_token_custody_oracle_account
+                        .to_account_info(),
+                    ctx.accounts
+                        .lm_staking_reward_token_custody_token_account
+                        .to_account_info(),
+                    ctx.accounts
+                        .lm_staking_reward_token_custody
+                        .to_account_info(),
+                    ctx.accounts
+                        .lm_staking_reward_token_custody_oracle_account
+                        .to_account_info(),
+                    ctx.accounts
+                        .lm_staking_reward_token_custody_token_account
+                        .to_account_info(),
+                    ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
+                    ctx.accounts.lm_staking_reward_token_mint.to_account_info(),
+                    ctx.accounts.lm_staking.to_account_info(),
+                    ctx.accounts.lm_token_mint.to_account_info(),
+                    ctx.accounts.token_program.to_account_info(),
+                    ctx.accounts.perpetuals_program.to_account_info(),
+                    SwapParams {
+                        amount_in: fee_distribution.lm_stakers_fee,
+                        min_amount_out: 0,
+                    },
+                )?;
+            }
+        }
+    }
+
+    // redistribute to ALP locked stakers
+    {
+        if fee_distribution.locked_lp_stakers_fee > 0 {
+            // It is possible that the custody targeted by the function and the stake_reward one are the same, in that
+            // case we need to only use one else there are some complication when saving state at the end.
+            //
+            // if the collected fees are in the right denomination, skip swap
+            if custody.mint == ctx.accounts.lp_staking_reward_token_custody.mint {
+                msg!("Transfer collected fees to stake vault (no swap)");
+                perpetuals.transfer_tokens(
+                    ctx.accounts
+                        .collateral_custody_token_account
+                        .to_account_info(),
+                    ctx.accounts.lp_staking_reward_token_vault.to_account_info(),
+                    ctx.accounts.transfer_authority.to_account_info(),
+                    ctx.accounts.token_program.to_account_info(),
+                    fee_distribution.locked_lp_stakers_fee,
+                )?;
+            } else {
+                // swap the collected fee_amount to stable and send to staking rewards
+                msg!("Swap collected fees to stake reward mint internally");
+                perpetuals.internal_swap(
+                    ctx.accounts.transfer_authority.to_account_info(),
+                    ctx.accounts
+                        .collateral_custody_token_account
+                        .to_account_info(),
+                    ctx.accounts.lp_staking_reward_token_vault.to_account_info(),
+                    ctx.accounts.lm_token_account.to_account_info(),
+                    ctx.accounts.cortex.to_account_info(),
+                    perpetuals.to_account_info(),
+                    pool.to_account_info(),
+                    custody.to_account_info(),
+                    ctx.accounts.custody_oracle_account.to_account_info(),
+                    ctx.accounts
+                        .collateral_custody_token_account
+                        .to_account_info(),
+                    ctx.accounts
+                        .lp_staking_reward_token_custody
+                        .to_account_info(),
+                    ctx.accounts
+                        .lp_staking_reward_token_custody_oracle_account
+                        .to_account_info(),
+                    ctx.accounts
+                        .lp_staking_reward_token_custody_token_account
+                        .to_account_info(),
+                    ctx.accounts
+                        .lp_staking_reward_token_custody
+                        .to_account_info(),
+                    ctx.accounts
+                        .lp_staking_reward_token_custody_oracle_account
+                        .to_account_info(),
+                    ctx.accounts
+                        .lp_staking_reward_token_custody_token_account
+                        .to_account_info(),
+                    ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
+                    ctx.accounts.lm_staking_reward_token_mint.to_account_info(),
+                    ctx.accounts.lm_staking.to_account_info(),
+                    ctx.accounts.lm_token_mint.to_account_info(),
+                    ctx.accounts.token_program.to_account_info(),
+                    ctx.accounts.perpetuals_program.to_account_info(),
+                    SwapParams {
+                        amount_in: fee_distribution.locked_lp_stakers_fee,
+                        min_amount_out: 0,
+                    },
+                )?;
+            }
         }
     }
 
