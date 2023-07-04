@@ -45,9 +45,6 @@ pub async fn mint_lm_tokens_from_bucket(
 
             let mut accounts_meta = accounts.to_account_metas(None);
 
-            println!(">>>>>> multisig_pda: {}", multisig_pda);
-            println!(">>>>>> admin: {}", signer.pubkey());
-
             // Add the multisig account
             accounts_meta.push(AccountMeta {
                 pubkey: multisig_pda,

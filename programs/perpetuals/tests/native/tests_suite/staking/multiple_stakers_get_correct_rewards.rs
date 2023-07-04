@@ -211,7 +211,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
                 locked_days: 30,
                 stake_resolution_thread_id,
             },
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
             &test_setup.governance_realm_pda,
         )
         .await
@@ -226,7 +226,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
                 locked_days: 60,
                 stake_resolution_thread_id,
             },
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
             &test_setup.governance_realm_pda,
         )
         .await

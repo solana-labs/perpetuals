@@ -31,6 +31,10 @@ pub struct Staking {
     pub reward_token_vault_bump: u8,
     pub lm_reward_token_vault_bump: u8,
     //
+    // Tokens in locked stake
+    //
+    pub nb_locked_tokens: u128,
+    //
     // Token to stake
     //
     pub staked_token_mint: Pubkey,

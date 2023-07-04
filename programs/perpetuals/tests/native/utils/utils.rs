@@ -464,7 +464,7 @@ pub async fn create_and_execute_perpetuals_ix<T: InstructionData, U: Signers>(
 
     let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
         &[
-            ComputeBudgetInstruction::set_compute_unit_limit(400_000u32),
+            ComputeBudgetInstruction::set_compute_unit_limit(600_000u32),
             ix,
         ],
         payer,

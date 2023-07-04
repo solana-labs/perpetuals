@@ -16,13 +16,13 @@ pub async fn add_locked_stake(
     owner: &Keypair,
     payer: &Keypair,
     params: AddLockedStakeParams,
-    staking_reward_token_mint: &Pubkey,
+    staked_token_mint: &Pubkey,
     governance_realm_pda: &Pubkey,
 ) -> std::result::Result<(), BanksClientError> {
     // ==== GIVEN =============================================================
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
-    let staking_pda = pda::get_staking_pda(&lm_token_mint_pda).0;
+    let staking_pda = pda::get_staking_pda(staked_token_mint).0;
     let user_staking_pda = pda::get_user_staking_pda(&owner.pubkey(), &staking_pda).0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
@@ -30,10 +30,12 @@ pub async fn add_locked_stake(
     let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda(&staking_pda).0;
     let governance_token_mint_pda = pda::get_governance_token_mint_pda().0;
 
-    let lm_token_account_address =
-        utils::find_associated_token_account(&owner.pubkey(), &lm_token_mint_pda).0;
+    let staking_account = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
+
+    let funding_account_address =
+        utils::find_associated_token_account(&owner.pubkey(), staked_token_mint).0;
     let staking_reward_token_account_address =
-        utils::find_associated_token_account(&owner.pubkey(), staking_reward_token_mint).0;
+        utils::find_associated_token_account(&owner.pubkey(), &staking_account.reward_token_mint).0;
 
     let governance_governing_token_holding_pda = pda::get_governance_governing_token_holding_pda(
         governance_realm_pda,
@@ -56,8 +58,6 @@ pub async fn add_locked_stake(
         params.stake_resolution_thread_id.try_to_vec().unwrap(),
     );
 
-    let staking_account = utils::get_account::<Staking>(program_test_ctx, staking_pda).await;
-
     // // ==== WHEN ==============================================================
     // save account state before tx execution
     let user_staking_account_before =
@@ -66,7 +66,7 @@ pub async fn add_locked_stake(
         utils::get_token_account_balance(program_test_ctx, governance_governing_token_holding_pda)
             .await;
     let funding_account_before =
-        utils::get_token_account_balance(program_test_ctx, lm_token_account_address).await;
+        utils::get_token_account_balance(program_test_ctx, funding_account_address).await;
 
     let stakes_claim_cron_thread_address = pda::get_thread_address(
         &user_staking_thread_authority_pda,
@@ -80,7 +80,7 @@ pub async fn add_locked_stake(
         program_test_ctx,
         perpetuals::accounts::AddLockedStake {
             owner: owner.pubkey(),
-            funding_account: lm_token_account_address,
+            funding_account: funding_account_address,
             reward_token_account: staking_reward_token_account_address,
             staking_staked_token_vault: staking_staked_token_vault_pda,
             staking_reward_token_vault: staking_reward_token_vault_pda,
@@ -91,7 +91,7 @@ pub async fn add_locked_stake(
             perpetuals: perpetuals_pda,
             lm_token_mint: lm_token_mint_pda,
             governance_token_mint: governance_token_mint_pda,
-            staking_reward_token_mint: *staking_reward_token_mint,
+            staking_reward_token_mint: staking_account.reward_token_mint,
             governance_realm: *governance_realm_pda,
             governance_realm_config: governance_realm_config_pda,
             governance_governing_token_holding: governance_governing_token_holding_pda,
@@ -127,7 +127,7 @@ pub async fn add_locked_stake(
         utils::get_account::<UserStaking>(program_test_ctx, user_staking_pda).await;
 
     let funding_account_after =
-        utils::get_token_account_balance(program_test_ctx, lm_token_account_address).await;
+        utils::get_token_account_balance(program_test_ctx, funding_account_address).await;
 
     // Check changes in staking account
     {

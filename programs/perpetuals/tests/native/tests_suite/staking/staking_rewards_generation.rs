@@ -6,10 +6,10 @@ use {
     maplit::hashmap,
     perpetuals::{
         instructions::{
-            AddLiquidityParams, AddVestParams, ClosePositionParams, OpenPositionParams,
-            RemoveLiquidityParams, SwapParams,
+            AddLiquidityParams, AddLockedStakeParams, AddVestParams, ClosePositionParams,
+            OpenPositionParams, RemoveLiquidityParams, SwapParams,
         },
-        state::{cortex::Cortex, perpetuals::Perpetuals, position::Side},
+        state::{cortex::Cortex, perpetuals::Perpetuals, position::Side, staking::StakingRound},
     },
 };
 
@@ -144,14 +144,80 @@ pub async fn staking_rewards_generation() {
     }
 
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
-    let staking_pda = pda::get_staking_pda(&lm_token_mint_pda).0;
-    let staking_reward_token_vault_pda = pda::get_staking_reward_token_vault_pda(&staking_pda).0;
+    let lm_staking_pda = pda::get_staking_pda(&lm_token_mint_pda).0;
+    let lp_staking_pda = pda::get_staking_pda(&test_setup.lp_token_mint_pda).0;
+    let lm_staking_reward_token_vault_pda =
+        pda::get_staking_reward_token_vault_pda(&lm_staking_pda).0;
+    let lp_staking_reward_token_vault_pda =
+        pda::get_staking_reward_token_vault_pda(&lp_staking_pda).0;
+
+    // Create locked stake to make instructions to generate fees for LP locked stakers
+    {
+        let stakes_claim_cron_thread_id =
+            utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
+                as u64;
+
+        test_instructions::init_user_staking(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.lp_token_mint_pda,
+            perpetuals::instructions::InitUserStakingParams {
+                stakes_claim_cron_thread_id,
+            },
+        )
+        .await
+        .unwrap();
+
+        utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+
+        let stake_resolution_thread_id =
+            utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
+                as u64;
+
+        test_instructions::add_locked_stake(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            &test_setup.payer_keypair,
+            AddLockedStakeParams {
+                amount: utils::scale(1, Cortex::LM_DECIMALS),
+                locked_days: 30,
+                stake_resolution_thread_id,
+            },
+            &test_setup.lp_token_mint_pda,
+            &test_setup.governance_realm_pda,
+        )
+        .await
+        .unwrap();
+
+        utils::warp_forward(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            StakingRound::ROUND_MIN_DURATION_SECONDS,
+        )
+        .await;
+
+        test_instructions::resolve_staking_round(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            alice,
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.lp_token_mint_pda,
+        )
+        .await
+        .unwrap();
+    }
 
     // Check that add liquidity generates rewards
     {
-        let staking_reward_token_account_balance_before = utils::get_token_account_balance(
+        let lm_staking_reward_token_account_balance_before = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            staking_reward_token_vault_pda,
+            lm_staking_reward_token_vault_pda,
+        )
+        .await;
+
+        let lp_staking_reward_token_account_balance_before = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            lp_staking_reward_token_vault_pda,
         )
         .await;
 
@@ -172,17 +238,29 @@ pub async fn staking_rewards_generation() {
 
         utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
-        let staking_reward_token_account_balance_after = utils::get_token_account_balance(
+        let lm_staking_reward_token_account_balance_after = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            staking_reward_token_vault_pda,
+            lm_staking_reward_token_vault_pda,
+        )
+        .await;
+
+        let lp_staking_reward_token_account_balance_after = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            lp_staking_reward_token_vault_pda,
         )
         .await;
 
         // Check rewards has been generated
         assert_eq!(
-            staking_reward_token_account_balance_after
-                - staking_reward_token_account_balance_before,
-            22_188,
+            lm_staking_reward_token_account_balance_after
+                - lm_staking_reward_token_account_balance_before,
+            2_695_387,
+        );
+
+        assert_eq!(
+            lp_staking_reward_token_account_balance_after
+                - lp_staking_reward_token_account_balance_before,
+            2_837,
         );
     }
 
@@ -190,9 +268,15 @@ pub async fn staking_rewards_generation() {
 
     // Check that open position generates rewards
     let position_pda = {
-        let staking_reward_token_account_balance_before = utils::get_token_account_balance(
+        let lm_staking_reward_token_account_balance_before = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            staking_reward_token_vault_pda,
+            lm_staking_reward_token_vault_pda,
+        )
+        .await;
+
+        let lp_staking_reward_token_account_balance_before = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            lp_staking_reward_token_vault_pda,
         )
         .await;
 
@@ -217,17 +301,29 @@ pub async fn staking_rewards_generation() {
 
         utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
-        let staking_reward_token_account_balance_after = utils::get_token_account_balance(
+        let lm_staking_reward_token_account_balance_after = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            staking_reward_token_vault_pda,
+            lm_staking_reward_token_vault_pda,
+        )
+        .await;
+
+        let lp_staking_reward_token_account_balance_after = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            lp_staking_reward_token_vault_pda,
         )
         .await;
 
         // Check rewards has been generated
         assert_eq!(
-            staking_reward_token_account_balance_after
-                - staking_reward_token_account_balance_before,
-            3_637,
+            lm_staking_reward_token_account_balance_after
+                - lm_staking_reward_token_account_balance_before,
+            436_500,
+        );
+
+        assert_eq!(
+            lp_staking_reward_token_account_balance_after
+                - lp_staking_reward_token_account_balance_before,
+            378,
         );
 
         position_pda
@@ -237,9 +333,15 @@ pub async fn staking_rewards_generation() {
 
     // Check that close position generates rewards
     {
-        let staking_reward_token_account_balance_before = utils::get_token_account_balance(
+        let lm_staking_reward_token_account_balance_before = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            staking_reward_token_vault_pda,
+            lm_staking_reward_token_vault_pda,
+        )
+        .await;
+
+        let lp_staking_reward_token_account_balance_before = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            lp_staking_reward_token_vault_pda,
         )
         .await;
 
@@ -261,17 +363,29 @@ pub async fn staking_rewards_generation() {
 
         utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
-        let staking_reward_token_account_balance_after = utils::get_token_account_balance(
+        let lm_staking_reward_token_account_balance_after = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            staking_reward_token_vault_pda,
+            lm_staking_reward_token_vault_pda,
+        )
+        .await;
+
+        let lp_staking_reward_token_account_balance_after = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            lp_staking_reward_token_vault_pda,
         )
         .await;
 
         // Check rewards has been generated
         assert_eq!(
-            staking_reward_token_account_balance_after
-                - staking_reward_token_account_balance_before,
+            lm_staking_reward_token_account_balance_after
+                - lm_staking_reward_token_account_balance_before,
             3_637,
+        );
+
+        assert_eq!(
+            lp_staking_reward_token_account_balance_after
+                - lp_staking_reward_token_account_balance_before,
+            0,
         );
     }
 
@@ -279,9 +393,15 @@ pub async fn staking_rewards_generation() {
 
     // Check that swap generates rewards
     {
-        let staking_reward_token_account_balance_before = utils::get_token_account_balance(
+        let lm_staking_reward_token_account_balance_before = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            staking_reward_token_vault_pda,
+            lm_staking_reward_token_vault_pda,
+        )
+        .await;
+
+        let lp_staking_reward_token_account_balance_before = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            lp_staking_reward_token_vault_pda,
         )
         .await;
 
@@ -309,17 +429,29 @@ pub async fn staking_rewards_generation() {
 
         utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
-        let staking_reward_token_account_balance_after = utils::get_token_account_balance(
+        let lm_staking_reward_token_account_balance_after = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            staking_reward_token_vault_pda,
+            lm_staking_reward_token_vault_pda,
+        )
+        .await;
+
+        let lp_staking_reward_token_account_balance_after = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            lp_staking_reward_token_vault_pda,
         )
         .await;
 
         // Check rewards has been generated
         assert_eq!(
-            staking_reward_token_account_balance_after
-                - staking_reward_token_account_balance_before,
-            6_370,
+            lm_staking_reward_token_account_balance_after
+                - lm_staking_reward_token_account_balance_before,
+            6_298,
+        );
+
+        assert_eq!(
+            lp_staking_reward_token_account_balance_after
+                - lp_staking_reward_token_account_balance_before,
+            0,
         );
     }
 
@@ -327,9 +459,15 @@ pub async fn staking_rewards_generation() {
 
     // Check that remove liquidity generates rewards
     {
-        let staking_reward_token_account_balance_before = utils::get_token_account_balance(
+        let lm_staking_reward_token_account_balance_before = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            staking_reward_token_vault_pda,
+            lm_staking_reward_token_vault_pda,
+        )
+        .await;
+
+        let lp_staking_reward_token_account_balance_before = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            lp_staking_reward_token_vault_pda,
         )
         .await;
 
@@ -350,17 +488,29 @@ pub async fn staking_rewards_generation() {
 
         utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
-        let staking_reward_token_account_balance_after = utils::get_token_account_balance(
+        let lm_staking_reward_token_account_balance_after = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
-            staking_reward_token_vault_pda,
+            lm_staking_reward_token_vault_pda,
+        )
+        .await;
+
+        let lp_staking_reward_token_account_balance_after = utils::get_token_account_balance(
+            &mut test_setup.program_test_ctx.borrow_mut(),
+            lp_staking_reward_token_vault_pda,
         )
         .await;
 
         // Check rewards has been generated
         assert_eq!(
-            staking_reward_token_account_balance_after
-                - staking_reward_token_account_balance_before,
-            75,
+            lm_staking_reward_token_account_balance_after
+                - lm_staking_reward_token_account_balance_before,
+            72,
+        );
+
+        assert_eq!(
+            lp_staking_reward_token_account_balance_after
+                - lp_staking_reward_token_account_balance_before,
+            0,
         );
     }
 }

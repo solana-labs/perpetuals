@@ -1,9 +1,10 @@
 //! Cortex state and routines
 
 use {
-    super::{perpetuals::Perpetuals, vest::Vest},
+    super::{perpetuals::Perpetuals, staking::Staking, vest::Vest},
     crate::math,
     anchor_lang::prelude::*,
+    anchor_spl::token::Mint,
 };
 
 pub const HOURS_PER_DAY: i64 = 24;
@@ -44,6 +45,17 @@ pub struct Cortex {
     pub ecosystem_bucket_minted_amount: u64,
 }
 
+// Represent the fee distribution between:
+//
+// - ADX stakers
+// - ALP holders
+// - ALP locked stakers
+pub struct FeeDistribution {
+    pub lm_stakers_fee: u64,
+    pub locked_lp_stakers_fee: u64,
+    pub lp_organic_fee: u64,
+}
+
 impl Cortex {
     pub const LEN: usize = 8 + std::mem::size_of::<Cortex>();
     const INCEPTION_EMISSION_RATE: u64 = Perpetuals::RATE_POWER as u64; // 100%
@@ -54,6 +66,83 @@ impl Cortex {
     pub const MAX_ONGOING_VESTS: usize = 64;
     // length of our epoch relative to Solana epochs (1 Solana epoch is ~2-3 days)
     const ADRENA_EPOCH: u8 = 10;
+
+    // Fee distributions, in BPS
+    pub const LM_STAKERS_FEE_SHARE_AMOUNT: u128 = 3_000;
+    pub const LP_HOLDERS_FEE_SHARE_AMOUNT: u128 = 7_000;
+
+    pub fn calculate_fee_distribution(
+        &self,
+        fee_amount: u64,
+        lp_token_mint: &Account<Mint>,
+        lp_staking: &Account<Staking>,
+    ) -> Result<FeeDistribution> {
+        let lm_stakers_fee = self.get_lm_stakers_fee(fee_amount)?;
+
+        let lp_organic_fee = self.get_lp_organic_fee(fee_amount)?;
+
+        let locked_lp_stakers_fee = math::checked_as_u64(self.get_locked_lp_stakers_fee(
+            lp_organic_fee,
+            lp_token_mint,
+            lp_staking,
+        )?)?;
+
+        Ok(FeeDistribution {
+            lm_stakers_fee,
+            locked_lp_stakers_fee,
+            lp_organic_fee,
+        })
+    }
+
+    fn get_lm_stakers_fee(&self, fee_amount: u64) -> Result<u64> {
+        math::checked_as_u64(math::checked_div(
+            math::checked_mul(fee_amount as u128, Cortex::LM_STAKERS_FEE_SHARE_AMOUNT)?,
+            Perpetuals::BPS_POWER,
+        )?)
+    }
+
+    fn get_lp_organic_fee(&self, fee_amount: u64) -> Result<u64> {
+        math::checked_as_u64(math::checked_div(
+            math::checked_mul(fee_amount as u128, Cortex::LP_HOLDERS_FEE_SHARE_AMOUNT)?,
+            Perpetuals::BPS_POWER,
+        )?)
+    }
+
+    fn get_locked_lp_stakers_fee(
+        &self,
+        lp_holders_fee_share_amount: u64,
+        lp_token_mint: &Account<Mint>,
+        lp_staking: &Account<Staking>,
+    ) -> Result<u128> {
+        if lp_holders_fee_share_amount == 0 {
+            return Ok(0);
+        }
+
+        let non_locked_staked_tokens =
+            math::checked_sub(lp_token_mint.supply as u128, lp_staking.nb_locked_tokens)?;
+
+        let total_lp_holders_shares = math::checked_add(
+            non_locked_staked_tokens,
+            lp_staking.current_staking_round.total_stake as u128,
+        )?;
+
+        if total_lp_holders_shares == 0 {
+            return Ok(0);
+        }
+
+        let share_per_token = math::checked_div(
+            math::checked_mul(lp_holders_fee_share_amount as u128, Perpetuals::BPS_POWER)?,
+            total_lp_holders_shares,
+        )?;
+
+        math::checked_div(
+            math::checked_mul(
+                share_per_token,
+                lp_staking.current_staking_round.total_stake as u128,
+            )?,
+            Perpetuals::BPS_POWER,
+        )
+    }
 
     pub fn get_swap_lm_rewards_amounts(&self, (fee_in, fee_out): (u64, u64)) -> Result<(u64, u64)> {
         Ok((

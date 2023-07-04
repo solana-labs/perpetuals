@@ -480,6 +480,8 @@ impl TestSetup {
             .unwrap();
         }
 
+        utils::warp_forward(&mut program_test_ctx.borrow_mut(), 1).await;
+
         // Initialize users token accounts for lp token mint
         {
             let users_pubkeys: Vec<Pubkey> = users

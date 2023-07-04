@@ -28,9 +28,11 @@ pub async fn open_position(
         pda::get_custody_token_account_pda(pool_pda, custody_token_mint).0;
     let cortex_pda = pda::get_cortex_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+    let lp_token_mint_pda = pda::get_lp_token_mint_pda(pool_pda).0;
     let (position_pda, position_bump) =
         pda::get_position_pda(&owner.pubkey(), pool_pda, &custody_pda, params.side);
     let lm_staking_pda = pda::get_staking_pda(&lm_token_mint_pda).0;
+    let lp_staking_pda = pda::get_staking_pda(&lp_token_mint_pda).0;
 
     let funding_account_address =
         utils::find_associated_token_account(&owner.pubkey(), custody_token_mint).0;
@@ -43,7 +45,11 @@ pub async fn open_position(
     let lm_staking_reward_token_vault_pda =
         pda::get_staking_reward_token_vault_pda(&lm_staking_pda).0;
 
+    let lp_staking_reward_token_vault_pda =
+        pda::get_staking_reward_token_vault_pda(&lp_staking_pda).0;
+
     let lm_staking_account = utils::get_account::<Staking>(program_test_ctx, lm_staking_pda).await;
+    let lp_staking_account = utils::get_account::<Staking>(program_test_ctx, lp_staking_pda).await;
 
     let srt_custody_pda = pda::get_custody_pda(pool_pda, &lm_staking_account.reward_token_mint).0;
     let srt_custody_token_account_pda =
@@ -74,18 +80,25 @@ pub async fn open_position(
             lm_token_account: lm_token_account_address,
             transfer_authority: transfer_authority_pda,
             lm_staking: lm_staking_pda,
+            lp_staking: lp_staking_pda,
             cortex: cortex_pda,
             perpetuals: perpetuals_pda,
             pool: *pool_pda,
             position: position_pda,
             custody: custody_pda,
             custody_oracle_account: custody_oracle_account_address,
-            stake_reward_token_custody: srt_custody_pda,
-            stake_reward_token_custody_oracle_account: srt_custody_oracle_account_address,
-            stake_reward_token_custody_token_account: srt_custody_token_account_pda,
+            lm_staking_reward_token_custody: srt_custody_pda,
+            lm_staking_reward_token_custody_oracle_account: srt_custody_oracle_account_address,
+            lm_staking_reward_token_custody_token_account: srt_custody_token_account_pda,
             lm_staking_reward_token_vault: lm_staking_reward_token_vault_pda, // the stake reward vault
+            lp_staking_reward_token_custody: srt_custody_pda,
+            lp_staking_reward_token_custody_oracle_account: srt_custody_oracle_account_address,
+            lp_staking_reward_token_custody_token_account: srt_custody_token_account_pda,
+            lp_staking_reward_token_vault: lp_staking_reward_token_vault_pda,
             lm_token_mint: lm_token_mint_pda,
+            lp_token_mint: lp_token_mint_pda,
             lm_staking_reward_token_mint: lm_staking_account.reward_token_mint,
+            lp_staking_reward_token_mint: lp_staking_account.reward_token_mint,
             collateral_custody: custody_pda,
             collateral_custody_oracle_account: custody_oracle_account_address,
             collateral_custody_token_account: custody_token_account_pda,

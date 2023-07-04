@@ -185,7 +185,7 @@ pub async fn locked_staking_30d() {
                 locked_days: 30,
                 stake_resolution_thread_id,
             },
-            &cortex_stake_reward_mint,
+            &lm_token_mint_pda,
             &test_setup.governance_realm_pda,
         )
         .await

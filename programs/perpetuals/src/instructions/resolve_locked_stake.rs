@@ -178,6 +178,9 @@ pub fn resolve_locked_stake(
         )?;
     }
 
+    staking.nb_locked_tokens =
+        math::checked_sub(staking.nb_locked_tokens, locked_stake.amount as u128)?;
+
     locked_stake.resolved = true;
 
     msg!(
