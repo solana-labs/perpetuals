@@ -330,7 +330,7 @@ pub async fn locked_staking_30d() {
         )
         .await;
 
-        assert_eq!(balance_after - balance_before, 38_250_787);
+        assert_eq!(balance_after - balance_before, 38_155_158);
         assert_eq!(lm_balance_after - lm_balance_before, 2_000_000);
     }
 

@@ -338,7 +338,7 @@ pub fn remove_liquidity(
     // Calculate fee distribution between (Staked LM, Locked Staked LP, Organic LP)
     //
     let fee_distribution = ctx.accounts.cortex.calculate_fee_distribution(
-        fee_amount,
+        math::checked_sub(fee_amount, protocol_fee)?,
         ctx.accounts.lp_token_mint.as_ref(),
         ctx.accounts.lp_staking.as_ref(),
     )?;

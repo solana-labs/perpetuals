@@ -373,7 +373,7 @@ pub async fn liquid_staking() {
         )
         .await;
 
-        assert_eq!(balance_after - balance_before, 35_555_400);
+        assert_eq!(balance_after - balance_before, 35_466_511);
         assert_eq!(lm_balance_after - lm_balance_before, 2_000_000);
     }
 
@@ -516,7 +516,7 @@ pub async fn liquid_staking() {
         )
         .await;
 
-        assert_eq!(balance_after - balance_before, 2_695_387);
+        assert_eq!(balance_after - balance_before, 2_688_647);
         assert_eq!(lm_balance_after - lm_balance_before, 2_000_000);
     }
 

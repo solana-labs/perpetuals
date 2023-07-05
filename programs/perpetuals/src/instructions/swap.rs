@@ -461,40 +461,16 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
     // Calculate fee distribution between (Staked LM, Locked Staked LP, Organic LP)
     //
     let protocol_fee_in_distribution = ctx.accounts.cortex.calculate_fee_distribution(
-        protocol_fee_in,
+        math::checked_sub(fees.0, protocol_fee_in)?,
         ctx.accounts.lp_token_mint.as_ref(),
         ctx.accounts.lp_staking.as_ref(),
     )?;
 
     let protocol_fee_out_distribution = ctx.accounts.cortex.calculate_fee_distribution(
-        protocol_fee_out,
+        math::checked_sub(fees.1, protocol_fee_out)?,
         ctx.accounts.lp_token_mint.as_ref(),
         ctx.accounts.lp_staking.as_ref(),
     )?;
-
-    msg!(
-        "protocol_fee_in: {} / protocol_fee_out: {}",
-        protocol_fee_in,
-        protocol_fee_out
-    );
-
-    msg!(
-        "lp_token_mint.supply: {}",
-        ctx.accounts.lp_token_mint.supply
-    );
-    msg!(
-        "lp_staking.nb_locked_tokens: {}",
-        ctx.accounts.lp_staking.nb_locked_tokens
-    );
-
-    msg!(
-        "protocol_fee_in_distribution: {:?}",
-        protocol_fee_in_distribution
-    );
-    msg!(
-        "protocol_fee_out_distribution: {:?}",
-        protocol_fee_out_distribution
-    );
 
     // swap the collected fee_amount to stable and send to staking rewards
     // when it's an internal swap, no fees swap is done

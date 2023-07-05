@@ -85,7 +85,7 @@ pub async fn fixed_fees() {
 
             assert_eq!(
                 pool_account.aum_usd,
-                utils::scale(994, USDC_DECIMALS).into(),
+                utils::scale_f64(993.965, USDC_DECIMALS).into(),
             );
 
             assert_eq!(
@@ -130,17 +130,17 @@ pub async fn fixed_fees() {
 
             assert_eq!(
                 pool_account.aum_usd,
-                utils::scale_f64(895.606679, USDC_DECIMALS).into(),
+                utils::scale_f64(895.575143, USDC_DECIMALS).into(),
             );
 
             assert_eq!(
                 custody_account.collected_fees.remove_liquidity_usd,
-                utils::scale_f64(3.042858, USDC_DECIMALS),
+                utils::scale_f64(3.042750, USDC_DECIMALS),
             );
 
             assert_eq!(
                 custody_account.assets.protocol_fees,
-                utils::scale_f64(0.057608, USDC_DECIMALS),
+                utils::scale_f64(0.057607, USDC_DECIMALS),
             );
         }
     }

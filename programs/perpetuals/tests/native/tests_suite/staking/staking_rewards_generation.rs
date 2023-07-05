@@ -254,13 +254,13 @@ pub async fn staking_rewards_generation() {
         assert_eq!(
             lm_staking_reward_token_account_balance_after
                 - lm_staking_reward_token_account_balance_before,
-            2_695_387,
+            2_688_647,
         );
 
         assert_eq!(
             lp_staking_reward_token_account_balance_after
                 - lp_staking_reward_token_account_balance_before,
-            3_753_096,
+            3_743_540,
         );
     }
 
@@ -317,13 +317,13 @@ pub async fn staking_rewards_generation() {
         assert_eq!(
             lm_staking_reward_token_account_balance_after
                 - lm_staking_reward_token_account_balance_before,
-            436_500,
+            435_408,
         );
 
         assert_eq!(
             lp_staking_reward_token_account_balance_after
                 - lp_staking_reward_token_account_balance_before,
-            549_339,
+            547_936,
         );
 
         position_pda
@@ -379,13 +379,13 @@ pub async fn staking_rewards_generation() {
         assert_eq!(
             lm_staking_reward_token_account_balance_after
                 - lm_staking_reward_token_account_balance_before,
-            436_500,
+            435_408,
         );
 
         assert_eq!(
             lp_staking_reward_token_account_balance_after
                 - lp_staking_reward_token_account_balance_before,
-            549_339,
+            547_936,
         );
     }
 
@@ -445,13 +445,13 @@ pub async fn staking_rewards_generation() {
         assert_eq!(
             lm_staking_reward_token_account_balance_after
                 - lm_staking_reward_token_account_balance_before,
-            3_029,
+            1_210_826,
         );
 
         assert_eq!(
             lp_staking_reward_token_account_balance_after
                 - lp_staking_reward_token_account_balance_before,
-            1_230,
+            491_448,
         );
     }
 
@@ -504,13 +504,13 @@ pub async fn staking_rewards_generation() {
         assert_eq!(
             lm_staking_reward_token_account_balance_after
                 - lm_staking_reward_token_account_balance_before,
-            8_645,
+            8_622,
         );
 
         assert_eq!(
             lp_staking_reward_token_account_balance_after
                 - lp_staking_reward_token_account_balance_before,
-            10_877,
+            10_848,
         );
     }
 }
