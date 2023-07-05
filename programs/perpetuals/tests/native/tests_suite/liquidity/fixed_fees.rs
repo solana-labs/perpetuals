@@ -130,7 +130,7 @@ pub async fn fixed_fees() {
 
             assert_eq!(
                 pool_account.aum_usd,
-                utils::scale_f64(895.575143, USDC_DECIMALS).into(),
+                utils::scale_f64(896.789201, USDC_DECIMALS).into(),
             );
 
             assert_eq!(

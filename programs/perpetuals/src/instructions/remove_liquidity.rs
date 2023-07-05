@@ -362,6 +362,20 @@ pub fn remove_liquidity(
 
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
     custody.assets.owned = math::checked_sub(custody.assets.owned, withdrawal_amount)?;
+
+    if custody.mint == ctx.accounts.staking_reward_token_custody.mint {
+        custody.assets.owned = math::checked_sub(
+            custody.assets.owned,
+            math::checked_add(
+                fee_distribution.lm_stakers_fee,
+                fee_distribution.locked_lp_stakers_fee,
+            )?,
+        )?;
+    }
+
+    custody.assets.owned =
+        math::checked_add(custody.assets.owned, fee_distribution.lp_organic_fee)?;
+
     custody.update_borrow_rate(curtime)?;
 
     // update pool stats

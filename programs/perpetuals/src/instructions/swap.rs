@@ -411,6 +411,21 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
         amount
     };
 
+    //
+    // Calculate fee distribution between (Staked LM, Locked Staked LP, Organic LP)
+    //
+    let protocol_fee_in_distribution = ctx.accounts.cortex.calculate_fee_distribution(
+        math::checked_sub(fees.0, protocol_fee_in)?,
+        ctx.accounts.lp_token_mint.as_ref(),
+        ctx.accounts.lp_staking.as_ref(),
+    )?;
+
+    let protocol_fee_out_distribution = ctx.accounts.cortex.calculate_fee_distribution(
+        math::checked_sub(fees.1, protocol_fee_out)?,
+        ctx.accounts.lp_token_mint.as_ref(),
+        ctx.accounts.lp_staking.as_ref(),
+    )?;
+
     // update custody stats
     msg!("Update custody stats");
     receiving_custody.volume_stats.swap_usd = receiving_custody.volume_stats.swap_usd.wrapping_add(
@@ -427,8 +442,18 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
         .swap_lm
         .wrapping_add(lm_rewards_amount.0);
 
-    receiving_custody.assets.owned =
-        math::checked_add(receiving_custody.assets.owned, deposit_amount)?;
+    if receiving_custody.mint == ctx.accounts.staking_reward_token_custody.mint {
+        receiving_custody.assets.owned = math::checked_add(
+            receiving_custody.assets.owned,
+            math::checked_add(
+                math::checked_sub(params.amount_in, fees.0)?,
+                protocol_fee_in_distribution.lp_organic_fee,
+            )?,
+        )?;
+    } else {
+        receiving_custody.assets.owned =
+            math::checked_add(receiving_custody.assets.owned, deposit_amount)?;
+    }
 
     receiving_custody.assets.protocol_fees =
         math::checked_add(receiving_custody.assets.protocol_fees, protocol_fee_in)?;
@@ -454,23 +479,18 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
     dispensing_custody.assets.owned =
         math::checked_sub(dispensing_custody.assets.owned, withdrawal_amount)?;
 
+    if dispensing_custody.mint == ctx.accounts.staking_reward_token_custody.mint {
+        dispensing_custody.assets.owned = math::checked_sub(
+            dispensing_custody.assets.owned,
+            math::checked_add(
+                protocol_fee_out_distribution.lm_stakers_fee,
+                protocol_fee_out_distribution.locked_lp_stakers_fee,
+            )?,
+        )?;
+    }
+
     receiving_custody.update_borrow_rate(curtime)?;
     dispensing_custody.update_borrow_rate(curtime)?;
-
-    //
-    // Calculate fee distribution between (Staked LM, Locked Staked LP, Organic LP)
-    //
-    let protocol_fee_in_distribution = ctx.accounts.cortex.calculate_fee_distribution(
-        math::checked_sub(fees.0, protocol_fee_in)?,
-        ctx.accounts.lp_token_mint.as_ref(),
-        ctx.accounts.lp_staking.as_ref(),
-    )?;
-
-    let protocol_fee_out_distribution = ctx.accounts.cortex.calculate_fee_distribution(
-        math::checked_sub(fees.1, protocol_fee_out)?,
-        ctx.accounts.lp_token_mint.as_ref(),
-        ctx.accounts.lp_staking.as_ref(),
-    )?;
 
     // swap the collected fee_amount to stable and send to staking rewards
     // when it's an internal swap, no fees swap is done

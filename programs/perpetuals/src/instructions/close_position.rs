@@ -376,6 +376,17 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         collateral_custody.assets.owned =
             math::checked_add(collateral_custody.assets.owned, amount_gained)?;
     }
+
+    if custody.mint == ctx.accounts.staking_reward_token_custody.mint {
+        custody.assets.owned = math::checked_sub(
+            custody.assets.owned,
+            math::checked_add(
+                fee_distribution.lm_stakers_fee,
+                fee_distribution.locked_lp_stakers_fee,
+            )?,
+        )?;
+    }
+
     collateral_custody.assets.collateral = math::checked_sub(
         collateral_custody.assets.collateral,
         position.collateral_amount,

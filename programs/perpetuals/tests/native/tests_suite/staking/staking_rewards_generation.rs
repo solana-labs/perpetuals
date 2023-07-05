@@ -254,13 +254,13 @@ pub async fn staking_rewards_generation() {
         assert_eq!(
             lm_staking_reward_token_account_balance_after
                 - lm_staking_reward_token_account_balance_before,
-            2_688_647,
+            2_699_534,
         );
 
         assert_eq!(
             lp_staking_reward_token_account_balance_after
                 - lp_staking_reward_token_account_balance_before,
-            3_743_540,
+            3_758_697,
         );
     }
 
@@ -323,7 +323,7 @@ pub async fn staking_rewards_generation() {
         assert_eq!(
             lp_staking_reward_token_account_balance_after
                 - lp_staking_reward_token_account_balance_before,
-            547_936,
+            548_099,
         );
 
         position_pda
@@ -385,7 +385,7 @@ pub async fn staking_rewards_generation() {
         assert_eq!(
             lp_staking_reward_token_account_balance_after
                 - lp_staking_reward_token_account_balance_before,
-            547_936,
+            548_099,
         );
     }
 
@@ -445,13 +445,13 @@ pub async fn staking_rewards_generation() {
         assert_eq!(
             lm_staking_reward_token_account_balance_after
                 - lm_staking_reward_token_account_balance_before,
-            1_210_826,
+            1_201_422,
         );
 
         assert_eq!(
             lp_staking_reward_token_account_balance_after
                 - lp_staking_reward_token_account_balance_before,
-            491_448,
+            491_595,
         );
     }
 
@@ -504,13 +504,13 @@ pub async fn staking_rewards_generation() {
         assert_eq!(
             lm_staking_reward_token_account_balance_after
                 - lm_staking_reward_token_account_balance_before,
-            8_622,
+            8_591,
         );
 
         assert_eq!(
             lp_staking_reward_token_account_balance_after
                 - lp_staking_reward_token_account_balance_before,
-            10_848,
+            10_815,
         );
     }
 }

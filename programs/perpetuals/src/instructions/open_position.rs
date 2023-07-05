@@ -357,6 +357,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         PerpetualsError::InsufficientAmountReturned
     );
 
+    msg!("Check leverage");
     require!(
         pool.check_leverage(
             position,
@@ -373,6 +374,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     );
 
     // lock funds for potential profit payoff
+    msg!("Lock funds");
     collateral_custody.lock_funds(position.locked_amount)?;
 
     // transfer tokens
@@ -429,6 +431,19 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         amount
     };
 
+    let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
+    collateral_custody.assets.protocol_fees =
+        math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
+
+    //
+    // Calculate fee distribution between (Staked LM, Locked Staked LP, Organic LP)
+    //
+    let fee_distribution = ctx.accounts.cortex.calculate_fee_distribution(
+        math::checked_sub(fee_amount, protocol_fee)?,
+        ctx.accounts.lp_token_mint.as_ref(),
+        ctx.accounts.lp_staking.as_ref(),
+    )?;
+
     // update custody stats
     msg!("Update custody stats");
     collateral_custody.collected_fees.open_position_usd = collateral_custody
@@ -447,9 +462,15 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     collateral_custody.assets.collateral =
         math::checked_add(collateral_custody.assets.collateral, params.collateral)?;
 
-    let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
-    collateral_custody.assets.protocol_fees =
-        math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
+    if custody.mint == ctx.accounts.staking_reward_token_custody.mint {
+        custody.assets.owned =
+            math::checked_add(custody.assets.owned, fee_distribution.lp_organic_fee)?;
+    } else {
+        custody.assets.owned = math::checked_add(
+            custody.assets.owned,
+            math::checked_sub(fee_amount, protocol_fee)?,
+        )?;
+    }
 
     // if custody and collateral_custody accounts are the same, ensure that data is in sync
     if position.side == Side::Long && !custody.is_virtual {
@@ -491,15 +512,6 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         )?;
         collateral_custody.update_borrow_rate(curtime)?;
     }
-
-    //
-    // Calculate fee distribution between (Staked LM, Locked Staked LP, Organic LP)
-    //
-    let fee_distribution = ctx.accounts.cortex.calculate_fee_distribution(
-        math::checked_sub(fee_amount, protocol_fee)?,
-        ctx.accounts.lp_token_mint.as_ref(),
-        ctx.accounts.lp_staking.as_ref(),
-    )?;
 
     //
     // Redistribute fees
