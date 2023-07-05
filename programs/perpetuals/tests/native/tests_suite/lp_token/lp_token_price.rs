@@ -91,7 +91,7 @@ pub async fn lp_token_price() {
         )
         .await
         .unwrap(),
-        1_074_388
+        1_051_984
     );
 
     // Increase asset price and check that lp token price increase
@@ -133,7 +133,7 @@ pub async fn lp_token_price() {
             )
             .await
             .unwrap(),
-            1_128_110
+            1_104_906
         );
     }
 
@@ -176,7 +176,7 @@ pub async fn lp_token_price() {
             )
             .await
             .unwrap(),
-            1_009_921
+            988_478
         );
     }
 }

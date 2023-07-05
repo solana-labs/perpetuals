@@ -33,7 +33,9 @@ pub async fn swap(
         pda::get_custody_token_account_pda(pool_pda, receiving_custody_token_mint).0;
     let cortex_pda = pda::get_cortex_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
+    let lp_token_mint_pda = pda::get_lp_token_mint_pda(pool_pda).0;
     let lm_staking_pda = pda::get_staking_pda(&lm_token_mint_pda).0;
+    let lp_staking_pda = pda::get_staking_pda(&lp_token_mint_pda).0;
 
     let funding_account_address =
         utils::find_associated_token_account(&owner.pubkey(), receiving_custody_token_mint).0;
@@ -53,6 +55,9 @@ pub async fn swap(
 
     let lm_staking_reward_token_vault_pda =
         pda::get_staking_reward_token_vault_pda(&lm_staking_pda).0;
+
+    let lp_staking_reward_token_vault_pda =
+        pda::get_staking_reward_token_vault_pda(&lp_staking_pda).0;
 
     let lm_staking_account = utils::get_account::<Staking>(program_test_ctx, lm_staking_pda).await;
 
@@ -86,6 +91,7 @@ pub async fn swap(
             lm_token_account: lm_token_account_address,
             transfer_authority: transfer_authority_pda,
             lm_staking: lm_staking_pda,
+            lp_staking: lp_staking_pda,
             cortex: cortex_pda,
             perpetuals: perpetuals_pda,
             pool: *pool_pda,
@@ -95,12 +101,14 @@ pub async fn swap(
             dispensing_custody: dispensing_custody_pda,
             dispensing_custody_oracle_account: dispensing_custody_oracle_account_address,
             dispensing_custody_token_account: dispensing_custody_token_account_pda,
-            stake_reward_token_custody: srt_custody_pda,
-            stake_reward_token_custody_oracle_account: srt_custody_oracle_account_address,
-            stake_reward_token_custody_token_account: srt_custody_token_account_pda, // the stake reward vault
+            staking_reward_token_custody: srt_custody_pda,
+            staking_reward_token_custody_oracle_account: srt_custody_oracle_account_address,
+            staking_reward_token_custody_token_account: srt_custody_token_account_pda, // the stake reward vault
             lm_staking_reward_token_vault: lm_staking_reward_token_vault_pda,
+            lp_staking_reward_token_vault: lp_staking_reward_token_vault_pda,
             lm_token_mint: lm_token_mint_pda,
-            lm_staking_reward_token_mint: lm_staking_account.reward_token_mint,
+            lp_token_mint: lp_token_mint_pda,
+            staking_reward_token_mint: lm_staking_account.reward_token_mint,
             token_program: anchor_spl::token::ID,
             perpetuals_program: perpetuals::ID,
         }

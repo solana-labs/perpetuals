@@ -280,19 +280,23 @@ impl Perpetuals {
         dispensing_custody: AccountInfo<'a>,
         dispensing_custody_oracle_account: AccountInfo<'a>,
         dispensing_custody_token_account: AccountInfo<'a>,
-        stake_reward_token_custody: AccountInfo<'a>,
-        stake_reward_token_custody_oracle_account: AccountInfo<'a>,
-        stake_reward_token_custody_token_account: AccountInfo<'a>,
+        staking_reward_token_custody: AccountInfo<'a>,
+        staking_reward_token_custody_oracle_account: AccountInfo<'a>,
+        staking_reward_token_custody_token_account: AccountInfo<'a>,
         lm_staking_reward_token_vault: AccountInfo<'a>,
-        lm_staking_reward_token_mint: AccountInfo<'a>,
+        lp_staking_reward_token_vault: AccountInfo<'a>,
+        staking_reward_token_mint: AccountInfo<'a>,
         lm_staking: AccountInfo<'a>,
+        lp_staking: AccountInfo<'a>,
         lm_token_mint: AccountInfo<'a>,
+        lp_token_mint: AccountInfo<'a>,
         token_program: AccountInfo<'a>,
         perpetuals_program: AccountInfo<'a>,
         params: SwapParams,
     ) -> Result<()> {
         let authority_seeds: &[&[&[u8]]] =
             &[&[b"transfer_authority", &[self.transfer_authority_bump]]];
+
         let cpi_accounts = crate::cpi::accounts::Swap {
             owner: authority.clone(),
             funding_account,
@@ -301,23 +305,27 @@ impl Perpetuals {
             transfer_authority: authority,
             cortex,
             perpetuals,
+            lm_staking,
+            lp_staking,
             pool,
+            staking_reward_token_custody,
+            staking_reward_token_custody_oracle_account,
+            staking_reward_token_custody_token_account,
             receiving_custody,
             receiving_custody_oracle_account,
             receiving_custody_token_account,
             dispensing_custody,
             dispensing_custody_oracle_account,
             dispensing_custody_token_account,
-            stake_reward_token_custody,
-            stake_reward_token_custody_oracle_account,
-            stake_reward_token_custody_token_account,
             lm_staking_reward_token_vault,
+            lp_staking_reward_token_vault,
             lm_token_mint,
-            lm_staking_reward_token_mint,
-            lm_staking,
+            lp_token_mint,
+            staking_reward_token_mint,
             token_program,
             perpetuals_program: perpetuals_program.clone(),
         };
+
         let cpi_program = perpetuals_program;
         let cpi_context = anchor_lang::context::CpiContext::new(cpi_program, cpi_accounts)
             .with_signer(authority_seeds);

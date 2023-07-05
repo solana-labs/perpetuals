@@ -16,7 +16,7 @@ pub async fn min_max_leverage() {
             utils::UserParam {
                 name: "alice",
                 token_balances: hashmap! {
-                    "usdc" => utils::scale(1_000, USDC_DECIMALS),
+                    "usdc" => utils::scale(1_000_000, USDC_DECIMALS),
                     "eth" => utils::scale(10_000, ETH_DECIMALS),
                 },
             },
@@ -60,7 +60,7 @@ pub async fn min_max_leverage() {
                     fees: None,
                     borrow_rate: None,
                 },
-                liquidity_amount: utils::scale(1_000, USDC_DECIMALS),
+                liquidity_amount: utils::scale(1_000_000, USDC_DECIMALS),
                 payer_user_name: "alice",
             },
             utils::SetupCustodyWithLiquidityParams {

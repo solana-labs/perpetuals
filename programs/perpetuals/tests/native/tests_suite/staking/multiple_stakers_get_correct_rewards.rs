@@ -313,7 +313,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
             )
             .await;
 
-            assert_eq!(balance_after - balance_before, 20_309_526);
+            assert_eq!(balance_after - balance_before, 8_017_001);
         }
 
         // Claim martin
@@ -340,7 +340,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
             )
             .await;
 
-            assert_eq!(balance_after - balance_before, 38_080_362);
+            assert_eq!(balance_after - balance_before, 15_031_877);
         }
 
         // Claim paul
@@ -367,7 +367,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
             )
             .await;
 
-            assert_eq!(balance_after - balance_before, 31_682_861);
+            assert_eq!(balance_after - balance_before, 12_506_521);
         }
     }
 

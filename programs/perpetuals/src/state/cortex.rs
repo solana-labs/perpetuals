@@ -50,6 +50,7 @@ pub struct Cortex {
 // - ADX stakers
 // - ALP holders
 // - ALP locked stakers
+#[derive(Default, Debug)]
 pub struct FeeDistribution {
     pub lm_stakers_fee: u64,
     pub locked_lp_stakers_fee: u64,
@@ -69,7 +70,7 @@ impl Cortex {
 
     // Fee distributions, in BPS
     pub const LM_STAKERS_FEE_SHARE_AMOUNT: u128 = 3_000;
-    pub const LP_HOLDERS_FEE_SHARE_AMOUNT: u128 = 7_000;
+    pub const LP_HOLDERS_ORGANIC_FEE_SHARE_AMOUNT: u128 = 7_000;
 
     pub fn calculate_fee_distribution(
         &self,
@@ -78,7 +79,6 @@ impl Cortex {
         lp_staking: &Account<Staking>,
     ) -> Result<FeeDistribution> {
         let lm_stakers_fee = self.get_lm_stakers_fee(fee_amount)?;
-
         let lp_organic_fee = self.get_lp_organic_fee(fee_amount)?;
 
         let locked_lp_stakers_fee = math::checked_as_u64(self.get_locked_lp_stakers_fee(
@@ -103,18 +103,21 @@ impl Cortex {
 
     fn get_lp_organic_fee(&self, fee_amount: u64) -> Result<u64> {
         math::checked_as_u64(math::checked_div(
-            math::checked_mul(fee_amount as u128, Cortex::LP_HOLDERS_FEE_SHARE_AMOUNT)?,
+            math::checked_mul(
+                fee_amount as u128,
+                Cortex::LP_HOLDERS_ORGANIC_FEE_SHARE_AMOUNT,
+            )?,
             Perpetuals::BPS_POWER,
         )?)
     }
 
     fn get_locked_lp_stakers_fee(
         &self,
-        lp_holders_fee_share_amount: u64,
+        lp_organic_fee: u64,
         lp_token_mint: &Account<Mint>,
         lp_staking: &Account<Staking>,
     ) -> Result<u128> {
-        if lp_holders_fee_share_amount == 0 {
+        if lp_organic_fee == 0 {
             return Ok(0);
         }
 
@@ -131,7 +134,7 @@ impl Cortex {
         }
 
         let share_per_token = math::checked_div(
-            math::checked_mul(lp_holders_fee_share_amount as u128, Perpetuals::BPS_POWER)?,
+            math::checked_mul(lp_organic_fee as u128, Perpetuals::RATE_POWER)?,
             total_lp_holders_shares,
         )?;
 
@@ -140,7 +143,7 @@ impl Cortex {
                 share_per_token,
                 lp_staking.current_staking_round.total_stake as u128,
             )?,
-            Perpetuals::BPS_POWER,
+            Perpetuals::RATE_POWER,
         )
     }
 

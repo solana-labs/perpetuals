@@ -17,6 +17,7 @@ use {
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
+    num_traits::Zero,
     solana_program::program_error::ProgramError,
 };
 
@@ -51,7 +52,7 @@ pub struct OpenPosition<'info> {
         mut,
         seeds = [b"staking", lm_staking.staked_token_mint.as_ref()],
         bump = lm_staking.bump,
-        constraint = lm_staking.reward_token_mint.key() == lm_staking_reward_token_mint.key()
+        constraint = lm_staking.reward_token_mint.key() == staking_reward_token_mint.key()
     )]
     pub lm_staking: Box<Account<'info, Staking>>,
 
@@ -59,7 +60,7 @@ pub struct OpenPosition<'info> {
         mut,
         seeds = [b"staking", lp_staking.staked_token_mint.as_ref()],
         bump = lp_staking.bump,
-        constraint = lp_staking.reward_token_mint.key() == lp_staking_reward_token_mint.key()
+        constraint = lp_staking.reward_token_mint.key() == staking_reward_token_mint.key()
     )]
     pub lp_staking: Box<Account<'info, Staking>>,
 
@@ -101,51 +102,26 @@ pub struct OpenPosition<'info> {
         mut,
         seeds = [b"custody",
                  pool.key().as_ref(),
-                 lm_staking_reward_token_custody.mint.as_ref()],
-        bump = lm_staking_reward_token_custody.bump,
-        constraint = lm_staking_reward_token_custody.mint == lm_staking_reward_token_mint.key(),
+                 staking_reward_token_custody.mint.as_ref()],
+        bump = staking_reward_token_custody.bump,
+        constraint = staking_reward_token_custody.mint == staking_reward_token_mint.key(),
     )]
-    pub lm_staking_reward_token_custody: Box<Account<'info, Custody>>,
+    pub staking_reward_token_custody: Box<Account<'info, Custody>>,
 
     /// CHECK: oracle account for the stake_reward token
     #[account(
-        constraint = lm_staking_reward_token_custody_oracle_account.key() == lm_staking_reward_token_custody.oracle.oracle_account
+        constraint = staking_reward_token_custody_oracle_account.key() == staking_reward_token_custody.oracle.oracle_account
     )]
-    pub lm_staking_reward_token_custody_oracle_account: AccountInfo<'info>,
+    pub staking_reward_token_custody_oracle_account: AccountInfo<'info>,
 
     #[account(
         mut,
         seeds = [b"custody_token_account",
                  pool.key().as_ref(),
-                 lm_staking_reward_token_custody.mint.as_ref()],
-        bump = lm_staking_reward_token_custody.token_account_bump,
+                 staking_reward_token_custody.mint.as_ref()],
+        bump = staking_reward_token_custody.token_account_bump,
     )]
-    pub lm_staking_reward_token_custody_token_account: Box<Account<'info, TokenAccount>>,
-
-    #[account(
-        mut,
-        seeds = [b"custody",
-                 pool.key().as_ref(),
-                 lp_staking_reward_token_custody.mint.as_ref()],
-        bump = lp_staking_reward_token_custody.bump,
-        constraint = lp_staking_reward_token_custody.mint == lp_staking_reward_token_mint.key(),
-    )]
-    pub lp_staking_reward_token_custody: Box<Account<'info, Custody>>,
-
-    /// CHECK: oracle account for the stake_reward token
-    #[account(
-        constraint = lp_staking_reward_token_custody_oracle_account.key() == lp_staking_reward_token_custody.oracle.oracle_account
-    )]
-    pub lp_staking_reward_token_custody_oracle_account: AccountInfo<'info>,
-
-    #[account(
-        mut,
-        seeds = [b"custody_token_account",
-                 pool.key().as_ref(),
-                 lp_staking_reward_token_custody.mint.as_ref()],
-        bump = lp_staking_reward_token_custody.token_account_bump,
-    )]
-    pub lp_staking_reward_token_custody_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_reward_token_custody_token_account: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
@@ -218,10 +194,7 @@ pub struct OpenPosition<'info> {
     pub lp_token_mint: Box<Account<'info, Mint>>,
 
     #[account()]
-    pub lm_staking_reward_token_mint: Box<Account<'info, Mint>>,
-
-    #[account()]
-    pub lp_staking_reward_token_mint: Box<Account<'info, Mint>>,
+    pub staking_reward_token_mint: Box<Account<'info, Mint>>,
 
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
@@ -534,12 +507,12 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
 
     // redistribute to ADX stakers
     {
-        if fee_distribution.lm_stakers_fee > 0 {
+        if !fee_distribution.lm_stakers_fee.is_zero() {
             // It is possible that the custody targeted by the function and the stake_reward one are the same, in that
             // case we need to only use one else there are some complication when saving state at the end.
             //
             // if the collected fees are in the right denomination, skip swap
-            if custody.mint == ctx.accounts.lm_staking_reward_token_custody.mint {
+            if custody.mint == ctx.accounts.staking_reward_token_custody.mint {
                 msg!("Transfer collected fees to stake vault (no swap)");
                 perpetuals.transfer_tokens(
                     ctx.accounts
@@ -568,28 +541,27 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
                     ctx.accounts
                         .collateral_custody_token_account
                         .to_account_info(),
+                    ctx.accounts.staking_reward_token_custody.to_account_info(),
                     ctx.accounts
-                        .lm_staking_reward_token_custody
+                        .staking_reward_token_custody_oracle_account
                         .to_account_info(),
                     ctx.accounts
-                        .lm_staking_reward_token_custody_oracle_account
+                        .staking_reward_token_custody_token_account
+                        .to_account_info(),
+                    ctx.accounts.staking_reward_token_custody.to_account_info(),
+                    ctx.accounts
+                        .staking_reward_token_custody_oracle_account
                         .to_account_info(),
                     ctx.accounts
-                        .lm_staking_reward_token_custody_token_account
-                        .to_account_info(),
-                    ctx.accounts
-                        .lm_staking_reward_token_custody
-                        .to_account_info(),
-                    ctx.accounts
-                        .lm_staking_reward_token_custody_oracle_account
-                        .to_account_info(),
-                    ctx.accounts
-                        .lm_staking_reward_token_custody_token_account
+                        .staking_reward_token_custody_token_account
                         .to_account_info(),
                     ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
-                    ctx.accounts.lm_staking_reward_token_mint.to_account_info(),
+                    ctx.accounts.lp_staking_reward_token_vault.to_account_info(),
+                    ctx.accounts.staking_reward_token_mint.to_account_info(),
                     ctx.accounts.lm_staking.to_account_info(),
+                    ctx.accounts.lp_staking.to_account_info(),
                     ctx.accounts.lm_token_mint.to_account_info(),
+                    ctx.accounts.lp_token_mint.to_account_info(),
                     ctx.accounts.token_program.to_account_info(),
                     ctx.accounts.perpetuals_program.to_account_info(),
                     SwapParams {
@@ -603,12 +575,12 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
 
     // redistribute to ALP locked stakers
     {
-        if fee_distribution.locked_lp_stakers_fee > 0 {
+        if !fee_distribution.locked_lp_stakers_fee.is_zero() {
             // It is possible that the custody targeted by the function and the stake_reward one are the same, in that
             // case we need to only use one else there are some complication when saving state at the end.
             //
             // if the collected fees are in the right denomination, skip swap
-            if custody.mint == ctx.accounts.lp_staking_reward_token_custody.mint {
+            if custody.mint == ctx.accounts.staking_reward_token_custody.mint {
                 msg!("Transfer collected fees to stake vault (no swap)");
                 perpetuals.transfer_tokens(
                     ctx.accounts
@@ -637,28 +609,27 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
                     ctx.accounts
                         .collateral_custody_token_account
                         .to_account_info(),
+                    ctx.accounts.staking_reward_token_custody.to_account_info(),
                     ctx.accounts
-                        .lp_staking_reward_token_custody
+                        .staking_reward_token_custody_oracle_account
                         .to_account_info(),
                     ctx.accounts
-                        .lp_staking_reward_token_custody_oracle_account
+                        .staking_reward_token_custody_token_account
+                        .to_account_info(),
+                    ctx.accounts.staking_reward_token_custody.to_account_info(),
+                    ctx.accounts
+                        .staking_reward_token_custody_oracle_account
                         .to_account_info(),
                     ctx.accounts
-                        .lp_staking_reward_token_custody_token_account
-                        .to_account_info(),
-                    ctx.accounts
-                        .lp_staking_reward_token_custody
-                        .to_account_info(),
-                    ctx.accounts
-                        .lp_staking_reward_token_custody_oracle_account
-                        .to_account_info(),
-                    ctx.accounts
-                        .lp_staking_reward_token_custody_token_account
+                        .staking_reward_token_custody_token_account
                         .to_account_info(),
                     ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
-                    ctx.accounts.lm_staking_reward_token_mint.to_account_info(),
+                    ctx.accounts.lp_staking_reward_token_vault.to_account_info(),
+                    ctx.accounts.staking_reward_token_mint.to_account_info(),
                     ctx.accounts.lm_staking.to_account_info(),
+                    ctx.accounts.lp_staking.to_account_info(),
                     ctx.accounts.lm_token_mint.to_account_info(),
+                    ctx.accounts.lp_token_mint.to_account_info(),
                     ctx.accounts.token_program.to_account_info(),
                     ctx.accounts.perpetuals_program.to_account_info(),
                     SwapParams {

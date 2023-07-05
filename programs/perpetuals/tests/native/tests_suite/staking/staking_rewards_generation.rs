@@ -180,7 +180,7 @@ pub async fn staking_rewards_generation() {
             alice,
             &test_setup.payer_keypair,
             AddLockedStakeParams {
-                amount: utils::scale(1, Cortex::LM_DECIMALS),
+                amount: utils::scale(1_500, Cortex::LM_DECIMALS),
                 locked_days: 30,
                 stake_resolution_thread_id,
             },
@@ -260,7 +260,7 @@ pub async fn staking_rewards_generation() {
         assert_eq!(
             lp_staking_reward_token_account_balance_after
                 - lp_staking_reward_token_account_balance_before,
-            2_837,
+            3_753_096,
         );
     }
 
@@ -323,7 +323,7 @@ pub async fn staking_rewards_generation() {
         assert_eq!(
             lp_staking_reward_token_account_balance_after
                 - lp_staking_reward_token_account_balance_before,
-            378,
+            549_339,
         );
 
         position_pda
@@ -385,7 +385,7 @@ pub async fn staking_rewards_generation() {
         assert_eq!(
             lp_staking_reward_token_account_balance_after
                 - lp_staking_reward_token_account_balance_before,
-            378,
+            549_339,
         );
     }
 
@@ -445,13 +445,13 @@ pub async fn staking_rewards_generation() {
         assert_eq!(
             lm_staking_reward_token_account_balance_after
                 - lm_staking_reward_token_account_balance_before,
-            6_298,
+            3_029,
         );
 
         assert_eq!(
             lp_staking_reward_token_account_balance_after
                 - lp_staking_reward_token_account_balance_before,
-            0,
+            1_230,
         );
     }
 
@@ -504,13 +504,13 @@ pub async fn staking_rewards_generation() {
         assert_eq!(
             lm_staking_reward_token_account_balance_after
                 - lm_staking_reward_token_account_balance_before,
-            72,
+            8_645,
         );
 
         assert_eq!(
             lp_staking_reward_token_account_balance_after
                 - lp_staking_reward_token_account_balance_before,
-            0,
+            10_877,
         );
     }
 }
