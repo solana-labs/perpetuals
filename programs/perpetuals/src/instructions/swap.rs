@@ -501,91 +501,83 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
     // Distribute fees
     //
 
-    perpetuals.distribute_fees(
-        receiving_custody.mint != ctx.accounts.staking_reward_token_custody.mint,
-        protocol_fee_in_distribution,
-        ctx.accounts.transfer_authority.to_account_info(),
-        ctx.accounts
-            .receiving_custody_token_account
-            .to_account_info(),
-        ctx.accounts.lm_token_account.to_account_info(),
-        ctx.accounts.cortex.to_account_info(),
-        perpetuals.to_account_info(),
-        pool.to_account_info(),
-        receiving_custody.to_account_info(),
-        ctx.accounts
-            .receiving_custody_oracle_account
-            .to_account_info(),
-        ctx.accounts.staking_reward_token_custody.to_account_info(),
-        ctx.accounts
-            .staking_reward_token_custody_oracle_account
-            .to_account_info(),
-        ctx.accounts
-            .staking_reward_token_custody_token_account
-            .to_account_info(),
-        ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
-        ctx.accounts.lp_staking_reward_token_vault.to_account_info(),
-        ctx.accounts.staking_reward_token_mint.to_account_info(),
-        ctx.accounts.lm_staking.to_account_info(),
-        ctx.accounts.lp_staking.to_account_info(),
-        ctx.accounts.lm_token_mint.to_account_info(),
-        ctx.accounts.lp_token_mint.to_account_info(),
-        ctx.accounts.token_program.to_account_info(),
-        ctx.accounts.perpetuals_program.to_account_info(),
-    )?;
+    drop(perpetuals);
+    drop(pool);
 
     {
-        ctx.accounts.receiving_custody_token_account.reload()?;
-        ctx.accounts.lm_token_account.reload()?;
-        ctx.accounts.cortex.reload()?;
-        perpetuals.reload()?;
-        pool.reload()?;
-        receiving_custody.reload()?;
-        ctx.accounts.staking_reward_token_custody.reload()?;
-        ctx.accounts
-            .staking_reward_token_custody_token_account
-            .reload()?;
-        ctx.accounts.lm_staking_reward_token_vault.reload()?;
-        ctx.accounts.lp_staking_reward_token_vault.reload()?;
-        ctx.accounts.staking_reward_token_mint.reload()?;
-        ctx.accounts.lm_staking.reload()?;
-        ctx.accounts.lp_staking.reload()?;
-        ctx.accounts.lm_token_mint.reload()?;
-        ctx.accounts.lp_token_mint.reload()?;
+        let swap_required =
+            receiving_custody.mint != ctx.accounts.staking_reward_token_custody.mint;
+
+        drop(receiving_custody);
+
+        ctx.accounts.perpetuals.distribute_fees(
+            swap_required,
+            protocol_fee_in_distribution,
+            ctx.accounts.transfer_authority.to_account_info(),
+            ctx.accounts.receiving_custody_token_account.as_mut(),
+            ctx.accounts.lm_token_account.as_mut(),
+            ctx.accounts.cortex.as_mut(),
+            ctx.accounts.perpetuals.clone().as_mut(),
+            ctx.accounts.pool.as_mut(),
+            ctx.accounts.receiving_custody.as_mut(),
+            ctx.accounts
+                .receiving_custody_oracle_account
+                .to_account_info(),
+            ctx.accounts.staking_reward_token_custody.as_mut(),
+            ctx.accounts
+                .staking_reward_token_custody_oracle_account
+                .to_account_info(),
+            ctx.accounts
+                .staking_reward_token_custody_token_account
+                .as_mut(),
+            ctx.accounts.lm_staking_reward_token_vault.as_mut(),
+            ctx.accounts.lp_staking_reward_token_vault.as_mut(),
+            ctx.accounts.staking_reward_token_mint.as_mut(),
+            ctx.accounts.lm_staking.as_mut(),
+            ctx.accounts.lp_staking.as_mut(),
+            ctx.accounts.lm_token_mint.as_mut(),
+            ctx.accounts.lp_token_mint.as_mut(),
+            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.perpetuals_program.to_account_info(),
+        )?;
     }
 
-    perpetuals.distribute_fees(
-        dispensing_custody.mint != ctx.accounts.staking_reward_token_custody.mint,
-        protocol_fee_out_distribution,
-        ctx.accounts.transfer_authority.to_account_info(),
-        ctx.accounts
-            .dispensing_custody_token_account
-            .to_account_info(),
-        ctx.accounts.lm_token_account.to_account_info(),
-        ctx.accounts.cortex.to_account_info(),
-        perpetuals.to_account_info(),
-        pool.to_account_info(),
-        dispensing_custody.to_account_info(),
-        ctx.accounts
-            .dispensing_custody_oracle_account
-            .to_account_info(),
-        ctx.accounts.staking_reward_token_custody.to_account_info(),
-        ctx.accounts
-            .staking_reward_token_custody_oracle_account
-            .to_account_info(),
-        ctx.accounts
-            .staking_reward_token_custody_token_account
-            .to_account_info(),
-        ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
-        ctx.accounts.lp_staking_reward_token_vault.to_account_info(),
-        ctx.accounts.staking_reward_token_mint.to_account_info(),
-        ctx.accounts.lm_staking.to_account_info(),
-        ctx.accounts.lp_staking.to_account_info(),
-        ctx.accounts.lm_token_mint.to_account_info(),
-        ctx.accounts.lp_token_mint.to_account_info(),
-        ctx.accounts.token_program.to_account_info(),
-        ctx.accounts.perpetuals_program.to_account_info(),
-    )?;
+    {
+        let swap_required =
+            dispensing_custody.mint != ctx.accounts.staking_reward_token_custody.mint;
+        drop(dispensing_custody);
+
+        ctx.accounts.perpetuals.distribute_fees(
+            swap_required,
+            protocol_fee_out_distribution,
+            ctx.accounts.transfer_authority.to_account_info(),
+            ctx.accounts.dispensing_custody_token_account.as_mut(),
+            ctx.accounts.lm_token_account.as_mut(),
+            ctx.accounts.cortex.as_mut(),
+            ctx.accounts.perpetuals.clone().as_mut(),
+            ctx.accounts.pool.as_mut(),
+            ctx.accounts.dispensing_custody.as_mut(),
+            ctx.accounts
+                .dispensing_custody_oracle_account
+                .to_account_info(),
+            ctx.accounts.staking_reward_token_custody.as_mut(),
+            ctx.accounts
+                .staking_reward_token_custody_oracle_account
+                .to_account_info(),
+            ctx.accounts
+                .staking_reward_token_custody_token_account
+                .as_mut(),
+            ctx.accounts.lm_staking_reward_token_vault.as_mut(),
+            ctx.accounts.lp_staking_reward_token_vault.as_mut(),
+            ctx.accounts.staking_reward_token_mint.as_mut(),
+            ctx.accounts.lm_staking.as_mut(),
+            ctx.accounts.lp_staking.as_mut(),
+            ctx.accounts.lm_token_mint.as_mut(),
+            ctx.accounts.lp_token_mint.as_mut(),
+            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.perpetuals_program.to_account_info(),
+        )?;
+    }
 
     Ok(())
 }

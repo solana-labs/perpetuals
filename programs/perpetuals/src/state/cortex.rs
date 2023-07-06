@@ -50,7 +50,7 @@ pub struct Cortex {
 // - ADX stakers
 // - ALP holders
 // - ALP locked stakers
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct FeeDistribution {
     pub lm_stakers_fee: u64,
     pub locked_lp_stakers_fee: u64,

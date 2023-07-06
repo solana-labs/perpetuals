@@ -360,6 +360,7 @@ pub fn remove_liquidity(
         .wrapping_add(remove_amount_usd);
 
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
+
     custody.assets.owned = math::checked_sub(custody.assets.owned, withdrawal_amount)?;
 
     if custody.mint == ctx.accounts.staking_reward_token_custody.mint {
@@ -387,31 +388,37 @@ pub fn remove_liquidity(
     // Distribute fees
     //
 
-    perpetuals.distribute_fees(
-        custody.mint != ctx.accounts.staking_reward_token_custody.mint,
+    let swap_required = custody.mint != ctx.accounts.staking_reward_token_custody.mint;
+
+    drop(perpetuals);
+    drop(pool);
+    drop(custody);
+
+    ctx.accounts.perpetuals.distribute_fees(
+        swap_required,
         fee_distribution,
         ctx.accounts.transfer_authority.to_account_info(),
-        ctx.accounts.custody_token_account.to_account_info(),
-        ctx.accounts.lm_token_account.to_account_info(),
-        ctx.accounts.cortex.to_account_info(),
-        perpetuals.to_account_info(),
-        pool.to_account_info(),
-        custody.to_account_info(),
+        ctx.accounts.custody_token_account.as_mut(),
+        ctx.accounts.lm_token_account.as_mut(),
+        ctx.accounts.cortex.as_mut(),
+        ctx.accounts.perpetuals.clone().as_mut(),
+        ctx.accounts.pool.as_mut(),
+        ctx.accounts.custody.as_mut(),
         ctx.accounts.custody_oracle_account.to_account_info(),
-        ctx.accounts.staking_reward_token_custody.to_account_info(),
+        ctx.accounts.staking_reward_token_custody.as_mut(),
         ctx.accounts
             .staking_reward_token_custody_oracle_account
             .to_account_info(),
         ctx.accounts
             .staking_reward_token_custody_token_account
-            .to_account_info(),
-        ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
-        ctx.accounts.lp_staking_reward_token_vault.to_account_info(),
-        ctx.accounts.staking_reward_token_mint.to_account_info(),
-        ctx.accounts.lm_staking.to_account_info(),
-        ctx.accounts.lp_staking.to_account_info(),
-        ctx.accounts.lm_token_mint.to_account_info(),
-        ctx.accounts.lp_token_mint.to_account_info(),
+            .as_mut(),
+        ctx.accounts.lm_staking_reward_token_vault.as_mut(),
+        ctx.accounts.lp_staking_reward_token_vault.as_mut(),
+        ctx.accounts.staking_reward_token_mint.as_mut(),
+        ctx.accounts.lm_staking.as_mut(),
+        ctx.accounts.lp_staking.as_mut(),
+        ctx.accounts.lm_token_mint.as_mut(),
+        ctx.accounts.lp_token_mint.as_mut(),
         ctx.accounts.token_program.to_account_info(),
         ctx.accounts.perpetuals_program.to_account_info(),
     )?;
