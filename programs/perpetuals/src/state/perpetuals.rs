@@ -1,7 +1,9 @@
 use {
+    super::cortex::FeeDistribution,
     crate::{adapters, instructions::SwapParams},
     anchor_lang::prelude::*,
     anchor_spl::token::{Burn, MintTo, Transfer},
+    num_traits::Zero,
     solana_program::account_info::AccountInfo,
     spl_governance::state::token_owner_record::get_token_owner_record_data,
     std::cmp::min,
@@ -109,6 +111,13 @@ impl Perpetuals {
     ) -> Result<()> {
         let authority_seeds: &[&[&[u8]]] =
             &[&[b"transfer_authority", &[self.transfer_authority_bump]]];
+
+        msg!(
+            "Transfer {} tokens from {} to {}",
+            amount,
+            from.key(),
+            to.key()
+        );
 
         let context = CpiContext::new(
             token_program,
@@ -261,6 +270,141 @@ impl Perpetuals {
         target_account
             .realloc(new_len, zero_init)
             .map_err(|_| ProgramError::InvalidRealloc.into())
+    }
+
+    pub fn distribute_fees<'a>(
+        &self,
+        swap_required: bool,
+        fee_distribution: FeeDistribution,
+        transfer_authority: AccountInfo<'a>,
+        custody_token_account: AccountInfo<'a>,
+        lm_token_account: AccountInfo<'a>,
+        cortex: AccountInfo<'a>,
+        perpetuals: AccountInfo<'a>,
+        pool: AccountInfo<'a>,
+        custody: AccountInfo<'a>,
+        custody_oracle_account: AccountInfo<'a>,
+        staking_reward_token_custody: AccountInfo<'a>,
+        staking_reward_token_custody_oracle_account: AccountInfo<'a>,
+        staking_reward_token_custody_token_account: AccountInfo<'a>,
+        lm_staking_reward_token_vault: AccountInfo<'a>,
+        lp_staking_reward_token_vault: AccountInfo<'a>,
+        staking_reward_token_mint: AccountInfo<'a>,
+        lm_staking: AccountInfo<'a>,
+        lp_staking: AccountInfo<'a>,
+        lm_token_mint: AccountInfo<'a>,
+        lp_token_mint: AccountInfo<'a>,
+        token_program: AccountInfo<'a>,
+        perpetuals_program: AccountInfo<'a>,
+    ) -> Result<()> {
+        {
+            if !fee_distribution.lm_stakers_fee.is_zero() {
+                // It is possible that the custody targeted by the function and the stake_reward one are the same, in that
+                // case we need to only use one else there are some complication when saving state at the end.
+                //
+                // if the collected fees are in the right denomination, skip swap
+                if !swap_required {
+                    msg!("Transfer collected fees to stake vault (no swap)");
+                    self.transfer_tokens(
+                        custody_token_account.clone(),
+                        lm_staking_reward_token_vault.clone(),
+                        transfer_authority.clone(),
+                        token_program.clone(),
+                        fee_distribution.lm_stakers_fee,
+                    )?;
+                } else {
+                    // swap the collected fee_amount to stable and send to staking rewards
+                    msg!("Swap collected fees to stake reward mint internally");
+                    self.internal_swap(
+                        transfer_authority.clone(),
+                        custody_token_account.clone(),
+                        lm_staking_reward_token_vault.clone(),
+                        lm_token_account.clone(),
+                        cortex.clone(),
+                        perpetuals.clone(),
+                        pool.clone(),
+                        custody.clone(),
+                        custody_oracle_account.clone(),
+                        custody_token_account.clone(),
+                        staking_reward_token_custody.clone(),
+                        staking_reward_token_custody_oracle_account.clone(),
+                        staking_reward_token_custody_token_account.clone(),
+                        staking_reward_token_custody.clone(),
+                        staking_reward_token_custody_oracle_account.clone(),
+                        staking_reward_token_custody_token_account.clone(),
+                        lm_staking_reward_token_vault.clone(),
+                        lp_staking_reward_token_vault.clone(),
+                        staking_reward_token_mint.clone(),
+                        lm_staking.clone(),
+                        lp_staking.clone(),
+                        lm_token_mint.clone(),
+                        lp_token_mint.clone(),
+                        token_program.clone(),
+                        perpetuals_program.clone(),
+                        SwapParams {
+                            amount_in: fee_distribution.lm_stakers_fee,
+                            min_amount_out: 0,
+                        },
+                    )?;
+                }
+            }
+        }
+
+        // redistribute to ALP locked stakers
+        {
+            if !fee_distribution.locked_lp_stakers_fee.is_zero() {
+                // It is possible that the custody targeted by the function and the stake_reward one are the same, in that
+                // case we need to only use one else there are some complication when saving state at the end.
+                //
+                // if the collected fees are in the right denomination, skip swap
+                if !swap_required {
+                    msg!("Transfer collected fees to stake vault (no swap)");
+                    self.transfer_tokens(
+                        custody_token_account.clone(),
+                        lp_staking_reward_token_vault.clone(),
+                        transfer_authority.clone(),
+                        token_program.clone(),
+                        fee_distribution.locked_lp_stakers_fee,
+                    )?;
+                } else {
+                    // swap the collected fee_amount to stable and send to staking rewards
+                    msg!("Swap collected fees to stake reward mint internally");
+                    self.internal_swap(
+                        transfer_authority.clone(),
+                        custody_token_account.clone(),
+                        lp_staking_reward_token_vault.clone(),
+                        lm_token_account.clone(),
+                        cortex.clone(),
+                        perpetuals.clone(),
+                        pool.clone(),
+                        custody.clone(),
+                        custody_oracle_account.clone(),
+                        custody_token_account.clone(),
+                        staking_reward_token_custody.clone(),
+                        staking_reward_token_custody_oracle_account.clone(),
+                        staking_reward_token_custody_token_account.clone(),
+                        staking_reward_token_custody.clone(),
+                        staking_reward_token_custody_oracle_account.clone(),
+                        staking_reward_token_custody_token_account.clone(),
+                        lm_staking_reward_token_vault.clone(),
+                        lp_staking_reward_token_vault.clone(),
+                        staking_reward_token_mint.clone(),
+                        lm_staking.clone(),
+                        lp_staking.clone(),
+                        lm_token_mint.clone(),
+                        lp_token_mint.clone(),
+                        token_program.clone(),
+                        perpetuals_program.clone(),
+                        SwapParams {
+                            amount_in: fee_distribution.locked_lp_stakers_fee,
+                            min_amount_out: 0,
+                        },
+                    )?;
+                }
+            }
+        }
+
+        Ok(())
     }
 
     // recursive swap CPI

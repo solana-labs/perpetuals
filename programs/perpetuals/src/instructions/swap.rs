@@ -12,7 +12,6 @@ use {
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
-    num_traits::Zero,
     solana_program::program_error::ProgramError,
 };
 
@@ -494,267 +493,99 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
 
     // swap the collected fee_amount to stable and send to staking rewards
     // when it's an internal swap, no fees swap is done
-    if !is_internal_swap {
-        //
-        // redistribute protocol_fee_in
-        //
-        {
-            if !protocol_fee_in_distribution.lm_stakers_fee.is_zero() {
-                if receiving_custody.mint == ctx.accounts.staking_reward_token_custody.mint {
-                    msg!("Transfer collected fees to stake vault (no swap)");
-                    perpetuals.transfer_tokens(
-                        ctx.accounts
-                            .receiving_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
-                        ctx.accounts.transfer_authority.to_account_info(),
-                        ctx.accounts.token_program.to_account_info(),
-                        protocol_fee_in_distribution.lm_stakers_fee,
-                    )?;
-                } else {
-                    msg!("Swapping protocol_fee_in");
-                    perpetuals.internal_swap(
-                        ctx.accounts.transfer_authority.to_account_info(),
-                        ctx.accounts
-                            .receiving_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
-                        ctx.accounts.lm_token_account.to_account_info(),
-                        ctx.accounts.cortex.to_account_info(),
-                        perpetuals.to_account_info(),
-                        ctx.accounts.pool.to_account_info(),
-                        receiving_custody.to_account_info(),
-                        ctx.accounts
-                            .receiving_custody_oracle_account
-                            .to_account_info(),
-                        ctx.accounts
-                            .receiving_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.staking_reward_token_custody.to_account_info(),
-                        ctx.accounts
-                            .staking_reward_token_custody_oracle_account
-                            .to_account_info(),
-                        ctx.accounts
-                            .staking_reward_token_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.staking_reward_token_custody.to_account_info(),
-                        ctx.accounts
-                            .staking_reward_token_custody_oracle_account
-                            .to_account_info(),
-                        ctx.accounts
-                            .staking_reward_token_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
-                        ctx.accounts.lp_staking_reward_token_vault.to_account_info(),
-                        ctx.accounts.staking_reward_token_mint.to_account_info(),
-                        ctx.accounts.lm_staking.to_account_info(),
-                        ctx.accounts.lp_staking.to_account_info(),
-                        ctx.accounts.lm_token_mint.to_account_info(),
-                        ctx.accounts.lp_token_mint.to_account_info(),
-                        ctx.accounts.token_program.to_account_info(),
-                        ctx.accounts.perpetuals_program.to_account_info(),
-                        SwapParams {
-                            amount_in: protocol_fee_in_distribution.lm_stakers_fee,
-                            min_amount_out: 0,
-                        },
-                    )?;
-                }
-            }
-
-            if !protocol_fee_in_distribution.locked_lp_stakers_fee.is_zero() {
-                if receiving_custody.mint == ctx.accounts.staking_reward_token_custody.mint {
-                    msg!("Transfer collected fees to stake vault (no swap)");
-                    perpetuals.transfer_tokens(
-                        ctx.accounts
-                            .receiving_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.lp_staking_reward_token_vault.to_account_info(),
-                        ctx.accounts.transfer_authority.to_account_info(),
-                        ctx.accounts.token_program.to_account_info(),
-                        protocol_fee_in_distribution.locked_lp_stakers_fee,
-                    )?;
-                } else {
-                    msg!("Swapping protocol_fee_in");
-                    perpetuals.internal_swap(
-                        ctx.accounts.transfer_authority.to_account_info(),
-                        ctx.accounts
-                            .receiving_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.lp_staking_reward_token_vault.to_account_info(),
-                        ctx.accounts.lm_token_account.to_account_info(),
-                        ctx.accounts.cortex.to_account_info(),
-                        perpetuals.to_account_info(),
-                        ctx.accounts.pool.to_account_info(),
-                        receiving_custody.to_account_info(),
-                        ctx.accounts
-                            .receiving_custody_oracle_account
-                            .to_account_info(),
-                        ctx.accounts
-                            .receiving_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.staking_reward_token_custody.to_account_info(),
-                        ctx.accounts
-                            .staking_reward_token_custody_oracle_account
-                            .to_account_info(),
-                        ctx.accounts
-                            .staking_reward_token_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.staking_reward_token_custody.to_account_info(),
-                        ctx.accounts
-                            .staking_reward_token_custody_oracle_account
-                            .to_account_info(),
-                        ctx.accounts
-                            .staking_reward_token_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
-                        ctx.accounts.lp_staking_reward_token_vault.to_account_info(),
-                        ctx.accounts.staking_reward_token_mint.to_account_info(),
-                        ctx.accounts.lm_staking.to_account_info(),
-                        ctx.accounts.lp_staking.to_account_info(),
-                        ctx.accounts.lm_token_mint.to_account_info(),
-                        ctx.accounts.lp_token_mint.to_account_info(),
-                        ctx.accounts.token_program.to_account_info(),
-                        ctx.accounts.perpetuals_program.to_account_info(),
-                        SwapParams {
-                            amount_in: protocol_fee_in_distribution.locked_lp_stakers_fee,
-                            min_amount_out: 0,
-                        },
-                    )?;
-                }
-            }
-        }
-
-        //
-        // redistribute protocol_fee_out
-        //
-        {
-            if !protocol_fee_out_distribution.lm_stakers_fee.is_zero() {
-                if dispensing_custody.mint == ctx.accounts.staking_reward_token_custody.mint {
-                    msg!("Transfer collected fees to stake vault (no swap)");
-                    perpetuals.transfer_tokens(
-                        ctx.accounts
-                            .dispensing_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
-                        ctx.accounts.transfer_authority.to_account_info(),
-                        ctx.accounts.token_program.to_account_info(),
-                        protocol_fee_out_distribution.lm_stakers_fee,
-                    )?;
-                } else {
-                    msg!("Swapping protocol_fee_in");
-                    perpetuals.internal_swap(
-                        ctx.accounts.transfer_authority.to_account_info(),
-                        ctx.accounts
-                            .dispensing_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
-                        ctx.accounts.lm_token_account.to_account_info(),
-                        ctx.accounts.cortex.to_account_info(),
-                        perpetuals.to_account_info(),
-                        ctx.accounts.pool.to_account_info(),
-                        dispensing_custody.to_account_info(),
-                        ctx.accounts
-                            .dispensing_custody_oracle_account
-                            .to_account_info(),
-                        ctx.accounts
-                            .dispensing_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.staking_reward_token_custody.to_account_info(),
-                        ctx.accounts
-                            .staking_reward_token_custody_oracle_account
-                            .to_account_info(),
-                        ctx.accounts
-                            .staking_reward_token_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.staking_reward_token_custody.to_account_info(),
-                        ctx.accounts
-                            .staking_reward_token_custody_oracle_account
-                            .to_account_info(),
-                        ctx.accounts
-                            .staking_reward_token_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
-                        ctx.accounts.lp_staking_reward_token_vault.to_account_info(),
-                        ctx.accounts.staking_reward_token_mint.to_account_info(),
-                        ctx.accounts.lm_staking.to_account_info(),
-                        ctx.accounts.lp_staking.to_account_info(),
-                        ctx.accounts.lm_token_mint.to_account_info(),
-                        ctx.accounts.lp_token_mint.to_account_info(),
-                        ctx.accounts.token_program.to_account_info(),
-                        ctx.accounts.perpetuals_program.to_account_info(),
-                        SwapParams {
-                            amount_in: protocol_fee_out_distribution.lm_stakers_fee,
-                            min_amount_out: 0,
-                        },
-                    )?;
-                }
-            }
-
-            if !protocol_fee_out_distribution
-                .locked_lp_stakers_fee
-                .is_zero()
-            {
-                if dispensing_custody.mint == ctx.accounts.staking_reward_token_custody.mint {
-                    msg!("Transfer collected fees to stake vault (no swap)");
-                    perpetuals.transfer_tokens(
-                        ctx.accounts
-                            .dispensing_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.lp_staking_reward_token_vault.to_account_info(),
-                        ctx.accounts.transfer_authority.to_account_info(),
-                        ctx.accounts.token_program.to_account_info(),
-                        protocol_fee_out_distribution.locked_lp_stakers_fee,
-                    )?;
-                } else {
-                    msg!("Swapping protocol_fee_in");
-                    perpetuals.internal_swap(
-                        ctx.accounts.transfer_authority.to_account_info(),
-                        ctx.accounts
-                            .dispensing_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
-                        ctx.accounts.lm_token_account.to_account_info(),
-                        ctx.accounts.cortex.to_account_info(),
-                        perpetuals.to_account_info(),
-                        ctx.accounts.pool.to_account_info(),
-                        dispensing_custody.to_account_info(),
-                        ctx.accounts
-                            .dispensing_custody_oracle_account
-                            .to_account_info(),
-                        ctx.accounts
-                            .dispensing_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.staking_reward_token_custody.to_account_info(),
-                        ctx.accounts
-                            .staking_reward_token_custody_oracle_account
-                            .to_account_info(),
-                        ctx.accounts
-                            .staking_reward_token_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.staking_reward_token_custody.to_account_info(),
-                        ctx.accounts
-                            .staking_reward_token_custody_oracle_account
-                            .to_account_info(),
-                        ctx.accounts
-                            .staking_reward_token_custody_token_account
-                            .to_account_info(),
-                        ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
-                        ctx.accounts.lp_staking_reward_token_vault.to_account_info(),
-                        ctx.accounts.staking_reward_token_mint.to_account_info(),
-                        ctx.accounts.lm_staking.to_account_info(),
-                        ctx.accounts.lp_staking.to_account_info(),
-                        ctx.accounts.lm_token_mint.to_account_info(),
-                        ctx.accounts.lp_token_mint.to_account_info(),
-                        ctx.accounts.token_program.to_account_info(),
-                        ctx.accounts.perpetuals_program.to_account_info(),
-                        SwapParams {
-                            amount_in: protocol_fee_out_distribution.locked_lp_stakers_fee,
-                            min_amount_out: 0,
-                        },
-                    )?;
-                }
-            }
-        }
+    if is_internal_swap {
+        return Ok(());
     }
+
+    //
+    // Distribute fees
+    //
+
+    perpetuals.distribute_fees(
+        receiving_custody.mint != ctx.accounts.staking_reward_token_custody.mint,
+        protocol_fee_in_distribution,
+        ctx.accounts.transfer_authority.to_account_info(),
+        ctx.accounts
+            .receiving_custody_token_account
+            .to_account_info(),
+        ctx.accounts.lm_token_account.to_account_info(),
+        ctx.accounts.cortex.to_account_info(),
+        perpetuals.to_account_info(),
+        pool.to_account_info(),
+        receiving_custody.to_account_info(),
+        ctx.accounts
+            .receiving_custody_oracle_account
+            .to_account_info(),
+        ctx.accounts.staking_reward_token_custody.to_account_info(),
+        ctx.accounts
+            .staking_reward_token_custody_oracle_account
+            .to_account_info(),
+        ctx.accounts
+            .staking_reward_token_custody_token_account
+            .to_account_info(),
+        ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
+        ctx.accounts.lp_staking_reward_token_vault.to_account_info(),
+        ctx.accounts.staking_reward_token_mint.to_account_info(),
+        ctx.accounts.lm_staking.to_account_info(),
+        ctx.accounts.lp_staking.to_account_info(),
+        ctx.accounts.lm_token_mint.to_account_info(),
+        ctx.accounts.lp_token_mint.to_account_info(),
+        ctx.accounts.token_program.to_account_info(),
+        ctx.accounts.perpetuals_program.to_account_info(),
+    )?;
+
+    {
+        ctx.accounts.receiving_custody_token_account.reload()?;
+        ctx.accounts.lm_token_account.reload()?;
+        ctx.accounts.cortex.reload()?;
+        perpetuals.reload()?;
+        pool.reload()?;
+        receiving_custody.reload()?;
+        ctx.accounts.staking_reward_token_custody.reload()?;
+        ctx.accounts
+            .staking_reward_token_custody_token_account
+            .reload()?;
+        ctx.accounts.lm_staking_reward_token_vault.reload()?;
+        ctx.accounts.lp_staking_reward_token_vault.reload()?;
+        ctx.accounts.staking_reward_token_mint.reload()?;
+        ctx.accounts.lm_staking.reload()?;
+        ctx.accounts.lp_staking.reload()?;
+        ctx.accounts.lm_token_mint.reload()?;
+        ctx.accounts.lp_token_mint.reload()?;
+    }
+
+    perpetuals.distribute_fees(
+        dispensing_custody.mint != ctx.accounts.staking_reward_token_custody.mint,
+        protocol_fee_out_distribution,
+        ctx.accounts.transfer_authority.to_account_info(),
+        ctx.accounts
+            .dispensing_custody_token_account
+            .to_account_info(),
+        ctx.accounts.lm_token_account.to_account_info(),
+        ctx.accounts.cortex.to_account_info(),
+        perpetuals.to_account_info(),
+        pool.to_account_info(),
+        dispensing_custody.to_account_info(),
+        ctx.accounts
+            .dispensing_custody_oracle_account
+            .to_account_info(),
+        ctx.accounts.staking_reward_token_custody.to_account_info(),
+        ctx.accounts
+            .staking_reward_token_custody_oracle_account
+            .to_account_info(),
+        ctx.accounts
+            .staking_reward_token_custody_token_account
+            .to_account_info(),
+        ctx.accounts.lm_staking_reward_token_vault.to_account_info(),
+        ctx.accounts.lp_staking_reward_token_vault.to_account_info(),
+        ctx.accounts.staking_reward_token_mint.to_account_info(),
+        ctx.accounts.lm_staking.to_account_info(),
+        ctx.accounts.lp_staking.to_account_info(),
+        ctx.accounts.lm_token_mint.to_account_info(),
+        ctx.accounts.lp_token_mint.to_account_info(),
+        ctx.accounts.token_program.to_account_info(),
+        ctx.accounts.perpetuals_program.to_account_info(),
+    )?;
+
     Ok(())
 }
