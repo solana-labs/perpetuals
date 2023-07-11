@@ -305,7 +305,7 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
 
     // check returned amount
     let no_fee_amount = math::checked_sub(amount_out, fees.1)?;
-    msg!("Amount out: {}", no_fee_amount);
+    msg!("Amount out: {}", amount_out);
     require_gte!(
         no_fee_amount,
         params.min_amount_out,
@@ -433,7 +433,7 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
 
     receiving_custody.collected_fees.swap_usd =
         receiving_custody.collected_fees.swap_usd.wrapping_add(
-            dispensed_token_price.get_asset_amount_usd(fees.0, dispensing_custody.decimals)?,
+            received_token_price.get_asset_amount_usd(fees.0, receiving_custody.decimals)?,
         );
 
     receiving_custody.distributed_rewards.swap_lm = receiving_custody
@@ -450,8 +450,10 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
             )?,
         )?;
     } else {
-        receiving_custody.assets.owned =
-            math::checked_add(receiving_custody.assets.owned, deposit_amount)?;
+        if !is_internal_swap {
+            receiving_custody.assets.owned =
+                math::checked_add(receiving_custody.assets.owned, deposit_amount)?;
+        }
     }
 
     receiving_custody.assets.protocol_fees =
@@ -501,14 +503,21 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
     // Distribute fees
     //
 
-    drop(perpetuals);
-    drop(pool);
+    // Force save
+    {
+        perpetuals.exit(&crate::ID)?;
+        pool.exit(&crate::ID)?;
+        receiving_custody.exit(&crate::ID)?;
+        dispensing_custody.exit(&crate::ID)?;
+
+        drop(perpetuals);
+        drop(pool);
+        drop(receiving_custody);
+    }
 
     {
         let swap_required =
-            receiving_custody.mint != ctx.accounts.staking_reward_token_custody.mint;
-
-        drop(receiving_custody);
+            ctx.accounts.receiving_custody.mint != ctx.accounts.staking_reward_token_custody.mint;
 
         ctx.accounts.perpetuals.distribute_fees(
             swap_required,
@@ -544,8 +553,7 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
 
     {
         let swap_required =
-            dispensing_custody.mint != ctx.accounts.staking_reward_token_custody.mint;
-        drop(dispensing_custody);
+            ctx.accounts.dispensing_custody.mint != ctx.accounts.staking_reward_token_custody.mint;
 
         ctx.accounts.perpetuals.distribute_fees(
             swap_required,

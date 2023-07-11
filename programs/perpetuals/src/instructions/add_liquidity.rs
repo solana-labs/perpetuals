@@ -205,6 +205,9 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
     if params.amount_in == 0 {
         return Err(ProgramError::InvalidArgument.into());
     }
+
+    msg!("amount_in: {}", params.amount_in);
+
     let pool = ctx.accounts.pool.as_mut();
     let token_id = pool.get_token_id(&custody.key())?;
 
@@ -388,15 +391,24 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
     pool.aum_usd =
         pool.get_assets_under_management_usd(AumCalcMode::EMA, ctx.remaining_accounts, curtime)?;
 
+    msg!("pool.aum_usd: {}", pool.aum_usd);
+
     //
     // Distribute fees
     //
 
     let swap_required = custody.mint != ctx.accounts.staking_reward_token_custody.mint;
 
-    drop(perpetuals);
-    drop(pool);
-    drop(custody);
+    // Force save
+    {
+        perpetuals.exit(&crate::ID)?;
+        pool.exit(&crate::ID)?;
+        custody.exit(&crate::ID)?;
+
+        drop(perpetuals);
+        drop(pool);
+        drop(custody);
+    }
 
     ctx.accounts.perpetuals.distribute_fees(
         swap_required,

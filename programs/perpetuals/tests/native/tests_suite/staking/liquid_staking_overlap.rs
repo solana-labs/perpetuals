@@ -391,7 +391,7 @@ pub async fn liquid_staking_overlap() {
         )
         .await;
 
-        assert_eq!(balance_after - balance_before, 2_053_676);
+        assert_eq!(balance_after - balance_before, 2_060_934);
     }
 
     // Generate rewards for current round & move to next round

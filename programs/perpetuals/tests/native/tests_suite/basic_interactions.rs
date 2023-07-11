@@ -114,7 +114,6 @@ pub async fn basic_interactions() {
     let eth_mint = &test_setup.get_mint_by_name("eth");
 
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
-
     utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
 
     // Simple open/close position
@@ -179,6 +178,8 @@ pub async fn basic_interactions() {
         .await
         .unwrap();
     }
+
+    println!(">>>>>>>>> REMOVE LIQUIDITY");
 
     // Remove liquidity
     {

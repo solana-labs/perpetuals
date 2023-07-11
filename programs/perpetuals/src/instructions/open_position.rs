@@ -430,7 +430,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         amount
     };
 
-    let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
+    let protocol_fee = Pool::get_fee_amount(collateral_custody.fees.protocol_share, fee_amount)?;
     collateral_custody.assets.protocol_fees =
         math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
 
@@ -453,22 +453,28 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
                 .get_asset_amount_usd(fee_amount, collateral_custody.decimals)?,
         );
 
-    custody.distributed_rewards.open_position_lm = custody
+    collateral_custody.assets.collateral =
+        math::checked_add(collateral_custody.assets.collateral, params.collateral)?;
+
+    collateral_custody.distributed_rewards.open_position_lm = collateral_custody
         .distributed_rewards
         .open_position_lm
         .wrapping_add(lm_rewards_amount);
 
-    collateral_custody.assets.collateral =
-        math::checked_add(collateral_custody.assets.collateral, params.collateral)?;
-
-    if custody.mint == ctx.accounts.staking_reward_token_custody.mint {
-        custody.assets.owned =
-            math::checked_add(custody.assets.owned, fee_distribution.lp_organic_fee)?;
+    if collateral_custody.mint == ctx.accounts.staking_reward_token_custody.mint {
+        collateral_custody.assets.owned = math::checked_add(
+            collateral_custody.assets.owned,
+            fee_distribution.lp_organic_fee,
+        )?;
     } else {
-        custody.assets.owned = math::checked_add(
-            custody.assets.owned,
+        collateral_custody.assets.owned = math::checked_add(
+            collateral_custody.assets.owned,
             math::checked_sub(fee_amount, protocol_fee)?,
         )?;
+    }
+
+    if collateral_custody.key() == custody.key() {
+        *custody = collateral_custody.clone();
     }
 
     // if custody and collateral_custody accounts are the same, ensure that data is in sync
@@ -488,7 +494,10 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
 
         collateral_custody.add_position(position, &token_ema_price, curtime, None)?;
         collateral_custody.update_borrow_rate(curtime)?;
-        *custody = collateral_custody.clone();
+
+        if collateral_custody.key() == custody.key() {
+            *custody = collateral_custody.clone();
+        }
     } else {
         custody.volume_stats.open_position_usd = custody
             .volume_stats
@@ -509,7 +518,12 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
             curtime,
             Some(collateral_custody),
         )?;
-        collateral_custody.update_borrow_rate(curtime)?;
+
+        custody.update_borrow_rate(curtime)?;
+
+        if collateral_custody.key() == custody.key() {
+            *collateral_custody = custody.clone();
+        }
     }
 
     //
@@ -518,9 +532,18 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
 
     let swap_required = custody.mint != ctx.accounts.staking_reward_token_custody.mint;
 
-    drop(perpetuals);
-    drop(pool);
-    drop(custody);
+    // Force save
+    {
+        perpetuals.exit(&crate::ID)?;
+        pool.exit(&crate::ID)?;
+        custody.exit(&crate::ID)?;
+        collateral_custody.exit(&crate::ID)?;
+
+        drop(perpetuals);
+        drop(pool);
+        drop(custody);
+        drop(collateral_custody);
+    }
 
     ctx.accounts.perpetuals.distribute_fees(
         swap_required,
@@ -531,7 +554,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         ctx.accounts.cortex.as_mut(),
         ctx.accounts.perpetuals.clone().as_mut(),
         ctx.accounts.pool.as_mut(),
-        ctx.accounts.custody.as_mut(),
+        ctx.accounts.collateral_custody.as_mut(),
         ctx.accounts.custody_oracle_account.to_account_info(),
         ctx.accounts.staking_reward_token_custody.as_mut(),
         ctx.accounts

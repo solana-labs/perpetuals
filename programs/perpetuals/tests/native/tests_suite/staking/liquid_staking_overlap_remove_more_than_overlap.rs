@@ -396,6 +396,6 @@ pub async fn liquid_staking_overlap_remove_more_than_overlap() {
         )
         .await;
 
-        assert_eq!(balance_after - balance_before, 576_916);
+        assert_eq!(balance_after - balance_before, 580_545);
     }
 }

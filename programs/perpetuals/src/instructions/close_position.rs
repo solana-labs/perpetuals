@@ -274,10 +274,6 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
 
     let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
 
-    msg!("Net profit: {}, loss: {}", profit_usd, loss_usd);
-    msg!("Collected fee: {}", fee_amount);
-    msg!("Amount out: {}", transfer_amount);
-
     // unlock pool funds
     collateral_custody.unlock_funds(position.locked_amount)?;
 
@@ -361,24 +357,32 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
                 .get_asset_amount_usd(fee_amount, collateral_custody.decimals)?,
         );
 
-    custody.distributed_rewards.close_position_lm = custody
+    collateral_custody.distributed_rewards.close_position_lm = collateral_custody
         .distributed_rewards
         .close_position_lm
         .wrapping_add(lm_rewards_amount);
 
     if transfer_amount > position.collateral_amount {
         let amount_lost = transfer_amount.saturating_sub(position.collateral_amount);
+        msg!("amount_lost: {}", amount_lost);
         collateral_custody.assets.owned =
             math::checked_sub(collateral_custody.assets.owned, amount_lost)?;
     } else {
         let amount_gained = position.collateral_amount.saturating_sub(transfer_amount);
+        msg!("amount_gained: {}", amount_gained);
         collateral_custody.assets.owned =
             math::checked_add(collateral_custody.assets.owned, amount_gained)?;
     }
 
+    //
+    // Takes fees from custody
+    //
+    collateral_custody.assets.owned =
+        math::checked_sub(collateral_custody.assets.owned, protocol_fee)?;
+
     if custody.mint == ctx.accounts.staking_reward_token_custody.mint {
-        custody.assets.owned = math::checked_sub(
-            custody.assets.owned,
+        collateral_custody.assets.owned = math::checked_sub(
+            collateral_custody.assets.owned,
             math::checked_add(
                 fee_distribution.lm_stakers_fee,
                 fee_distribution.locked_lp_stakers_fee,
@@ -446,7 +450,13 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         custody.trade_stats.loss_usd = custody.trade_stats.loss_usd.wrapping_add(loss_usd);
 
         custody.remove_position(position, curtime, Some(collateral_custody))?;
-        collateral_custody.update_borrow_rate(curtime)?;
+
+        if custody.key() == collateral_custody.key() {
+            custody.update_borrow_rate(curtime)?;
+            *collateral_custody = custody.clone();
+        } else {
+            collateral_custody.update_borrow_rate(curtime)?;
+        }
     }
 
     //
@@ -455,9 +465,21 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
 
     let swap_required = custody.mint != ctx.accounts.staking_reward_token_custody.mint;
 
-    drop(perpetuals);
-    drop(pool);
-    drop(custody);
+    // Force save
+    {
+        perpetuals.exit(&crate::ID)?;
+        pool.exit(&crate::ID)?;
+        custody.exit(&crate::ID)?;
+
+        if custody.key() != collateral_custody.key() {
+            collateral_custody.exit(&crate::ID)?;
+        }
+
+        drop(perpetuals);
+        drop(pool);
+        drop(custody);
+        drop(collateral_custody);
+    }
 
     ctx.accounts.perpetuals.distribute_fees(
         swap_required,

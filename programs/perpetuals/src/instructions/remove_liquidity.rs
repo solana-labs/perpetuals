@@ -252,6 +252,8 @@ pub fn remove_liquidity(
     let transfer_amount = math::checked_sub(remove_amount, fee_amount)?;
     msg!("Amount out: {}", transfer_amount);
 
+    msg!("LP amount in: {}", params.lp_amount_in);
+
     require!(
         transfer_amount >= params.min_amount_out,
         PerpetualsError::MaxPriceSlippage
@@ -390,9 +392,16 @@ pub fn remove_liquidity(
 
     let swap_required = custody.mint != ctx.accounts.staking_reward_token_custody.mint;
 
-    drop(perpetuals);
-    drop(pool);
-    drop(custody);
+    // Force save
+    {
+        perpetuals.exit(&crate::ID)?;
+        pool.exit(&crate::ID)?;
+        custody.exit(&crate::ID)?;
+
+        drop(perpetuals);
+        drop(pool);
+        drop(custody);
+    }
 
     ctx.accounts.perpetuals.distribute_fees(
         swap_required,
