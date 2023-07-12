@@ -4,8 +4,9 @@ use {
     bonfida_test_utils::ProgramTestContextExt,
     perpetuals::{
         instructions::LiquidateParams,
-        state::{custody::Custody, position::Position},
+        state::{custody::Custody, pool::Pool, position::Position},
     },
+    solana_program::instruction::AccountMeta,
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
@@ -55,9 +56,8 @@ pub async fn test_liquidate(
         .await
         .unwrap();
 
-    utils::create_and_execute_perpetuals_ix(
-        program_test_ctx,
-        perpetuals::accounts::Liquidate {
+    let accounts_meta = {
+        let accounts = perpetuals::accounts::Liquidate {
             signer: liquidator.pubkey(),
             rewards_receiving_account: rewards_receiving_account_address,
             receiving_account: receiving_account_address,
@@ -71,8 +71,38 @@ pub async fn test_liquidate(
             collateral_custody_oracle_account: custody_oracle_account_address,
             collateral_custody_token_account: custody_token_account_pda,
             token_program: anchor_spl::token::ID,
+        };
+
+        let mut accounts_meta = accounts.to_account_metas(None);
+
+        let pool_account = utils::get_account::<Pool>(program_test_ctx, *pool_pda).await;
+
+        // For each token, add custody account as remaining_account
+        for custody in &pool_account.custodies {
+            accounts_meta.push(AccountMeta {
+                pubkey: *custody,
+                is_signer: false,
+                is_writable: false,
+            });
         }
-        .to_account_metas(None),
+
+        // For each token, add custody oracle account as remaining_account
+        for custody in &pool_account.custodies {
+            let custody_account = utils::get_account::<Custody>(program_test_ctx, *custody).await;
+
+            accounts_meta.push(AccountMeta {
+                pubkey: custody_account.oracle.oracle_account,
+                is_signer: false,
+                is_writable: false,
+            });
+        }
+
+        accounts_meta
+    };
+
+    utils::create_and_execute_perpetuals_ix(
+        program_test_ctx,
+        accounts_meta,
         perpetuals::instruction::Liquidate {
             params: LiquidateParams {},
         },

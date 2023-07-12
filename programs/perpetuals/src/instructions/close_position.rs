@@ -8,7 +8,7 @@ use {
             custody::Custody,
             oracle::OraclePrice,
             perpetuals::Perpetuals,
-            pool::Pool,
+            pool::{AumCalcMode, Pool},
             position::{Position, Side},
         },
     },
@@ -96,6 +96,9 @@ pub struct ClosePosition<'info> {
     pub collateral_custody_token_account: Box<Account<'info, TokenAccount>>,
 
     token_program: Program<'info, Token>,
+    // remaining accounts:
+    //   pool.tokens.len() custody accounts (read-only, unsigned)
+    //   pool.tokens.len() custody oracles (read-only, unsigned)
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
@@ -291,6 +294,15 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         custody.remove_position(position, curtime, Some(collateral_custody))?;
         collateral_custody.update_borrow_rate(curtime)?;
     }
+
+    // update pool stats
+    msg!("Update pool stats");
+
+    custody.exit(&crate::ID)?;
+    collateral_custody.exit(&crate::ID)?;
+
+    pool.aum_usd =
+        pool.get_assets_under_management_usd(AumCalcMode::EMA, ctx.remaining_accounts, curtime)?;
 
     Ok(())
 }

@@ -33,6 +33,7 @@ pub async fn basic_interactions() {
                 name: "paul",
                 token_balances: hashmap! {
                     "usdc"  => utils::scale(150, USDC_DECIMALS),
+                    "eth"  => utils::scale(1, ETH_DECIMALS),
                 },
             },
         ],
@@ -134,29 +135,102 @@ pub async fn basic_interactions() {
         .unwrap();
     }
 
-    // Simple swap
+    // Simple swaps
     {
-        // Paul: Swap 150 USDC for ETH
-        instructions::test_swap(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            paul,
-            &test_setup.payer_keypair,
-            &test_setup.pool_pda,
-            &eth_mint,
-            // The program receives USDC
-            &usdc_mint,
-            SwapParams {
-                amount_in: utils::scale(150, USDC_DECIMALS),
+        let paul_eth_ata = utils::find_associated_token_account(&paul.pubkey(), eth_mint).0;
+        let paul_usdc_ata = utils::find_associated_token_account(&paul.pubkey(), usdc_mint).0;
 
-                // 1% slippage
-                min_amount_out: utils::scale(150, USDC_DECIMALS)
-                    / utils::scale(1_500, ETH_DECIMALS)
-                    * 99
-                    / 100,
-            },
-        )
-        .await
-        .unwrap();
+        // Paul: Swap 150 USDC for ETH
+        {
+            let eth_balance_before = utils::get_token_account_balance(
+                &mut test_setup.program_test_ctx.borrow_mut(),
+                paul_eth_ata,
+            )
+            .await;
+
+            let usdc_balance_before = utils::get_token_account_balance(
+                &mut test_setup.program_test_ctx.borrow_mut(),
+                paul_usdc_ata,
+            )
+            .await;
+
+            instructions::test_swap(
+                &mut test_setup.program_test_ctx.borrow_mut(),
+                paul,
+                &test_setup.payer_keypair,
+                &test_setup.pool_pda,
+                &eth_mint,
+                // The program receives USDC
+                &usdc_mint,
+                SwapParams {
+                    amount_in: utils::scale(150, USDC_DECIMALS),
+                    min_amount_out: utils::scale_f64(0.09, ETH_DECIMALS),
+                },
+            )
+            .await
+            .unwrap();
+
+            let eth_balance_after = utils::get_token_account_balance(
+                &mut test_setup.program_test_ctx.borrow_mut(),
+                paul_eth_ata,
+            )
+            .await;
+
+            let usdc_balance_after = utils::get_token_account_balance(
+                &mut test_setup.program_test_ctx.borrow_mut(),
+                paul_usdc_ata,
+            )
+            .await;
+
+            assert_eq!(eth_balance_after - eth_balance_before, 96_262_804);
+            assert_eq!(usdc_balance_before - usdc_balance_after, 150_000_000);
+        }
+
+        // Paul: Swap 0.1 ETH for 150 USDC
+        {
+            let eth_balance_before = utils::get_token_account_balance(
+                &mut test_setup.program_test_ctx.borrow_mut(),
+                paul_eth_ata,
+            )
+            .await;
+
+            let usdc_balance_before = utils::get_token_account_balance(
+                &mut test_setup.program_test_ctx.borrow_mut(),
+                paul_usdc_ata,
+            )
+            .await;
+
+            instructions::test_swap(
+                &mut test_setup.program_test_ctx.borrow_mut(),
+                paul,
+                &test_setup.payer_keypair,
+                &test_setup.pool_pda,
+                &usdc_mint,
+                // The program receives ETH
+                &eth_mint,
+                SwapParams {
+                    amount_in: utils::scale_f64(0.1, ETH_DECIMALS),
+                    min_amount_out: utils::scale(140, USDC_DECIMALS),
+                },
+            )
+            .await
+            .unwrap();
+
+            let eth_balance_after = utils::get_token_account_balance(
+                &mut test_setup.program_test_ctx.borrow_mut(),
+                paul_eth_ata,
+            )
+            .await;
+
+            let usdc_balance_after = utils::get_token_account_balance(
+                &mut test_setup.program_test_ctx.borrow_mut(),
+                paul_usdc_ata,
+            )
+            .await;
+
+            assert_eq!(eth_balance_before - eth_balance_after, 100_000_000);
+            assert_eq!(usdc_balance_after - usdc_balance_before, 143_608_500);
+        }
     }
 
     // Remove liquidity
