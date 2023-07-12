@@ -257,6 +257,9 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
     collateral_custody.assets.protocol_fees =
         math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
 
+    collateral_custody.assets.owned =
+        math::checked_sub(collateral_custody.assets.owned, protocol_fee)?;
+
     // if custody and collateral_custody accounts are the same, ensure that data is in sync
     if position.side == Side::Long && !custody.is_virtual {
         collateral_custody.volume_stats.liquidation_usd = math::checked_add(

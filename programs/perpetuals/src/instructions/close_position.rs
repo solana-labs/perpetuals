@@ -270,7 +270,6 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
 
         collateral_custody.remove_position(position, curtime, None)?;
         collateral_custody.update_borrow_rate(curtime)?;
-
         *custody = collateral_custody.clone();
     } else {
         custody.volume_stats.close_position_usd = custody
@@ -294,7 +293,6 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         custody.trade_stats.loss_usd = custody.trade_stats.loss_usd.wrapping_add(loss_usd);
 
         custody.remove_position(position, curtime, Some(collateral_custody))?;
-
         collateral_custody.update_borrow_rate(curtime)?;
     }
 
