@@ -25,6 +25,7 @@ pub mod add_locked_stake;
 pub mod claim_stakes;
 pub mod claim_vest;
 pub mod close_position;
+pub mod finalize_locked_stake;
 pub mod get_add_liquidity_amount_and_fee;
 pub mod get_assets_under_management;
 pub mod get_entry_price_and_fee;
@@ -45,7 +46,6 @@ pub mod remove_collateral;
 pub mod remove_liquid_stake;
 pub mod remove_liquidity;
 pub mod remove_locked_stake;
-pub mod resolve_locked_stake;
 pub mod resolve_staking_round;
 pub mod swap;
 
@@ -53,14 +53,13 @@ pub mod swap;
 pub use {
     add_collateral::*, add_custody::*, add_liquid_stake::*, add_liquidity::*, add_locked_stake::*,
     add_pool::*, add_vest::*, claim_stakes::*, claim_vest::*, close_position::*,
-    get_add_liquidity_amount_and_fee::*, get_assets_under_management::*,
+    finalize_locked_stake::*, get_add_liquidity_amount_and_fee::*, get_assets_under_management::*,
     get_entry_price_and_fee::*, get_exit_price_and_fee::*, get_liquidation_price::*,
     get_liquidation_state::*, get_lp_token_price::*, get_oracle_price::*, get_pnl::*,
     get_remove_liquidity_amount_and_fee::*, get_swap_amount_and_fees::*, init::*, init_staking::*,
     init_user_staking::*, liquidate::*, mint_lm_tokens_from_bucket::*, open_position::*,
     remove_collateral::*, remove_custody::*, remove_liquid_stake::*, remove_liquidity::*,
-    remove_locked_stake::*, remove_pool::*, resolve_locked_stake::*, resolve_staking_round::*,
-    set_admin_signers::*, set_custody_config::*, set_custom_oracle_price::*, set_permissions::*,
-    set_test_time::*, swap::*, test_init::*, upgrade_custody::*, withdraw_fees::*,
-    withdraw_sol_fees::*,
+    remove_locked_stake::*, remove_pool::*, resolve_staking_round::*, set_admin_signers::*,
+    set_custody_config::*, set_custom_oracle_price::*, set_permissions::*, set_test_time::*,
+    swap::*, test_init::*, upgrade_custody::*, withdraw_fees::*, withdraw_sol_fees::*,
 };

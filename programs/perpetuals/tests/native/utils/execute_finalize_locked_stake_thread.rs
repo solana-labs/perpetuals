@@ -10,7 +10,7 @@ use {
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
 
-pub async fn execute_resolve_locked_stake_thread(
+pub async fn execute_finalize_locked_stake_thread(
     program_test_ctx: &mut ProgramTestContext,
     clockwork_worker: &Pubkey,
     clockwork_signatory: &Keypair,
@@ -66,7 +66,7 @@ pub async fn execute_resolve_locked_stake_thread(
     .await
     .unwrap();
 
-    let remaining_accounts = perpetuals::accounts::ResolveLockedStake {
+    let remaining_accounts = perpetuals::accounts::FinalizeLockedStake {
         caller: stake_resolution_thread_pda,
         owner: owner.pubkey(),
         transfer_authority: transfer_authority_pda,

@@ -1,4 +1,4 @@
-//! ResolveLockedStake instruction handler
+//! FinalizeLockedStake instruction handler
 
 use {
     crate::{
@@ -14,7 +14,7 @@ use {
 };
 
 #[derive(Accounts)]
-pub struct ResolveLockedStake<'info> {
+pub struct FinalizeLockedStake<'info> {
     // Caller is restrained to be the clockwork thread only
     #[account(mut, owner = clockwork_sdk::ID)]
     pub caller: Signer<'info>,
@@ -95,16 +95,16 @@ pub struct ResolveLockedStake<'info> {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
-pub struct ResolveLockedStakeParams {
+pub struct FinalizeLockedStakeParams {
     pub thread_id: u64,
 }
 
-// Resolving a stake means cancelling the governing power related to the stake and stopping to accrue rewards
-// A stake can be resolved when its locking period have ended
-// After a stake is resolved, it can be removed by the user to retrieve its tokens
-pub fn resolve_locked_stake(
-    ctx: Context<ResolveLockedStake>,
-    params: &ResolveLockedStakeParams,
+// Finalize a stake means cancelling the governing power related to the stake and stopping to accrue rewards
+// A stake can be finalized when its locking period have ended
+// After a stake is finalized, it can be removed by the user to retrieve its tokens
+pub fn finalize_locked_stake(
+    ctx: Context<FinalizeLockedStake>,
+    params: &FinalizeLockedStakeParams,
 ) -> Result<()> {
     let staking = ctx.accounts.staking.as_mut();
     let user_staking = ctx.accounts.user_staking.as_mut();

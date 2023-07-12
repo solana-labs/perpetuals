@@ -1,5 +1,5 @@
 pub mod execute_claim_stakes_thread;
-pub mod execute_resolve_locked_stake_thread;
+pub mod execute_finalize_locked_stake_thread;
 pub mod fixtures;
 pub mod pda;
 pub mod test_setup;
@@ -7,6 +7,6 @@ pub mod test_setup;
 pub mod utils;
 
 pub use {
-    execute_claim_stakes_thread::*, execute_resolve_locked_stake_thread::*, fixtures::*, pda::*,
+    execute_claim_stakes_thread::*, execute_finalize_locked_stake_thread::*, fixtures::*, pda::*,
     test_setup::*, utils::*,
 };
