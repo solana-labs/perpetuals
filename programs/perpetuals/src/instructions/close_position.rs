@@ -233,8 +233,13 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     )?;
 
     let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
+
     collateral_custody.assets.protocol_fees =
         math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
+
+    // Pay protocol fee with custody
+    collateral_custody.assets.owned =
+        math::checked_sub(collateral_custody.assets.owned, protocol_fee)?;
 
     // if custody and collateral_custody accounts are the same, ensure that data is in sync
     if position.side == Side::Long && !custody.is_virtual {
@@ -266,6 +271,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
 
         collateral_custody.remove_position(position, curtime, None)?;
         collateral_custody.update_borrow_rate(curtime)?;
+
         *custody = collateral_custody.clone();
     } else {
         custody.volume_stats.close_position_usd = custody
@@ -289,6 +295,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         custody.trade_stats.loss_usd = custody.trade_stats.loss_usd.wrapping_add(loss_usd);
 
         custody.remove_position(position, curtime, Some(collateral_custody))?;
+
         collateral_custody.update_borrow_rate(curtime)?;
     }
 
