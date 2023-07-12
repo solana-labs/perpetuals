@@ -237,7 +237,6 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     collateral_custody.assets.protocol_fees =
         math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
 
-    // Pay protocol fee with custody
     collateral_custody.assets.owned =
         math::checked_sub(collateral_custody.assets.owned, protocol_fee)?;
 
