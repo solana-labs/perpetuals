@@ -124,6 +124,10 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
     // calculate fee
     let curtime = perpetuals.get_time()?;
 
+    // Refresh pool.aum_usm to adapt to token price change
+    pool.aum_usd =
+        pool.get_assets_under_management_usd(AumCalcMode::EMA, ctx.remaining_accounts, curtime)?;
+
     let token_price = OraclePrice::new_from_oracle(
         &ctx.accounts.custody_oracle_account.to_account_info(),
         &custody.oracle,

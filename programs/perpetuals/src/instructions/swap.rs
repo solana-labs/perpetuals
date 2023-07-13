@@ -4,7 +4,12 @@ use {
     crate::{
         error::PerpetualsError,
         math,
-        state::{custody::Custody, oracle::OraclePrice, perpetuals::Perpetuals, pool::Pool},
+        state::{
+            custody::Custody,
+            oracle::OraclePrice,
+            perpetuals::Perpetuals,
+            pool::{AumCalcMode, Pool},
+        },
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Token, TokenAccount},
@@ -101,6 +106,9 @@ pub struct Swap<'info> {
     pub dispensing_custody_token_account: Box<Account<'info, TokenAccount>>,
 
     token_program: Program<'info, Token>,
+    // remaining accounts:
+    //   pool.tokens.len() custody accounts (read-only, unsigned)
+    //   pool.tokens.len() custody oracles (read-only, unsigned)
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
@@ -136,6 +144,10 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
     let curtime = perpetuals.get_time()?;
     let token_id_in = pool.get_token_id(&receiving_custody.key())?;
     let token_id_out = pool.get_token_id(&dispensing_custody.key())?;
+
+    // Refresh pool.aum_usm to adapt to token price change
+    pool.aum_usd =
+        pool.get_assets_under_management_usd(AumCalcMode::EMA, ctx.remaining_accounts, curtime)?;
 
     let received_token_price = OraclePrice::new_from_oracle(
         &ctx.accounts
@@ -294,6 +306,15 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
 
     receiving_custody.update_borrow_rate(curtime)?;
     dispensing_custody.update_borrow_rate(curtime)?;
+
+    // update pool stats
+    msg!("Update pool stats");
+
+    receiving_custody.exit(&crate::ID)?;
+    dispensing_custody.exit(&crate::ID)?;
+
+    pool.aum_usd =
+        pool.get_assets_under_management_usd(AumCalcMode::EMA, ctx.remaining_accounts, curtime)?;
 
     Ok(())
 }

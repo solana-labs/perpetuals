@@ -8,7 +8,7 @@ use {
             custody::Custody,
             oracle::OraclePrice,
             perpetuals::Perpetuals,
-            pool::Pool,
+            pool::{AumCalcMode, Pool},
             position::{Position, Side},
         },
     },
@@ -105,6 +105,9 @@ pub struct OpenPosition<'info> {
 
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
+    // remaining accounts:
+    //   pool.tokens.len() custody accounts (read-only, unsigned)
+    //   pool.tokens.len() custody oracles (read-only, unsigned)
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
@@ -144,11 +147,16 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     } else {
         require_keys_eq!(custody.key(), collateral_custody.key());
     };
+
     let position = ctx.accounts.position.as_mut();
     let pool = ctx.accounts.pool.as_mut();
 
     // compute position price
     let curtime = perpetuals.get_time()?;
+
+    // Refresh pool.aum_usm to adapt to token price change
+    pool.aum_usd =
+        pool.get_assets_under_management_usd(AumCalcMode::EMA, ctx.remaining_accounts, curtime)?;
 
     let token_price = OraclePrice::new_from_oracle(
         &ctx.accounts.custody_oracle_account.to_account_info(),

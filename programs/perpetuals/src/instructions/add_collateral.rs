@@ -8,7 +8,7 @@ use {
             custody::Custody,
             oracle::OraclePrice,
             perpetuals::Perpetuals,
-            pool::Pool,
+            pool::{AumCalcMode, Pool},
             position::{Position, Side},
         },
     },
@@ -97,6 +97,9 @@ pub struct AddCollateral<'info> {
     pub collateral_custody_token_account: Box<Account<'info, TokenAccount>>,
 
     token_program: Program<'info, Token>,
+    // remaining accounts:
+    //   pool.tokens.len() custody accounts (read-only, unsigned)
+    //   pool.tokens.len() custody oracles (read-only, unsigned)
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
@@ -119,6 +122,10 @@ pub fn add_collateral(ctx: Context<AddCollateral>, params: &AddCollateralParams)
 
     // compute position price
     let curtime = perpetuals.get_time()?;
+
+    // Refresh pool.aum_usm to adapt to token price change
+    pool.aum_usd =
+        pool.get_assets_under_management_usd(AumCalcMode::EMA, ctx.remaining_accounts, curtime)?;
 
     let token_price = OraclePrice::new_from_oracle(
         &ctx.accounts.custody_oracle_account.to_account_info(),
