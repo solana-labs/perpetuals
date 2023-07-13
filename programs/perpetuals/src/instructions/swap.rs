@@ -145,6 +145,10 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
     let token_id_in = pool.get_token_id(&receiving_custody.key())?;
     let token_id_out = pool.get_token_id(&dispensing_custody.key())?;
 
+    // Refresh pool.aum_usm to adapt to token price change
+    pool.aum_usd =
+        pool.get_assets_under_management_usd(AumCalcMode::EMA, ctx.remaining_accounts, curtime)?;
+
     let received_token_price = OraclePrice::new_from_oracle(
         &ctx.accounts
             .receiving_custody_oracle_account

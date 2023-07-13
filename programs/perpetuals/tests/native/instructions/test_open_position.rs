@@ -4,8 +4,9 @@ use {
     bonfida_test_utils::ProgramTestContextExt,
     perpetuals::{
         instructions::OpenPositionParams,
-        state::{custody::Custody, position::Position},
+        state::{custody::Custody, pool::Pool, position::Position},
     },
+    solana_program::instruction::AccountMeta,
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
 };
@@ -46,9 +47,8 @@ pub async fn test_open_position(
         .await
         .unwrap();
 
-    utils::create_and_execute_perpetuals_ix(
-        program_test_ctx,
-        perpetuals::accounts::OpenPosition {
+    let accounts_meta = {
+        let accounts = perpetuals::accounts::OpenPosition {
             owner: owner.pubkey(),
             funding_account: funding_account_address,
             transfer_authority: transfer_authority_pda,
@@ -62,8 +62,38 @@ pub async fn test_open_position(
             collateral_custody_token_account: custody_token_account_pda,
             system_program: anchor_lang::system_program::ID,
             token_program: anchor_spl::token::ID,
+        };
+
+        let mut accounts_meta = accounts.to_account_metas(None);
+
+        let pool_account = utils::get_account::<Pool>(program_test_ctx, *pool_pda).await;
+
+        // For each token, add custody account as remaining_account
+        for custody in &pool_account.custodies {
+            accounts_meta.push(AccountMeta {
+                pubkey: *custody,
+                is_signer: false,
+                is_writable: false,
+            });
         }
-        .to_account_metas(None),
+
+        // For each token, add custody oracle account as remaining_account
+        for custody in &pool_account.custodies {
+            let custody_account = utils::get_account::<Custody>(program_test_ctx, *custody).await;
+
+            accounts_meta.push(AccountMeta {
+                pubkey: custody_account.oracle.oracle_account,
+                is_signer: false,
+                is_writable: false,
+            });
+        }
+
+        accounts_meta
+    };
+
+    utils::create_and_execute_perpetuals_ix(
+        program_test_ctx,
+        accounts_meta,
         perpetuals::instruction::OpenPosition { params },
         Some(&payer.pubkey()),
         &[owner, payer],
