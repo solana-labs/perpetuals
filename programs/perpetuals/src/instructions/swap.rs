@@ -267,7 +267,7 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
 
     receiving_custody.collected_fees.swap_usd =
         receiving_custody.collected_fees.swap_usd.wrapping_add(
-            dispensed_token_price.get_asset_amount_usd(fees.0, dispensing_custody.decimals)?,
+            received_token_price.get_asset_amount_usd(fees.0, receiving_custody.decimals)?,
         );
 
     receiving_custody.assets.owned =
