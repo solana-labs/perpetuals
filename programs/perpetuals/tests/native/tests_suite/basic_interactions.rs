@@ -101,7 +101,7 @@ pub async fn basic_interactions() {
     {
         // Martin: Open 0.1 ETH position
         let position_pda = instructions::test_open_position(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
@@ -120,7 +120,7 @@ pub async fn basic_interactions() {
 
         // Martin: Close the ETH position
         instructions::test_close_position(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
@@ -142,20 +142,14 @@ pub async fn basic_interactions() {
 
         // Paul: Swap 150 USDC for ETH
         {
-            let eth_balance_before = utils::get_token_account_balance(
-                &mut test_setup.program_test_ctx.borrow_mut(),
-                paul_eth_ata,
-            )
-            .await;
+            let eth_balance_before =
+                utils::get_token_account_balance(&test_setup.program_test_ctx, paul_eth_ata).await;
 
-            let usdc_balance_before = utils::get_token_account_balance(
-                &mut test_setup.program_test_ctx.borrow_mut(),
-                paul_usdc_ata,
-            )
-            .await;
+            let usdc_balance_before =
+                utils::get_token_account_balance(&test_setup.program_test_ctx, paul_usdc_ata).await;
 
             instructions::test_swap(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 paul,
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
@@ -170,17 +164,11 @@ pub async fn basic_interactions() {
             .await
             .unwrap();
 
-            let eth_balance_after = utils::get_token_account_balance(
-                &mut test_setup.program_test_ctx.borrow_mut(),
-                paul_eth_ata,
-            )
-            .await;
+            let eth_balance_after =
+                utils::get_token_account_balance(&test_setup.program_test_ctx, paul_eth_ata).await;
 
-            let usdc_balance_after = utils::get_token_account_balance(
-                &mut test_setup.program_test_ctx.borrow_mut(),
-                paul_usdc_ata,
-            )
-            .await;
+            let usdc_balance_after =
+                utils::get_token_account_balance(&test_setup.program_test_ctx, paul_usdc_ata).await;
 
             assert_eq!(eth_balance_after - eth_balance_before, 96_262_804);
             assert_eq!(usdc_balance_before - usdc_balance_after, 150_000_000);
@@ -188,20 +176,14 @@ pub async fn basic_interactions() {
 
         // Paul: Swap 0.1 ETH for 150 USDC
         {
-            let eth_balance_before = utils::get_token_account_balance(
-                &mut test_setup.program_test_ctx.borrow_mut(),
-                paul_eth_ata,
-            )
-            .await;
+            let eth_balance_before =
+                utils::get_token_account_balance(&test_setup.program_test_ctx, paul_eth_ata).await;
 
-            let usdc_balance_before = utils::get_token_account_balance(
-                &mut test_setup.program_test_ctx.borrow_mut(),
-                paul_usdc_ata,
-            )
-            .await;
+            let usdc_balance_before =
+                utils::get_token_account_balance(&test_setup.program_test_ctx, paul_usdc_ata).await;
 
             instructions::test_swap(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 paul,
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
@@ -216,17 +198,11 @@ pub async fn basic_interactions() {
             .await
             .unwrap();
 
-            let eth_balance_after = utils::get_token_account_balance(
-                &mut test_setup.program_test_ctx.borrow_mut(),
-                paul_eth_ata,
-            )
-            .await;
+            let eth_balance_after =
+                utils::get_token_account_balance(&test_setup.program_test_ctx, paul_eth_ata).await;
 
-            let usdc_balance_after = utils::get_token_account_balance(
-                &mut test_setup.program_test_ctx.borrow_mut(),
-                paul_usdc_ata,
-            )
-            .await;
+            let usdc_balance_after =
+                utils::get_token_account_balance(&test_setup.program_test_ctx, paul_usdc_ata).await;
 
             assert_eq!(eth_balance_before - eth_balance_after, 100_000_000);
             assert_eq!(usdc_balance_after - usdc_balance_before, 143_608_500);
@@ -238,15 +214,12 @@ pub async fn basic_interactions() {
         let alice_lp_token =
             utils::find_associated_token_account(&alice.pubkey(), &test_setup.lp_token_mint_pda).0;
 
-        let alice_lp_token_balance = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            alice_lp_token,
-        )
-        .await;
+        let alice_lp_token_balance =
+            utils::get_token_account_balance(&test_setup.program_test_ctx, alice_lp_token).await;
 
         // Alice: Remove 100% of provided liquidity (1k USDC less fees)
         instructions::test_remove_liquidity(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,

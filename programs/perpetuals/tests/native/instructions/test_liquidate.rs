@@ -1,7 +1,6 @@
 use {
     crate::utils::{self, pda},
     anchor_lang::{prelude::Pubkey, ToAccountMetas},
-    bonfida_test_utils::ProgramTestContextExt,
     perpetuals::{
         instructions::LiquidateParams,
         state::{custody::Custody, pool::Pool, position::Position},
@@ -9,10 +8,11 @@ use {
     solana_program::instruction::AccountMeta,
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
+    tokio::sync::RwLock,
 };
 
 pub async fn test_liquidate(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     liquidator: &Keypair,
     payer: &Keypair,
     pool_pda: &Pubkey,
@@ -43,18 +43,12 @@ pub async fn test_liquidate(
     let custody_oracle_account_address = custody_account.oracle.oracle_account;
 
     // Save account state before tx execution
-    let receiving_account_before = program_test_ctx
-        .get_token_account(receiving_account_address)
-        .await
-        .unwrap();
-    let custody_token_account_before = program_test_ctx
-        .get_token_account(custody_token_account_pda)
-        .await
-        .unwrap();
-    let rewards_receiving_account_before = program_test_ctx
-        .get_token_account(rewards_receiving_account_address)
-        .await
-        .unwrap();
+    let receiving_account_before =
+        utils::get_token_account(program_test_ctx, receiving_account_address).await;
+    let custody_token_account_before =
+        utils::get_token_account(program_test_ctx, custody_token_account_pda).await;
+    let rewards_receiving_account_before =
+        utils::get_token_account(program_test_ctx, rewards_receiving_account_address).await;
 
     let accounts_meta = {
         let accounts = perpetuals::accounts::Liquidate {
@@ -114,18 +108,12 @@ pub async fn test_liquidate(
     // ==== THEN ==============================================================
     // Check the balance change
     {
-        let receiving_account_after = program_test_ctx
-            .get_token_account(receiving_account_address)
-            .await
-            .unwrap();
-        let custody_token_account_after = program_test_ctx
-            .get_token_account(custody_token_account_pda)
-            .await
-            .unwrap();
-        let rewards_receiving_account_after = program_test_ctx
-            .get_token_account(rewards_receiving_account_address)
-            .await
-            .unwrap();
+        let receiving_account_after =
+            utils::get_token_account(program_test_ctx, receiving_account_address).await;
+        let custody_token_account_after =
+            utils::get_token_account(program_test_ctx, custody_token_account_pda).await;
+        let rewards_receiving_account_after =
+            utils::get_token_account(program_test_ctx, rewards_receiving_account_address).await;
 
         assert!(receiving_account_after.amount >= receiving_account_before.amount);
         assert!(custody_token_account_after.amount <= custody_token_account_before.amount);

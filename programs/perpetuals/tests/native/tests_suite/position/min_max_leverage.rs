@@ -95,7 +95,7 @@ pub async fn min_max_leverage() {
     // Martin: Open 1 ETH long position x10 should fail
     // Fails because fees increase ETH entry price
     assert!(instructions::test_open_position(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         martin,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
@@ -113,7 +113,7 @@ pub async fn min_max_leverage() {
 
     // Martin: Open 1 ETH long position x0.5 should fail
     assert!(instructions::test_open_position(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         martin,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
