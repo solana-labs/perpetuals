@@ -124,7 +124,7 @@ pub async fn basic_interactions() {
             martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &eth_mint,
+            eth_mint,
             &position_pda,
             ClosePositionParams {
                 // lowest exit price paid (slippage implied)
@@ -159,9 +159,9 @@ pub async fn basic_interactions() {
                 paul,
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
-                &eth_mint,
+                eth_mint,
                 // The program receives USDC
-                &usdc_mint,
+                usdc_mint,
                 SwapParams {
                     amount_in: utils::scale(150, USDC_DECIMALS),
                     min_amount_out: utils::scale_f64(0.09, ETH_DECIMALS),
@@ -205,9 +205,9 @@ pub async fn basic_interactions() {
                 paul,
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
-                &usdc_mint,
+                usdc_mint,
                 // The program receives ETH
-                &eth_mint,
+                eth_mint,
                 SwapParams {
                     amount_in: utils::scale_f64(0.1, ETH_DECIMALS),
                     min_amount_out: utils::scale(140, USDC_DECIMALS),
@@ -250,7 +250,7 @@ pub async fn basic_interactions() {
             alice,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &usdc_mint,
+            usdc_mint,
             RemoveLiquidityParams {
                 lp_amount_in: alice_lp_token_balance,
                 min_amount_out: 1,

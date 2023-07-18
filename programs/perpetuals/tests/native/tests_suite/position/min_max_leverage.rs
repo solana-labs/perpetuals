@@ -99,7 +99,7 @@ pub async fn min_max_leverage() {
         martin,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &eth_mint,
+        eth_mint,
         OpenPositionParams {
             // max price paid (slippage implied)
             price: utils::scale(1_550, ETH_DECIMALS),
@@ -117,7 +117,7 @@ pub async fn min_max_leverage() {
         martin,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &eth_mint,
+        eth_mint,
         OpenPositionParams {
             // max price paid (slippage implied)
             price: utils::scale(1_550, ETH_DECIMALS),

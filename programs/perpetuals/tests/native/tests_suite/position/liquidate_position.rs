@@ -104,10 +104,10 @@ pub async fn liquidate_position() {
     // Martin: Open 1 ETH long position x5
     let position_pda = instructions::test_open_position(
         &mut test_setup.program_test_ctx.borrow_mut(),
-        &martin,
+        martin,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &eth_mint,
+        eth_mint,
         OpenPositionParams {
             // max price paid (slippage implied)
             price: utils::scale(1_550, ETH_DECIMALS),
@@ -126,7 +126,7 @@ pub async fn liquidate_position() {
         alice,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &eth_mint,
+        eth_mint,
         &position_pda,
     )
     .await
@@ -176,7 +176,7 @@ pub async fn liquidate_position() {
 
     // Check user final balance
     {
-        let martin_eth_pda = utils::find_associated_token_account(&martin.pubkey(), &eth_mint).0;
+        let martin_eth_pda = utils::find_associated_token_account(&martin.pubkey(), eth_mint).0;
 
         let martin_eth_balance = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),

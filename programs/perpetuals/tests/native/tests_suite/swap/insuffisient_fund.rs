@@ -91,9 +91,9 @@ pub async fn insuffisient_fund() {
             martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &eth_mint,
+            eth_mint,
             // The program receives USDC
-            &usdc_mint,
+            usdc_mint,
             SwapParams {
                 amount_in: utils::scale(5_000, USDC_DECIMALS),
                 min_amount_out: 0,
@@ -111,9 +111,9 @@ pub async fn insuffisient_fund() {
             martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &usdc_mint,
+            usdc_mint,
             // The program receives ETH
-            &eth_mint,
+            eth_mint,
             SwapParams {
                 amount_in: utils::scale(10, ETH_DECIMALS),
                 min_amount_out: 0,

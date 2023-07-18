@@ -101,7 +101,7 @@ pub async fn max_user_profit() {
         martin,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &eth_mint,
+        eth_mint,
         OpenPositionParams {
             // max price paid (slippage implied)
             price: utils::scale(1_550, ETH_DECIMALS),
@@ -149,7 +149,7 @@ pub async fn max_user_profit() {
         martin,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &eth_mint,
+        eth_mint,
         &position_pda,
         ClosePositionParams {
             // lowest exit price paid (slippage implied)
@@ -163,7 +163,7 @@ pub async fn max_user_profit() {
 
     // Check user gains
     {
-        let martin_eth_pda = utils::find_associated_token_account(&martin.pubkey(), &eth_mint).0;
+        let martin_eth_pda = utils::find_associated_token_account(&martin.pubkey(), eth_mint).0;
 
         let martin_eth_balance = utils::get_token_account_balance(
             &mut test_setup.program_test_ctx.borrow_mut(),
