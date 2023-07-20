@@ -109,11 +109,10 @@ pub async fn liquid_staking() {
 
     // Prep work: Alice get 2 governance tokens using vesting
     {
-        let current_time =
-            utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await;
+        let current_time = utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await;
 
         test_instructions::add_vest(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             admin_a,
             &test_setup.payer_keypair,
             alice,
@@ -129,14 +128,10 @@ pub async fn liquid_staking() {
         .unwrap();
 
         // Move until vest end
-        utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            utils::days_in_seconds(7),
-        )
-        .await;
+        utils::warp_forward(&test_setup.program_test_ctx, utils::days_in_seconds(7)).await;
 
         test_instructions::claim_vest(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             &test_setup.payer_keypair,
             alice,
             &test_setup.governance_realm_pda,
@@ -152,13 +147,12 @@ pub async fn liquid_staking() {
         utils::find_associated_token_account(&alice.pubkey(), &lm_token_mint_pda).0;
 
     let stakes_claim_cron_thread_id =
-        utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
-            as u64;
+        utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await as u64;
 
     {
         // LM Staking
         test_instructions::init_user_staking(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             &lm_token_mint_pda,
@@ -171,7 +165,7 @@ pub async fn liquid_staking() {
 
         // LP Staking
         test_instructions::init_user_staking(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             &test_setup.lp_token_mint_pda,
@@ -186,7 +180,7 @@ pub async fn liquid_staking() {
     // Alice: add LM liquid staking
     {
         test_instructions::add_liquid_stake(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             AddLiquidStakeParams {
@@ -202,7 +196,7 @@ pub async fn liquid_staking() {
     // Alice: add LP liquid staking
     {
         test_instructions::add_liquid_stake(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             AddLiquidStakeParams {
@@ -215,24 +209,24 @@ pub async fn liquid_staking() {
         .unwrap();
     }
 
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+    utils::warp_forward(&test_setup.program_test_ctx, 1).await;
 
     // Alice: claim when there is nothing to claim yet
     {
         let balance_before = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_staking_reward_token_account_address,
         )
         .await;
 
         let lm_balance_before = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_lm_token_account_address,
         )
         .await;
 
         test_instructions::claim_stakes(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -242,7 +236,7 @@ pub async fn liquid_staking() {
         .unwrap();
 
         test_instructions::claim_stakes(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -252,13 +246,13 @@ pub async fn liquid_staking() {
         .unwrap();
 
         let balance_after = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_staking_reward_token_account_address,
         )
         .await;
 
         let lm_balance_after = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_lm_token_account_address,
         )
         .await;
@@ -271,13 +265,13 @@ pub async fn liquid_staking() {
     // this round bear no rewards for the new staking at the staking started during the round
     {
         utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             StakingRound::ROUND_MIN_DURATION_SECONDS,
         )
         .await;
 
         test_instructions::resolve_staking_round(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -287,7 +281,7 @@ pub async fn liquid_staking() {
         .unwrap();
 
         test_instructions::resolve_staking_round(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -301,13 +295,13 @@ pub async fn liquid_staking() {
     // this round bear rewards for the liquid stake
     {
         utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             StakingRound::ROUND_MIN_DURATION_SECONDS,
         )
         .await;
 
         test_instructions::resolve_staking_round(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -317,7 +311,7 @@ pub async fn liquid_staking() {
         .unwrap();
 
         test_instructions::resolve_staking_round(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -330,19 +324,19 @@ pub async fn liquid_staking() {
     // Claim when there is one round worth of rewards to claim
     {
         let balance_before = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_staking_reward_token_account_address,
         )
         .await;
 
         let lm_balance_before = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_lm_token_account_address,
         )
         .await;
 
         test_instructions::claim_stakes(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -352,7 +346,7 @@ pub async fn liquid_staking() {
         .unwrap();
 
         test_instructions::claim_stakes(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -362,13 +356,13 @@ pub async fn liquid_staking() {
         .unwrap();
 
         let balance_after = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_staking_reward_token_account_address,
         )
         .await;
 
         let lm_balance_after = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_lm_token_account_address,
         )
         .await;
@@ -380,13 +374,13 @@ pub async fn liquid_staking() {
     // warp to the next round and resolve the current one
     {
         utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             StakingRound::ROUND_MIN_DURATION_SECONDS,
         )
         .await;
 
         test_instructions::resolve_staking_round(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -396,7 +390,7 @@ pub async fn liquid_staking() {
         .unwrap();
 
         test_instructions::resolve_staking_round(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -410,7 +404,7 @@ pub async fn liquid_staking() {
     {
         // Generate platform activity to fill current round' rewards
         test_instructions::add_liquidity(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
@@ -426,7 +420,7 @@ pub async fn liquid_staking() {
 
     // Alice: add LM liquid stake when staking is already pending
     test_instructions::add_liquid_stake(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         AddLiquidStakeParams {
@@ -438,18 +432,18 @@ pub async fn liquid_staking() {
     .await
     .unwrap();
 
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+    utils::warp_forward(&test_setup.program_test_ctx, 1).await;
 
     // warp to the next round and resolve the current one
     {
         utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             StakingRound::ROUND_MIN_DURATION_SECONDS,
         )
         .await;
 
         test_instructions::resolve_staking_round(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -459,7 +453,7 @@ pub async fn liquid_staking() {
         .unwrap();
 
         test_instructions::resolve_staking_round(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -473,19 +467,19 @@ pub async fn liquid_staking() {
     // New staking should start accruing rewards next round only
     {
         let balance_before = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_staking_reward_token_account_address,
         )
         .await;
 
         let lm_balance_before = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_lm_token_account_address,
         )
         .await;
 
         test_instructions::claim_stakes(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -495,7 +489,7 @@ pub async fn liquid_staking() {
         .unwrap();
 
         test_instructions::claim_stakes(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -505,13 +499,13 @@ pub async fn liquid_staking() {
         .unwrap();
 
         let balance_after = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_staking_reward_token_account_address,
         )
         .await;
 
         let lm_balance_after = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_lm_token_account_address,
         )
         .await;
@@ -522,7 +516,7 @@ pub async fn liquid_staking() {
 
     // Remove half the stake
     test_instructions::remove_liquid_stake(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         RemoveLiquidStakeParams {
@@ -534,11 +528,11 @@ pub async fn liquid_staking() {
     .await
     .unwrap();
 
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+    utils::warp_forward(&test_setup.program_test_ctx, 1).await;
 
     // Try & remove more than possible should fail
     assert!(test_instructions::remove_liquid_stake(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         RemoveLiquidStakeParams {
@@ -552,7 +546,7 @@ pub async fn liquid_staking() {
 
     // Try & remove 0 tokens should fail
     assert!(test_instructions::remove_liquid_stake(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         RemoveLiquidStakeParams { amount: 0 },
@@ -564,7 +558,7 @@ pub async fn liquid_staking() {
 
     // Remove the other half of the stake
     test_instructions::remove_liquid_stake(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         RemoveLiquidStakeParams {

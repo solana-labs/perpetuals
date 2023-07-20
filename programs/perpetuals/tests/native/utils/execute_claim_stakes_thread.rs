@@ -8,11 +8,12 @@ use {
     solana_program::instruction::AccountMeta,
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
+    tokio::sync::RwLock,
 };
 
 // return true if executed, false if not
 pub async fn execute_claim_stakes_thread(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     clockwork_worker: &Pubkey,
 
     // Pay for ClaimStakes fees

@@ -397,10 +397,6 @@ pub fn remove_liquidity(
         perpetuals.exit(&crate::ID)?;
         pool.exit(&crate::ID)?;
         custody.exit(&crate::ID)?;
-
-        drop(perpetuals);
-        drop(pool);
-        drop(custody);
     }
 
     ctx.accounts.perpetuals.distribute_fees(

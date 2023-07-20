@@ -404,10 +404,6 @@ pub fn add_liquidity(ctx: Context<AddLiquidity>, params: &AddLiquidityParams) ->
         perpetuals.exit(&crate::ID)?;
         pool.exit(&crate::ID)?;
         custody.exit(&crate::ID)?;
-
-        drop(perpetuals);
-        drop(pool);
-        drop(custody);
     }
 
     ctx.accounts.perpetuals.distribute_fees(

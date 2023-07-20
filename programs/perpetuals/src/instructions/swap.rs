@@ -449,11 +449,9 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
                 protocol_fee_in_distribution.lp_organic_fee,
             )?,
         )?;
-    } else {
-        if !is_internal_swap {
-            receiving_custody.assets.owned =
-                math::checked_add(receiving_custody.assets.owned, deposit_amount)?;
-        }
+    } else if !is_internal_swap {
+        receiving_custody.assets.owned =
+            math::checked_add(receiving_custody.assets.owned, deposit_amount)?;
     }
 
     receiving_custody.assets.protocol_fees =
@@ -509,10 +507,6 @@ pub fn swap(ctx: Context<Swap>, params: &SwapParams) -> Result<()> {
         pool.exit(&crate::ID)?;
         receiving_custody.exit(&crate::ID)?;
         dispensing_custody.exit(&crate::ID)?;
-
-        drop(perpetuals);
-        drop(pool);
-        drop(receiving_custody);
     }
 
     {

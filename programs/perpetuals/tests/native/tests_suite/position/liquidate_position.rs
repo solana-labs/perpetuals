@@ -111,7 +111,7 @@ pub async fn liquidate_position() {
 
     // Martin: Open 1 ETH long position x5
     let position_pda = test_instructions::open_position(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         martin,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
@@ -130,7 +130,7 @@ pub async fn liquidate_position() {
 
     // Alice: Try and fail to liquidate Martin ETH position
     assert!(test_instructions::liquidate(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
@@ -145,11 +145,10 @@ pub async fn liquidate_position() {
         let eth_test_oracle_pda = test_setup.custodies_info[1].custom_oracle_pda;
         let eth_custody_pda = test_setup.custodies_info[1].custody_pda;
 
-        let publish_time =
-            utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await;
+        let publish_time = utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await;
 
         test_instructions::set_custom_oracle_price(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             admin_a,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
@@ -171,7 +170,7 @@ pub async fn liquidate_position() {
 
     // Executioner: Liquidate Martin ETH position
     test_instructions::liquidate(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         executioner,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
@@ -185,11 +184,8 @@ pub async fn liquidate_position() {
     {
         let martin_eth_pda = utils::find_associated_token_account(&martin.pubkey(), eth_mint).0;
 
-        let martin_eth_balance = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            martin_eth_pda,
-        )
-        .await;
+        let martin_eth_balance =
+            utils::get_token_account_balance(&test_setup.program_test_ctx, martin_eth_pda).await;
 
         assert_eq!(
             martin_eth_balance,

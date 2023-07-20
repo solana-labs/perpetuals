@@ -8,10 +8,11 @@ use {
     solana_program::instruction::AccountMeta,
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
+    tokio::sync::RwLock,
 };
 
 pub async fn execute_finalize_locked_stake_thread(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     clockwork_worker: &Pubkey,
     clockwork_signatory: &Keypair,
     owner: &Keypair,

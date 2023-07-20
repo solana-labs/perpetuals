@@ -9,10 +9,11 @@ use {
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
+    tokio::sync::RwLock,
 };
 
 pub async fn add_locked_stake(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     owner: &Keypair,
     payer: &Keypair,
     params: AddLockedStakeParams,

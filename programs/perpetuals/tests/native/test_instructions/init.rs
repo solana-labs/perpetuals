@@ -16,10 +16,11 @@ use {
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
+    tokio::sync::RwLock,
 };
 
 pub async fn init(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     upgrade_authority: &Keypair,
     params: InitParams,
     governance_realm_pda: &Pubkey,

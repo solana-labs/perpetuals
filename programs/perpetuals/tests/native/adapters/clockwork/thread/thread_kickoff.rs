@@ -4,10 +4,11 @@ use {
     solana_program::instruction::Instruction,
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
+    tokio::sync::RwLock,
 };
 
 pub async fn thread_kickoff(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     worker_pda: &Pubkey,
     payer: &Keypair,
     signatory: &Keypair,
@@ -34,17 +35,18 @@ pub async fn thread_kickoff(
         data: clockwork_thread_program::instruction::ThreadKickoff {}.data(),
     };
 
+    let mut ctx = program_test_ctx.write().await;
+    let last_blockhash = ctx.last_blockhash;
+    let banks_client = &mut ctx.banks_client;
+
     let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
         &[payer, signatory],
-        program_test_ctx.last_blockhash,
+        last_blockhash,
     );
 
-    program_test_ctx
-        .banks_client
-        .process_transaction(tx)
-        .await?;
+    banks_client.process_transaction(tx).await?;
 
     Ok(())
 }

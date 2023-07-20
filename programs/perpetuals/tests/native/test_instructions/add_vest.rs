@@ -11,10 +11,11 @@ use {
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
+    tokio::sync::RwLock,
 };
 
 pub async fn add_vest(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     // Admin must be a part of the multisig
     admin: &Keypair,
     payer: &Keypair,

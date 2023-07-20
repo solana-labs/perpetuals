@@ -88,7 +88,7 @@ pub async fn lm_minting() {
     let multisig_signers = test_setup.get_multisig_signers();
 
     test_instructions::mint_lm_tokens_from_bucket(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         admin_a,
         &alice.pubkey(),
         &test_setup.payer_keypair,
@@ -103,7 +103,7 @@ pub async fn lm_minting() {
     .unwrap();
 
     assert!(test_instructions::mint_lm_tokens_from_bucket(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         admin_a,
         &alice.pubkey(),
         &test_setup.payer_keypair,
@@ -118,7 +118,7 @@ pub async fn lm_minting() {
     .is_err());
 
     test_instructions::mint_lm_tokens_from_bucket(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         admin_a,
         &alice.pubkey(),
         &test_setup.payer_keypair,
@@ -133,7 +133,7 @@ pub async fn lm_minting() {
     .unwrap();
 
     test_instructions::mint_lm_tokens_from_bucket(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         admin_a,
         &alice.pubkey(),
         &test_setup.payer_keypair,
@@ -148,7 +148,7 @@ pub async fn lm_minting() {
     .unwrap();
 
     assert!(test_instructions::mint_lm_tokens_from_bucket(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         admin_a,
         &alice.pubkey(),
         &test_setup.payer_keypair,

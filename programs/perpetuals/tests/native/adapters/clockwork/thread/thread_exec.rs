@@ -7,11 +7,12 @@ use {
         compute_budget::ComputeBudgetInstruction,
         signer::{keypair::Keypair, Signer},
     },
+    tokio::sync::RwLock,
 };
 
 #[allow(clippy::too_many_arguments)]
 pub async fn thread_exec(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     worker_pda: &Pubkey,
     payer: &Keypair,
     signatory: &Keypair,
@@ -43,6 +44,10 @@ pub async fn thread_exec(
         data: clockwork_thread_program::instruction::ThreadExec {}.data(),
     };
 
+    let mut ctx = program_test_ctx.write().await;
+    let last_blockhash = ctx.last_blockhash;
+    let banks_client = &mut ctx.banks_client;
+
     let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
         &[
             ComputeBudgetInstruction::set_compute_unit_limit(1_600_000u32),
@@ -50,13 +55,10 @@ pub async fn thread_exec(
         ],
         Some(&payer.pubkey()),
         &[&[payer, signatory], extra_signers.as_slice()].concat(),
-        program_test_ctx.last_blockhash,
+        last_blockhash,
     );
 
-    program_test_ctx
-        .banks_client
-        .process_transaction(tx)
-        .await?;
+    banks_client.process_transaction(tx).await?;
 
     Ok(())
 }

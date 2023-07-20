@@ -474,11 +474,6 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         if custody.key() != collateral_custody.key() {
             collateral_custody.exit(&crate::ID)?;
         }
-
-        drop(perpetuals);
-        drop(pool);
-        drop(custody);
-        drop(collateral_custody);
     }
 
     ctx.accounts.perpetuals.distribute_fees(

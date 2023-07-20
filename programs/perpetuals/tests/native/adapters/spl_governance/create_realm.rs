@@ -9,10 +9,11 @@ use {
         realm::{GoverningTokenConfigAccountArgs, RealmV2},
         realm_config::GoverningTokenType,
     },
+    tokio::sync::RwLock,
 };
 
 pub async fn create_realm(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     admin: &Keypair,
     payer: &Keypair,
     name: String,
@@ -20,6 +21,11 @@ pub async fn create_realm(
     community_token_mint: &Pubkey,
 ) -> std::result::Result<Pubkey, BanksClientError> {
     let realm_pda = pda::get_governance_realm_pda(name.clone());
+
+    let mut ctx: tokio::sync::RwLockWriteGuard<'_, ProgramTestContext> =
+        program_test_ctx.write().await;
+    let last_blockhash = ctx.last_blockhash;
+    let banks_client = &mut ctx.banks_client;
 
     let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
         &[spl_governance::instruction::create_realm(
@@ -40,13 +46,12 @@ pub async fn create_realm(
         )],
         Some(&payer.pubkey()),
         &[payer],
-        program_test_ctx.last_blockhash,
+        last_blockhash,
     );
 
-    program_test_ctx
-        .banks_client
-        .process_transaction(tx)
-        .await?;
+    banks_client.process_transaction(tx).await?;
+
+    drop(ctx);
 
     {
         let realm = utils::get_borsh_account::<RealmV2>(program_test_ctx, &realm_pda).await;

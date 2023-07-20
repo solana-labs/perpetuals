@@ -98,7 +98,7 @@ pub async fn test_staking_rewards_from_swap() {
     {
         // Martin: Swap 5k USDC for ETH
         assert!(test_instructions::swap(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
@@ -118,7 +118,7 @@ pub async fn test_staking_rewards_from_swap() {
     {
         // Martin: Swap 10 ETH for (15k) USDC
         assert!(test_instructions::swap(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,

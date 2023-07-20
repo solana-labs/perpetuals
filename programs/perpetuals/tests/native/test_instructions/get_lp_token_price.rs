@@ -8,11 +8,12 @@ use {
     solana_program::instruction::AccountMeta,
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::keypair::Keypair,
+    tokio::sync::RwLock,
 };
 
 #[allow(clippy::too_many_arguments)]
 pub async fn get_lp_token_price(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     payer: &Keypair,
     pool_pda: &Pubkey,
     lp_token_mint_pda: &Pubkey,

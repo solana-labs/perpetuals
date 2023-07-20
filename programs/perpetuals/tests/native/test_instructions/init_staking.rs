@@ -7,10 +7,11 @@ use {
     perpetuals::{instructions::InitStakingParams, state::multisig::Multisig},
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
+    tokio::sync::RwLock,
 };
 
 pub async fn init_staking(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     // Admin must be a part of the multisig
     admin: &Keypair,
     payer: &Keypair,

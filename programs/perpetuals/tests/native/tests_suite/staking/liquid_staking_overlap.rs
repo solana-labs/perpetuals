@@ -111,11 +111,10 @@ pub async fn liquid_staking_overlap() {
 
         for user in users {
             let current_time =
-                utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut())
-                    .await;
+                utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await;
 
             test_instructions::add_vest(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 admin_a,
                 &test_setup.payer_keypair,
                 user,
@@ -132,15 +131,11 @@ pub async fn liquid_staking_overlap() {
         }
 
         // Move until vest end
-        utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            utils::days_in_seconds(7),
-        )
-        .await;
+        utils::warp_forward(&test_setup.program_test_ctx, utils::days_in_seconds(7)).await;
 
         for user in users {
             test_instructions::claim_vest(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 &test_setup.payer_keypair,
                 user,
                 &test_setup.governance_realm_pda,
@@ -154,13 +149,12 @@ pub async fn liquid_staking_overlap() {
         utils::find_associated_token_account(&alice.pubkey(), &cortex_stake_reward_mint).0;
 
     let stakes_claim_cron_thread_id =
-        utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
-            as u64;
+        utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await as u64;
 
     // Alice stake
     {
         test_instructions::init_user_staking(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             &lm_token_mint_pda,
@@ -172,7 +166,7 @@ pub async fn liquid_staking_overlap() {
         .unwrap();
 
         test_instructions::add_liquid_stake(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             AddLiquidStakeParams {
@@ -188,7 +182,7 @@ pub async fn liquid_staking_overlap() {
     // Martin stake (so we can see how much share of rewards alice get)
     {
         test_instructions::init_user_staking(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             martin,
             &test_setup.payer_keypair,
             &lm_token_mint_pda,
@@ -200,7 +194,7 @@ pub async fn liquid_staking_overlap() {
         .unwrap();
 
         test_instructions::add_liquid_stake(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             martin,
             &test_setup.payer_keypair,
             AddLiquidStakeParams {
@@ -218,13 +212,13 @@ pub async fn liquid_staking_overlap() {
     {
         for _ in 0..2 {
             utils::warp_forward(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 StakingRound::ROUND_MIN_DURATION_SECONDS,
             )
             .await;
 
             test_instructions::resolve_staking_round(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 alice,
                 alice,
                 &test_setup.payer_keypair,
@@ -239,13 +233,13 @@ pub async fn liquid_staking_overlap() {
     // alice should get rewards from her first liquid staking
     {
         let balance_before = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_staking_reward_token_account_address,
         )
         .await;
 
         test_instructions::add_liquid_stake(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             AddLiquidStakeParams {
@@ -258,7 +252,7 @@ pub async fn liquid_staking_overlap() {
         .unwrap();
 
         let balance_after = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_staking_reward_token_account_address,
         )
         .await;
@@ -271,7 +265,7 @@ pub async fn liquid_staking_overlap() {
         // Use add liquidity to generate rewards for the current round
         {
             test_instructions::add_liquidity(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 martin,
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
@@ -286,13 +280,13 @@ pub async fn liquid_staking_overlap() {
         }
 
         utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             StakingRound::ROUND_MIN_DURATION_SECONDS,
         )
         .await;
 
         test_instructions::resolve_staking_round(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -306,13 +300,13 @@ pub async fn liquid_staking_overlap() {
     // alice should get rewards for 1st staking only
     {
         let balance_before = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_staking_reward_token_account_address,
         )
         .await;
 
         test_instructions::claim_stakes(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -322,7 +316,7 @@ pub async fn liquid_staking_overlap() {
         .unwrap();
 
         let balance_after = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_staking_reward_token_account_address,
         )
         .await;
@@ -335,7 +329,7 @@ pub async fn liquid_staking_overlap() {
         // Use add liquidity to generate rewards for the current round
         {
             test_instructions::add_liquidity(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 martin,
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
@@ -350,13 +344,13 @@ pub async fn liquid_staking_overlap() {
         }
 
         utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             StakingRound::ROUND_MIN_DURATION_SECONDS,
         )
         .await;
 
         test_instructions::resolve_staking_round(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -370,13 +364,13 @@ pub async fn liquid_staking_overlap() {
     // alice should get rewards from both stakings
     {
         let balance_before = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_staking_reward_token_account_address,
         )
         .await;
 
         test_instructions::claim_stakes(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -386,7 +380,7 @@ pub async fn liquid_staking_overlap() {
         .unwrap();
 
         let balance_after = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_staking_reward_token_account_address,
         )
         .await;
@@ -399,7 +393,7 @@ pub async fn liquid_staking_overlap() {
         // Use add liquidity to generate rewards for the current round
         {
             test_instructions::add_liquidity(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 martin,
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
@@ -414,13 +408,13 @@ pub async fn liquid_staking_overlap() {
         }
 
         utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             StakingRound::ROUND_MIN_DURATION_SECONDS,
         )
         .await;
 
         test_instructions::resolve_staking_round(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,

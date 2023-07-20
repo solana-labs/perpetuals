@@ -116,14 +116,13 @@ pub async fn multiple_stakers_get_correct_rewards() {
 
     // Prep work: alice/martin/paul get 2 governance tokens using vesting
     {
-        let current_time =
-            utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await;
+        let current_time = utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await;
 
         let users = [alice, martin, paul];
 
         for user in users.into_iter() {
             test_instructions::add_vest(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 admin_a,
                 &test_setup.payer_keypair,
                 user,
@@ -140,15 +139,11 @@ pub async fn multiple_stakers_get_correct_rewards() {
         }
 
         // Move until vest end
-        utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            utils::days_in_seconds(7),
-        )
-        .await;
+        utils::warp_forward(&test_setup.program_test_ctx, utils::days_in_seconds(7)).await;
 
         for user in users.into_iter() {
             test_instructions::claim_vest(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 &test_setup.payer_keypair,
                 user,
                 &test_setup.governance_realm_pda,
@@ -163,12 +158,11 @@ pub async fn multiple_stakers_get_correct_rewards() {
         let users = [alice, martin, paul];
 
         let stakes_claim_cron_thread_id =
-            utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
-                as u64;
+            utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await as u64;
 
         for user in users {
             test_instructions::init_user_staking(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 user,
                 &test_setup.payer_keypair,
                 &lm_token_mint_pda,
@@ -181,12 +175,12 @@ pub async fn multiple_stakers_get_correct_rewards() {
         }
     }
 
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+    utils::warp_forward(&test_setup.program_test_ctx, 1).await;
 
     // Add staking for alice/martin/paul with different amounts & time
     {
         test_instructions::add_liquid_stake(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             AddLiquidStakeParams {
@@ -199,11 +193,10 @@ pub async fn multiple_stakers_get_correct_rewards() {
         .unwrap();
 
         let stake_resolution_thread_id =
-            utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
-                as u64;
+            utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await as u64;
 
         test_instructions::add_locked_stake(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             martin,
             &test_setup.payer_keypair,
             AddLockedStakeParams {
@@ -218,7 +211,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
         .unwrap();
 
         test_instructions::add_locked_stake(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             paul,
             &test_setup.payer_keypair,
             AddLockedStakeParams {
@@ -233,19 +226,19 @@ pub async fn multiple_stakers_get_correct_rewards() {
         .unwrap();
     }
 
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+    utils::warp_forward(&test_setup.program_test_ctx, 1).await;
 
     // warp to the next round and resolve the current one
     // this round bear no rewards for the new staking
     {
         utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             StakingRound::ROUND_MIN_DURATION_SECONDS,
         )
         .await;
 
         test_instructions::resolve_staking_round(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -259,13 +252,13 @@ pub async fn multiple_stakers_get_correct_rewards() {
     // this round bear ewards for the new staking
     {
         utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             StakingRound::ROUND_MIN_DURATION_SECONDS,
         )
         .await;
 
         test_instructions::resolve_staking_round(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -292,13 +285,13 @@ pub async fn multiple_stakers_get_correct_rewards() {
         // Claim alice
         {
             let balance_before = utils::get_token_account_balance(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 alice_staking_reward_token_account_address,
             )
             .await;
 
             test_instructions::claim_stakes(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 alice,
                 alice,
                 &test_setup.payer_keypair,
@@ -308,7 +301,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
             .unwrap();
 
             let balance_after = utils::get_token_account_balance(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 alice_staking_reward_token_account_address,
             )
             .await;
@@ -319,13 +312,13 @@ pub async fn multiple_stakers_get_correct_rewards() {
         // Claim martin
         {
             let balance_before = utils::get_token_account_balance(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 martin_staking_reward_token_account_address,
             )
             .await;
 
             test_instructions::claim_stakes(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 martin,
                 martin,
                 &test_setup.payer_keypair,
@@ -335,7 +328,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
             .unwrap();
 
             let balance_after = utils::get_token_account_balance(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 martin_staking_reward_token_account_address,
             )
             .await;
@@ -346,13 +339,13 @@ pub async fn multiple_stakers_get_correct_rewards() {
         // Claim paul
         {
             let balance_before = utils::get_token_account_balance(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 paul_staking_reward_token_account_address,
             )
             .await;
 
             test_instructions::claim_stakes(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 paul,
                 paul,
                 &test_setup.payer_keypair,
@@ -362,7 +355,7 @@ pub async fn multiple_stakers_get_correct_rewards() {
             .unwrap();
 
             let balance_after = utils::get_token_account_balance(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 paul_staking_reward_token_account_address,
             )
             .await;
@@ -376,11 +369,8 @@ pub async fn multiple_stakers_get_correct_rewards() {
         let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
         let staking_pda = pda::get_staking_pda(&lm_token_mint_pda).0;
 
-        let staking_account = utils::get_account::<Staking>(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            staking_pda,
-        )
-        .await;
+        let staking_account =
+            utils::get_account::<Staking>(&test_setup.program_test_ctx, staking_pda).await;
 
         // Accept dust due to precision loss
         assert!(staking_account.resolved_reward_token_amount <= 100);

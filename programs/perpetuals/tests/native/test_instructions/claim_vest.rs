@@ -1,17 +1,17 @@
 use {
     crate::utils::{self, pda},
     anchor_lang::{prelude::Pubkey, ToAccountMetas},
-    bonfida_test_utils::ProgramTestContextExt,
     perpetuals::{
         adapters::spl_governance_program_adapter,
         state::{cortex::Cortex, vest::Vest},
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
+    tokio::sync::RwLock,
 };
 
 pub async fn claim_vest(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     payer: &Keypair,
     owner: &Keypair,
     governance_realm_pda: &Pubkey,
@@ -42,10 +42,8 @@ pub async fn claim_vest(
 
     // Save account state before tx execution
     let vest_account_before = utils::get_account::<Vest>(program_test_ctx, vest_pda).await;
-    let owner_lm_token_account_before = program_test_ctx
-        .get_token_account(lm_token_account_address)
-        .await
-        .unwrap();
+    let owner_lm_token_account_before =
+        utils::get_token_account(program_test_ctx, lm_token_account_address).await;
 
     // Before state
     let governance_governing_token_holding_balance_before =
@@ -86,10 +84,8 @@ pub async fn claim_vest(
 
     // Check user account received tokens
     {
-        let owner_lm_token_account_after = program_test_ctx
-            .get_token_account(lm_token_account_address)
-            .await
-            .unwrap();
+        let owner_lm_token_account_after =
+            utils::get_token_account(program_test_ctx, lm_token_account_address).await;
 
         assert_eq!(
             owner_lm_token_account_after.amount,

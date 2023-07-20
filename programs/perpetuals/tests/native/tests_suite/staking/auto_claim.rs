@@ -102,11 +102,10 @@ pub async fn auto_claim() {
 
     // Prep work: Alice get 2 governance tokens using vesting
     {
-        let current_time =
-            utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await;
+        let current_time = utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await;
 
         test_instructions::add_vest(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             admin_a,
             &test_setup.payer_keypair,
             alice,
@@ -122,14 +121,10 @@ pub async fn auto_claim() {
         .unwrap();
 
         // Move until vest end
-        utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            utils::days_in_seconds(7),
-        )
-        .await;
+        utils::warp_forward(&test_setup.program_test_ctx, utils::days_in_seconds(7)).await;
 
         test_instructions::claim_vest(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             &test_setup.payer_keypair,
             alice,
             &test_setup.governance_realm_pda,
@@ -139,11 +134,10 @@ pub async fn auto_claim() {
     }
 
     let stakes_claim_cron_thread_id =
-        utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
-            as u64;
+        utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await as u64;
 
     test_instructions::init_user_staking(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         &lm_token_mint_pda,
@@ -156,7 +150,7 @@ pub async fn auto_claim() {
 
     // Alice: add liquid staking
     test_instructions::add_liquid_stake(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         AddLiquidStakeParams {
@@ -168,16 +162,13 @@ pub async fn auto_claim() {
     .await
     .unwrap();
 
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+    utils::warp_forward(&test_setup.program_test_ctx, 1).await;
 
     // Simulate rounds being created and auto-claim cron getting triggered
     //
     // User should receive rewards on the way automatically, and resolved_rounds array should never overflow
-    let alice_usdc_balance_before = utils::get_token_account_balance(
-        &mut test_setup.program_test_ctx.borrow_mut(),
-        alice_usdc_ata,
-    )
-    .await;
+    let alice_usdc_balance_before =
+        utils::get_token_account_balance(&test_setup.program_test_ctx, alice_usdc_ata).await;
 
     // Store the index of the round where cron has been executed
     let mut cron_executions: Vec<u64> = Vec::new();
@@ -186,7 +177,7 @@ pub async fn auto_claim() {
         // Generate platform activity to fill current round' rewards
         {
             test_instructions::add_liquidity(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 alice,
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
@@ -203,13 +194,13 @@ pub async fn auto_claim() {
         // Resolve current round
         {
             utils::warp_forward(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 StakingRound::ROUND_MIN_DURATION_SECONDS,
             )
             .await;
 
             test_instructions::resolve_staking_round(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 alice,
                 alice,
                 &test_setup.payer_keypair,
@@ -218,13 +209,13 @@ pub async fn auto_claim() {
             .await
             .unwrap();
 
-            utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+            utils::warp_forward(&test_setup.program_test_ctx, 1).await;
         }
 
         // Check if cron claim can trigger
         {
             let has_cron_be_executed = utils::execute_claim_stakes_thread(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 &clockwork_worker,
                 &test_setup.clockwork_signatory,
                 alice,
@@ -240,11 +231,8 @@ pub async fn auto_claim() {
         }
     }
 
-    let alice_usdc_balance_after = utils::get_token_account_balance(
-        &mut test_setup.program_test_ctx.borrow_mut(),
-        alice_usdc_ata,
-    )
-    .await;
+    let alice_usdc_balance_after =
+        utils::get_token_account_balance(&test_setup.program_test_ctx, alice_usdc_ata).await;
 
     // Check that alice received rewards on the way
     assert!(alice_usdc_balance_before < alice_usdc_balance_after);

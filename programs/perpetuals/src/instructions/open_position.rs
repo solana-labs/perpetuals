@@ -538,11 +538,6 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         pool.exit(&crate::ID)?;
         custody.exit(&crate::ID)?;
         collateral_custody.exit(&crate::ID)?;
-
-        drop(perpetuals);
-        drop(pool);
-        drop(custody);
-        drop(collateral_custody);
     }
 
     ctx.accounts.perpetuals.distribute_fees(

@@ -12,10 +12,11 @@ use {
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
     std::str::FromStr,
+    tokio::sync::RwLock,
 };
 
 pub async fn init_user_staking(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     owner: &Keypair,
     payer: &Keypair,
     staked_token_mint: &Pubkey,

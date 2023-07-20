@@ -98,11 +98,10 @@ pub async fn resolved_round_overflow() {
 
     // Prep work: Alice get 2 governance tokens using vesting
     {
-        let current_time =
-            utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await;
+        let current_time = utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await;
 
         test_instructions::add_vest(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             admin_a,
             &test_setup.payer_keypair,
             alice,
@@ -118,14 +117,10 @@ pub async fn resolved_round_overflow() {
         .unwrap();
 
         // Move until vest end
-        utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            utils::days_in_seconds(7),
-        )
-        .await;
+        utils::warp_forward(&test_setup.program_test_ctx, utils::days_in_seconds(7)).await;
 
         test_instructions::claim_vest(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             &test_setup.payer_keypair,
             alice,
             &test_setup.governance_realm_pda,
@@ -135,11 +130,10 @@ pub async fn resolved_round_overflow() {
     }
 
     let stakes_claim_cron_thread_id =
-        utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
-            as u64;
+        utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await as u64;
 
     test_instructions::init_user_staking(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         &lm_token_mint_pda,
@@ -152,7 +146,7 @@ pub async fn resolved_round_overflow() {
 
     // Alice: add liquid staking
     test_instructions::add_liquid_stake(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         AddLiquidStakeParams {
@@ -164,18 +158,15 @@ pub async fn resolved_round_overflow() {
     .await
     .unwrap();
 
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+    utils::warp_forward(&test_setup.program_test_ctx, 1).await;
 
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
     let staking_pda = pda::get_staking_pda(&lm_token_mint_pda).0;
 
     // Check initial state of resolved rounds
     {
-        let staking = utils::get_account::<Staking>(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            staking_pda,
-        )
-        .await;
+        let staking =
+            utils::get_account::<Staking>(&test_setup.program_test_ctx, staking_pda).await;
 
         assert_eq!(staking.resolved_staking_rounds.len(), 0);
         assert_eq!(staking.resolved_reward_token_amount, 0);
@@ -192,7 +183,7 @@ pub async fn resolved_round_overflow() {
         {
             // Generate platform activity to fill current round' rewards
             test_instructions::add_liquidity(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 alice,
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
@@ -208,13 +199,13 @@ pub async fn resolved_round_overflow() {
 
         {
             utils::warp_forward(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 StakingRound::ROUND_MIN_DURATION_SECONDS,
             )
             .await;
 
             test_instructions::resolve_staking_round(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 alice,
                 alice,
                 &test_setup.payer_keypair,
@@ -231,7 +222,7 @@ pub async fn resolved_round_overflow() {
         {
             // Generate platform activity to fill current round' rewards
             test_instructions::add_liquidity(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 alice,
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
@@ -245,21 +236,18 @@ pub async fn resolved_round_overflow() {
             .unwrap();
         }
 
-        let staking_before = utils::get_account::<Staking>(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            staking_pda,
-        )
-        .await;
+        let staking_before =
+            utils::get_account::<Staking>(&test_setup.program_test_ctx, staking_pda).await;
 
         {
             utils::warp_forward(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 StakingRound::ROUND_MIN_DURATION_SECONDS,
             )
             .await;
 
             test_instructions::resolve_staking_round(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 alice,
                 alice,
                 &test_setup.payer_keypair,
@@ -269,11 +257,8 @@ pub async fn resolved_round_overflow() {
             .unwrap();
         }
 
-        let staking_after = utils::get_account::<Staking>(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            staking_pda,
-        )
-        .await;
+        let staking_after =
+            utils::get_account::<Staking>(&test_setup.program_test_ctx, staking_pda).await;
 
         assert_eq!(
             staking_before.resolved_staking_rounds.len(),

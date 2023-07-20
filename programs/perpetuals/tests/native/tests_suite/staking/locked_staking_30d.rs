@@ -116,11 +116,10 @@ pub async fn locked_staking_30d() {
 
     // Prep work: Alice get 2 governance tokens using vesting
     {
-        let current_time =
-            utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await;
+        let current_time = utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await;
 
         test_instructions::add_vest(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             admin_a,
             &test_setup.payer_keypair,
             alice,
@@ -136,14 +135,10 @@ pub async fn locked_staking_30d() {
         .unwrap();
 
         // Move until vest end
-        utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            utils::days_in_seconds(7),
-        )
-        .await;
+        utils::warp_forward(&test_setup.program_test_ctx, utils::days_in_seconds(7)).await;
 
         test_instructions::claim_vest(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             &test_setup.payer_keypair,
             alice,
             &test_setup.governance_realm_pda,
@@ -155,11 +150,10 @@ pub async fn locked_staking_30d() {
     // Alice: start 30d locked staking
     {
         let stakes_claim_cron_thread_id =
-            utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
-                as u64;
+            utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await as u64;
 
         test_instructions::init_user_staking(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             &lm_token_mint_pda,
@@ -170,14 +164,13 @@ pub async fn locked_staking_30d() {
         .await
         .unwrap();
 
-        utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+        utils::warp_forward(&test_setup.program_test_ctx, 1).await;
 
         let stake_resolution_thread_id =
-            utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await
-                as u64;
+            utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await as u64;
 
         test_instructions::add_locked_stake(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             AddLockedStakeParams {
@@ -192,24 +185,24 @@ pub async fn locked_staking_30d() {
         .unwrap();
     }
 
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+    utils::warp_forward(&test_setup.program_test_ctx, 1).await;
 
     // Alice: claim when there is nothing to claim yet
     {
         let balance_before = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_staking_reward_token_account_address,
         )
         .await;
 
         let lm_balance_before = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_lm_token_account_address,
         )
         .await;
 
         test_instructions::claim_stakes(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -219,13 +212,13 @@ pub async fn locked_staking_30d() {
         .unwrap();
 
         let balance_after = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_staking_reward_token_account_address,
         )
         .await;
 
         let lm_balance_after = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_lm_token_account_address,
         )
         .await;
@@ -238,13 +231,13 @@ pub async fn locked_staking_30d() {
     // this round bear no rewards for the new staking at the staking started during the round
     {
         utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             StakingRound::ROUND_MIN_DURATION_SECONDS,
         )
         .await;
 
         test_instructions::resolve_staking_round(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -258,7 +251,7 @@ pub async fn locked_staking_30d() {
     {
         // Generate platform activity to fill current round' rewards
         test_instructions::add_liquidity(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
@@ -276,13 +269,13 @@ pub async fn locked_staking_30d() {
     // this round bear rewards for the new staking at the staking started before the round
     {
         utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             StakingRound::ROUND_MIN_DURATION_SECONDS,
         )
         .await;
 
         test_instructions::resolve_staking_round(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -292,24 +285,24 @@ pub async fn locked_staking_30d() {
         .unwrap();
     }
 
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+    utils::warp_forward(&test_setup.program_test_ctx, 1).await;
 
     // Claim when there is one round worth of rewards to claim
     {
         let balance_before = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_staking_reward_token_account_address,
         )
         .await;
 
         let lm_balance_before = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_lm_token_account_address,
         )
         .await;
 
         test_instructions::claim_stakes(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -319,13 +312,13 @@ pub async fn locked_staking_30d() {
         .unwrap();
 
         let balance_after = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_staking_reward_token_account_address,
         )
         .await;
 
         let lm_balance_after = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice_lm_token_account_address,
         )
         .await;
@@ -336,14 +329,10 @@ pub async fn locked_staking_30d() {
 
     // Move 30d in the future where staking have ended
     {
-        utils::warp_forward(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            utils::days_in_seconds(30),
-        )
-        .await;
+        utils::warp_forward(&test_setup.program_test_ctx, utils::days_in_seconds(30)).await;
 
         test_instructions::resolve_staking_round(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             alice,
             &test_setup.payer_keypair,
@@ -353,7 +342,7 @@ pub async fn locked_staking_30d() {
         .unwrap();
 
         utils::execute_claim_stakes_thread(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             &clockwork_worker,
             &test_setup.clockwork_signatory,
             alice,
@@ -366,7 +355,7 @@ pub async fn locked_staking_30d() {
 
     // Remove the stake without resolving it first should fail
     assert!(test_instructions::remove_locked_stake(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         RemoveLockedStakeParams {
@@ -380,7 +369,7 @@ pub async fn locked_staking_30d() {
 
     // Trigger clockwork thread execution manually
     utils::execute_finalize_locked_stake_thread(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         &clockwork_worker,
         &test_setup.clockwork_signatory,
         alice,
@@ -391,11 +380,11 @@ pub async fn locked_staking_30d() {
     .await
     .unwrap();
 
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+    utils::warp_forward(&test_setup.program_test_ctx, 1).await;
 
     // Remove the stake
     test_instructions::remove_locked_stake(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         RemoveLockedStakeParams {
