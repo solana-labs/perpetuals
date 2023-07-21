@@ -1,4 +1,3 @@
-//! Vest state and routines
 use {crate::math, anchor_lang::prelude::*};
 
 #[account]
