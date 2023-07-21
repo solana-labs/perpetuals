@@ -277,6 +277,7 @@ impl Perpetuals {
             .map_err(|_| ProgramError::InvalidRealloc.into())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn distribute_fees<'a>(
         &self,
         swap_required: bool,

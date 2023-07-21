@@ -122,6 +122,7 @@ impl TestSetup {
 
     // Initialize everything required to test the program
     // Create the mints, the users, deploy the program, create the pool and the custodies, provide liquidity.
+    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         users_param: Vec<UserParam<'_>>,
         mints_param: Vec<MintParam<'_>>,

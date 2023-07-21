@@ -24,7 +24,7 @@ pub async fn add_liquid_stake(
 ) -> std::result::Result<(), BanksClientError> {
     // ==== GIVEN =============================================================
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
-    let staking_pda = pda::get_staking_pda(&staked_token_mint).0;
+    let staking_pda = pda::get_staking_pda(staked_token_mint).0;
     let user_staking_pda = pda::get_user_staking_pda(&owner.pubkey(), &staking_pda).0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;

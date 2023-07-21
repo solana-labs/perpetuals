@@ -11,7 +11,7 @@ use {
 const USDC_DECIMALS: u8 = 6;
 const ETH_DECIMALS: u8 = 9;
 
-pub async fn lm_minting() {
+pub async fn mint_lm_tokens_from_bucket() {
     let test_setup = utils::TestSetup::new(
         vec![utils::UserParam {
             name: "alice",

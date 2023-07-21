@@ -5,7 +5,7 @@ pub mod utils;
 
 #[tokio::test]
 pub async fn test_integration() {
-    tests_suite::lm_minting::lm_minting().await;
+    tests_suite::lm_minting::mint_lm_tokens_from_bucket().await;
 
     tests_suite::basic_interactions().await;
 

@@ -1,3 +1,3 @@
-pub mod lm_minting;
+pub mod mint_lm_tokens_from_bucket;
 
-pub use lm_minting::*;
+pub use mint_lm_tokens_from_bucket::*;

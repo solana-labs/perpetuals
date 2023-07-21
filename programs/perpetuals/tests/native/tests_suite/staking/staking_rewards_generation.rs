@@ -276,7 +276,7 @@ pub async fn staking_rewards_generation() {
         // Martin: Open 0.1 ETH long position x1
         let position_pda = test_instructions::open_position(
             &test_setup.program_test_ctx,
-            &martin,
+            martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
             eth_mint,

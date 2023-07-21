@@ -39,7 +39,7 @@ pub fn get_clockwork_thread_pda(thread_authority: &Pubkey, thread_id: Vec<u8>) -
 
 pub fn get_clockwork_network_config_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(
-        &[clockwork_network_program::state::SEED_CONFIG.as_ref()],
+        &[clockwork_network_program::state::SEED_CONFIG],
         &clockwork_network_program::id(),
     )
 }

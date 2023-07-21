@@ -34,7 +34,7 @@ pub async fn remove_liquid_stake(
     let lm_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), &lm_token_mint_pda).0;
     let reward_token_account_address =
-        utils::find_associated_token_account(&owner.pubkey(), &staking_reward_token_mint).0;
+        utils::find_associated_token_account(&owner.pubkey(), staking_reward_token_mint).0;
 
     let governance_governing_token_holding_pda = pda::get_governance_governing_token_holding_pda(
         governance_realm_pda,
