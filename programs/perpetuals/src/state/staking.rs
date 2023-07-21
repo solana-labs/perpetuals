@@ -33,7 +33,7 @@ pub struct Staking {
     //
     // Tokens in locked stake
     //
-    pub nb_locked_tokens: u128,
+    pub nb_locked_tokens: u64,
     //
     // Token to stake
     //
@@ -50,11 +50,11 @@ pub struct Staking {
     // amount of rewards allocated to resolved rounds, claimable (excluding current/next round)
     pub resolved_reward_token_amount: u64,
     // amount of staked token locked in resolved rounds, claimable (excluding current/next round)
-    pub resolved_staked_token_amount: u128,
+    pub resolved_staked_token_amount: u64,
     // amount of lm rewards allocated to resolved rounds, claimable (excluding current/next round)
     pub resolved_lm_reward_token_amount: u64,
     // amount of lm staked token locked in resolved rounds, claimable (excluding current/next round)
-    pub resolved_lm_staked_token_amount: u128,
+    pub resolved_lm_staked_token_amount: u64,
     //
     // Staking rounds
     //

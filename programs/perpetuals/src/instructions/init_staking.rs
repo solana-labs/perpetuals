@@ -159,9 +159,9 @@ pub fn init_staking<'info>(
         staking.reward_token_mint = ctx.accounts.staking_reward_token_mint.key();
         staking.reward_token_decimals = ctx.accounts.staking_reward_token_mint.decimals;
         staking.resolved_reward_token_amount = u64::MIN;
-        staking.resolved_staked_token_amount = u128::MIN;
+        staking.resolved_staked_token_amount = u64::MIN;
         staking.resolved_lm_reward_token_amount = u64::MIN;
-        staking.resolved_lm_staked_token_amount = u128::MIN;
+        staking.resolved_lm_staked_token_amount = u64::MIN;
         staking.current_staking_round = StakingRound::new(ctx.accounts.perpetuals.get_time()?);
         staking.next_staking_round = StakingRound::new(0);
         staking.resolved_staking_rounds = Vec::new();

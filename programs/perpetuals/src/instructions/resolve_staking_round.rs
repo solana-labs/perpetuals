@@ -235,7 +235,7 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
             {
                 staking.resolved_staked_token_amount = math::checked_add(
                     staking.resolved_staked_token_amount,
-                    current_round_stake_token_amount as u128,
+                    current_round_stake_token_amount,
                 )?;
 
                 require!(
@@ -254,7 +254,7 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
             {
                 staking.resolved_lm_staked_token_amount = math::checked_add(
                     staking.resolved_lm_staked_token_amount,
-                    current_round_lm_stake_token_amount as u128,
+                    current_round_lm_stake_token_amount,
                 )?;
 
                 require!(
@@ -310,7 +310,7 @@ pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
 
                     staking.resolved_staked_token_amount = math::checked_sub(
                         staking.resolved_staked_token_amount,
-                        stake_token_elligible_to_rewards as u128,
+                        stake_token_elligible_to_rewards,
                     )?;
                 }
 

@@ -81,11 +81,8 @@ impl Cortex {
         let lm_stakers_fee = self.get_lm_stakers_fee(fee_amount)?;
         let lp_organic_fee = self.get_lp_organic_fee(fee_amount)?;
 
-        let locked_lp_stakers_fee = math::checked_as_u64(self.get_locked_lp_stakers_fee(
-            lp_organic_fee,
-            lp_token_mint,
-            lp_staking,
-        )?)?;
+        let locked_lp_stakers_fee =
+            self.get_locked_lp_stakers_fee(lp_organic_fee, lp_token_mint, lp_staking)?;
 
         Ok(FeeDistribution {
             lm_stakers_fee,
@@ -116,17 +113,17 @@ impl Cortex {
         lp_organic_fee: u64,
         lp_token_mint: &Account<Mint>,
         lp_staking: &Account<Staking>,
-    ) -> Result<u128> {
+    ) -> Result<u64> {
         if lp_organic_fee == 0 {
             return Ok(0);
         }
 
         let non_locked_staked_tokens =
-            math::checked_sub(lp_token_mint.supply as u128, lp_staking.nb_locked_tokens)?;
+            math::checked_sub(lp_token_mint.supply, lp_staking.nb_locked_tokens)?;
 
         let total_lp_holders_shares = math::checked_add(
             non_locked_staked_tokens,
-            lp_staking.current_staking_round.total_stake as u128,
+            lp_staking.current_staking_round.total_stake,
         )?;
 
         if total_lp_holders_shares == 0 {
@@ -135,16 +132,16 @@ impl Cortex {
 
         let share_per_token = math::checked_div(
             math::checked_mul(lp_organic_fee as u128, Perpetuals::RATE_POWER)?,
-            total_lp_holders_shares,
+            total_lp_holders_shares as u128,
         )?;
 
-        math::checked_div(
+        math::checked_as_u64(math::checked_div(
             math::checked_mul(
                 share_per_token,
                 lp_staking.current_staking_round.total_stake as u128,
             )?,
             Perpetuals::RATE_POWER,
-        )
+        )?)
     }
 
     pub fn get_swap_lm_rewards_amounts(&self, (fee_in, fee_out): (u64, u64)) -> Result<(u64, u64)> {

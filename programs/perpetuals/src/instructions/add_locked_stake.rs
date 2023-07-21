@@ -362,8 +362,7 @@ pub fn add_locked_stake(ctx: Context<AddLockedStake>, params: &AddLockedStakePar
             stake_amount_with_lm_reward_multiplier,
         )?;
 
-        staking.nb_locked_tokens =
-            math::checked_add(staking.nb_locked_tokens, params.amount as u128)?;
+        staking.nb_locked_tokens = math::checked_add(staking.nb_locked_tokens, params.amount)?;
     }
 
     // If auto claim thread is paused, resume it

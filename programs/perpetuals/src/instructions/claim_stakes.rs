@@ -406,7 +406,7 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
             // update resolved stake token amount left, by removing the previously staked amount
             staking.resolved_staked_token_amount = math::checked_sub(
                 staking.resolved_staked_token_amount,
-                stake_amount_with_reward_multiplier as u128,
+                stake_amount_with_reward_multiplier,
             )?;
 
             // update resolved reward token amount left
@@ -418,7 +418,7 @@ pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
             // update resolved lm stake token amount left, by removing the previously staked amount
             staking.resolved_lm_staked_token_amount = math::checked_sub(
                 staking.resolved_lm_staked_token_amount,
-                stake_amount_with_lm_reward_multiplier as u128,
+                stake_amount_with_lm_reward_multiplier,
             )?;
 
             // update resolved reward token amount left
