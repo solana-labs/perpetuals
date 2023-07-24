@@ -62,6 +62,8 @@ pub async fn test_set_custom_oracle_price(
             perpetuals::instruction::SetCustomOraclePrice { params },
             Some(&payer.pubkey()),
             &[admin, payer, signer],
+            None,
+            None,
         )
         .await?;
     }

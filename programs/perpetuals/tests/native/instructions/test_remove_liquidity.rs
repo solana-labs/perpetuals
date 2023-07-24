@@ -95,6 +95,8 @@ pub async fn test_remove_liquidity(
         perpetuals::instruction::RemoveLiquidity { params },
         Some(&payer.pubkey()),
         &[owner, payer],
+        None,
+        None,
     )
     .await?;
 

@@ -74,6 +74,8 @@ pub async fn test_add_pool(
             },
             Some(&payer.pubkey()),
             &[admin, payer, signer],
+            None,
+            None,
         )
         .await?;
     }

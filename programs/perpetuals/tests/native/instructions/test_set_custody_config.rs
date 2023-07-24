@@ -57,6 +57,8 @@ pub async fn test_set_custody_config(
             },
             Some(&payer.pubkey()),
             &[admin, payer, signer],
+            None,
+            None,
         )
         .await?;
     }

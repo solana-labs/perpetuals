@@ -72,6 +72,8 @@ pub async fn test_add_custody(
             },
             Some(&payer.pubkey()),
             &[admin, payer, signer],
+            None,
+            None,
         )
         .await?;
     }

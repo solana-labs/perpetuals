@@ -1,11 +1,11 @@
 use {
+    super::get_update_pool_ix,
     crate::utils::{self, pda},
     anchor_lang::{prelude::Pubkey, ToAccountMetas},
     perpetuals::{
         instructions::OpenPositionParams,
-        state::{custody::Custody, pool::Pool, position::Position},
+        state::{custody::Custody, position::Position},
     },
-    solana_program::instruction::AccountMeta,
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
     tokio::sync::RwLock,
@@ -43,8 +43,9 @@ pub async fn test_open_position(
     let custody_token_account_before =
         utils::get_token_account(program_test_ctx, custody_token_account_pda).await;
 
-    let accounts_meta = {
-        let accounts = perpetuals::accounts::OpenPosition {
+    utils::create_and_execute_perpetuals_ix(
+        program_test_ctx,
+        perpetuals::accounts::OpenPosition {
             owner: owner.pubkey(),
             funding_account: funding_account_address,
             transfer_authority: transfer_authority_pda,
@@ -58,41 +59,13 @@ pub async fn test_open_position(
             collateral_custody_token_account: custody_token_account_pda,
             system_program: anchor_lang::system_program::ID,
             token_program: anchor_spl::token::ID,
-        };
-
-        let mut accounts_meta = accounts.to_account_metas(None);
-
-        let pool_account = utils::get_account::<Pool>(program_test_ctx, *pool_pda).await;
-
-        // For each token, add custody account as remaining_account
-        for custody in &pool_account.custodies {
-            accounts_meta.push(AccountMeta {
-                pubkey: *custody,
-                is_signer: false,
-                is_writable: false,
-            });
         }
-
-        // For each token, add custody oracle account as remaining_account
-        for custody in &pool_account.custodies {
-            let custody_account = utils::get_account::<Custody>(program_test_ctx, *custody).await;
-
-            accounts_meta.push(AccountMeta {
-                pubkey: custody_account.oracle.oracle_account,
-                is_signer: false,
-                is_writable: false,
-            });
-        }
-
-        accounts_meta
-    };
-
-    utils::create_and_execute_perpetuals_ix(
-        program_test_ctx,
-        accounts_meta,
+        .to_account_metas(None),
         perpetuals::instruction::OpenPosition { params },
         Some(&payer.pubkey()),
         &[owner, payer],
+        Some(get_update_pool_ix(program_test_ctx, payer, pool_pda).await?),
+        None,
     )
     .await?;
 

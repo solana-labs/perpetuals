@@ -94,6 +94,8 @@ pub async fn test_add_liquidity(
         perpetuals::instruction::AddLiquidity { params },
         Some(&payer.pubkey()),
         &[owner, payer],
+        None,
+        None,
     )
     .await?;
 

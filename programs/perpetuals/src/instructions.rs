@@ -36,6 +36,7 @@ pub mod open_position;
 pub mod remove_collateral;
 pub mod remove_liquidity;
 pub mod swap;
+pub mod update_pool_aum;
 
 // bring everything in scope
 pub use {
@@ -46,6 +47,6 @@ pub use {
     get_remove_liquidity_amount_and_fee::*, get_swap_amount_and_fees::*, init::*, liquidate::*,
     open_position::*, remove_collateral::*, remove_custody::*, remove_liquidity::*, remove_pool::*,
     set_admin_signers::*, set_custody_config::*, set_custom_oracle_price::*, set_permissions::*,
-    set_test_time::*, swap::*, test_init::*, upgrade_custody::*, withdraw_fees::*,
-    withdraw_sol_fees::*,
+    set_test_time::*, swap::*, test_init::*, update_pool_aum::*, upgrade_custody::*,
+    withdraw_fees::*, withdraw_sol_fees::*,
 };
