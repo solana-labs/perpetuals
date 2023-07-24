@@ -244,7 +244,7 @@ impl Pool {
         let close_amount = max_collateral_price
             .get_token_amount(available_amount_usd, collateral_custody.decimals)?;
         let max_amount = math::checked_add(
-            math::checked_sub(position.locked_amount, fee_amount)?,
+            position.locked_amount.saturating_sub(fee_amount),
             position.collateral_amount,
         )?;
 

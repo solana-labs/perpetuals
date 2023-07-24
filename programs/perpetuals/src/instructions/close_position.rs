@@ -237,8 +237,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     collateral_custody.assets.protocol_fees =
         math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
 
-    collateral_custody.assets.owned =
-        math::checked_sub(collateral_custody.assets.owned, protocol_fee)?;
+    collateral_custody.assets.owned = collateral_custody.assets.owned.saturating_sub(protocol_fee);
 
     // if custody and collateral_custody accounts are the same, ensure that data is in sync
     if position.side == Side::Long && !custody.is_virtual {
