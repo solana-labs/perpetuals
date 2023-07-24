@@ -13,8 +13,6 @@ pub async fn get_update_pool_ix(
     payer: &Keypair,
     pool_pda: &Pubkey,
 ) -> std::result::Result<solana_sdk::instruction::Instruction, BanksClientError> {
-    // ==== WHEN ==============================================================
-
     // Prepare PDA and addresses
     let perpetuals_pda = pda::get_perpetuals_pda().0;
 
@@ -57,8 +55,6 @@ pub async fn get_update_pool_ix(
         accounts: accounts_meta,
         data: perpetuals::instruction::UpdatePoolAum {}.data(),
     };
-
-    // ==== THEN ==============================================================
 
     Ok(ix)
 }
