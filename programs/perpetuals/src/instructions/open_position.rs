@@ -144,7 +144,6 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     } else {
         require_keys_eq!(custody.key(), collateral_custody.key());
     };
-
     let position = ctx.accounts.position.as_mut();
     let pool = ctx.accounts.pool.as_mut();
 
