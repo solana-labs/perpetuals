@@ -10,11 +10,12 @@ use {
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
+    tokio::sync::RwLock,
 };
 
 #[allow(clippy::too_many_arguments)]
 pub async fn test_set_custom_oracle_price(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     admin: &Keypair,
     payer: &Keypair,
     pool_pda: &Pubkey,
@@ -61,6 +62,8 @@ pub async fn test_set_custom_oracle_price(
             perpetuals::instruction::SetCustomOraclePrice { params },
             Some(&payer.pubkey()),
             &[admin, payer, signer],
+            None,
+            None,
         )
         .await?;
     }

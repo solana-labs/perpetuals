@@ -16,7 +16,8 @@ use {
     solana_program::pubkey::Pubkey,
     solana_program_test::{ProgramTest, ProgramTestContext},
     solana_sdk::{signature::Keypair, signer::Signer},
-    std::{cell::RefCell, collections::HashMap},
+    std::collections::HashMap,
+    tokio::sync::RwLock,
 };
 
 pub struct SetupCustodyWithLiquidityParams<'a> {
@@ -62,7 +63,7 @@ pub struct MintInfo {
 }
 
 pub struct TestSetup {
-    pub program_test_ctx: RefCell<ProgramTestContext>,
+    pub program_test_ctx: RwLock<ProgramTestContext>,
 
     pub root_authority_keypair: Keypair,
     pub payer_keypair: Keypair,
@@ -80,11 +81,11 @@ pub struct TestSetup {
 
 impl TestSetup {
     pub fn get_user_keypair_by_name(&self, name: &str) -> &Keypair {
-        &self.users.get(&name.to_string()).unwrap()
+        self.users.get(&name.to_string()).unwrap()
     }
 
     pub fn get_multisig_member_keypair_by_name(&self, name: &str) -> &Keypair {
-        &self.multisig_members.get(&name.to_string()).unwrap()
+        self.multisig_members.get(&name.to_string()).unwrap()
     }
 
     pub fn get_multisig_signers(&self) -> Vec<&Keypair> {
@@ -142,13 +143,11 @@ impl TestSetup {
 
         let users = {
             let mut users: HashMap<String, Keypair> = HashMap::new();
-            let mut i = 0;
-            for user_param in users_param.as_slice() {
+            for (i, user_param) in users_param.as_slice().iter().enumerate() {
                 users.insert(
                     user_param.name.to_string(),
                     utils::copy_keypair(&users_keypairs[i]),
                 );
-                i += 1;
             }
 
             users
@@ -179,19 +178,17 @@ impl TestSetup {
         utils::add_perpetuals_program(&mut program_test, program_authority_keypair).await;
 
         // Start the client and connect to localnet validator
-        let program_test_ctx: RefCell<ProgramTestContext> =
-            RefCell::new(program_test.start_with_context().await);
+        let program_test_ctx: RwLock<ProgramTestContext> =
+            RwLock::new(program_test.start_with_context().await);
 
         // Initialize multisig
         let multisig_members = {
             let mut multisig_members: HashMap<String, Keypair> = HashMap::new();
-            let mut i: usize = 0;
-            for multisig_member_name in multisig_members_names {
+            for (i, multisig_member_name) in multisig_members_names.into_iter().enumerate() {
                 multisig_members.insert(
                     multisig_member_name.to_string(),
                     utils::copy_keypair(&multisig_members_keypairs[i]),
                 );
-                i += 1;
             }
 
             multisig_members
@@ -201,7 +198,7 @@ impl TestSetup {
 
         // Execute the initialize transaction
         instructions::test_init(
-            &mut program_test_ctx.borrow_mut(),
+            &program_test_ctx,
             program_authority_keypair,
             fixtures::init_params_permissions_full(1),
             &multisig_signers,
@@ -211,22 +208,17 @@ impl TestSetup {
 
         // Initialize users token accounts for each mints
         {
-            let mints_infos: Vec<&MintInfo> = mints.values().collect();
             let mints_pubkeys: Vec<Pubkey> =
-                mints_infos.into_iter().map(|info| info.pubkey).collect();
+                mints.values().into_iter().map(|info| info.pubkey).collect();
 
-            let users_keypairs: Vec<&Keypair> = users.values().collect();
-            let users_pubkeys: Vec<Pubkey> = users_keypairs
+            let users_pubkeys: Vec<Pubkey> = users
+                .values()
                 .into_iter()
                 .map(|keypair| keypair.pubkey())
                 .collect();
 
-            utils::initialize_users_token_accounts(
-                &mut program_test_ctx.borrow_mut(),
-                mints_pubkeys,
-                users_pubkeys,
-            )
-            .await;
+            utils::initialize_users_token_accounts(&program_test_ctx, mints_pubkeys, users_pubkeys)
+                .await;
         }
 
         // Mint tokens for users to match specified balances
@@ -239,7 +231,7 @@ impl TestSetup {
                     let (ata, _) = utils::find_associated_token_account(&user, &mint);
 
                     utils::mint_tokens(
-                        &mut program_test_ctx.borrow_mut(),
+                        &program_test_ctx,
                         root_authority_keypair,
                         &mint,
                         &ata,
@@ -253,7 +245,7 @@ impl TestSetup {
         // Setup the pool
         let (pool_pda, pool_bump, lp_token_mint_pda, lp_token_mint_bump) =
             instructions::test_add_pool(
-                &mut program_test_ctx.borrow_mut(),
+                &program_test_ctx,
                 &multisig_members_keypairs[0],
                 payer_keypair,
                 pool_name,
@@ -320,7 +312,7 @@ impl TestSetup {
                     };
 
                     instructions::test_add_custody(
-                        &mut program_test_ctx.borrow_mut(),
+                        &program_test_ctx,
                         &multisig_members_keypairs[0],
                         payer_keypair,
                         &pool_pda,
@@ -334,11 +326,10 @@ impl TestSetup {
                     .0
                 };
 
-                let publish_time =
-                    utils::get_current_unix_timestamp(&mut program_test_ctx.borrow_mut()).await;
+                let publish_time = utils::get_current_unix_timestamp(&program_test_ctx).await;
 
                 instructions::test_set_custom_oracle_price(
-                    &mut program_test_ctx.borrow_mut(),
+                    &program_test_ctx,
                     &multisig_members_keypairs[0],
                     payer_keypair,
                     &pool_pda,
@@ -367,14 +358,14 @@ impl TestSetup {
 
         // Initialize users token accounts for lp token mint
         {
-            let users_keypairs: Vec<&Keypair> = users.values().collect();
-            let users_pubkeys: Vec<Pubkey> = users_keypairs
+            let users_pubkeys: Vec<Pubkey> = users
+                .values()
                 .into_iter()
                 .map(|keypair| keypair.pubkey())
                 .collect();
 
             utils::initialize_users_token_accounts(
-                &mut program_test_ctx.borrow_mut(),
+                &program_test_ctx,
                 vec![lp_token_mint_pda],
                 users_pubkeys,
             )
@@ -398,7 +389,7 @@ impl TestSetup {
 
             if custody_param.liquidity_amount > 0 {
                 instructions::test_add_liquidity(
-                    &mut program_test_ctx.borrow_mut(),
+                    &program_test_ctx,
                     liquidity_provider,
                     payer_keypair,
                     &pool_pda,
@@ -434,7 +425,7 @@ impl TestSetup {
 
             for (idx, _params) in custodies_params.as_slice().iter().enumerate() {
                 utils::set_custody_ratios(
-                    &mut program_test_ctx.borrow_mut(),
+                    &program_test_ctx,
                     &multisig_members_keypairs[0],
                     payer_keypair,
                     &custodies_info[idx].custody_pda,

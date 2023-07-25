@@ -50,11 +50,11 @@ pub async fn fixed_fees() {
     // Check add liquidity fee
     {
         instructions::test_add_liquidity(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &usdc_mint,
+            usdc_mint,
             AddLiquidityParams {
                 amount_in: utils::scale(1_000, USDC_DECIMALS),
                 min_lp_amount_out: 1,
@@ -64,13 +64,10 @@ pub async fn fixed_fees() {
         .unwrap();
 
         {
-            let pool_account = utils::get_account::<Pool>(
-                &mut test_setup.program_test_ctx.borrow_mut(),
-                test_setup.pool_pda,
-            )
-            .await;
+            let pool_account =
+                utils::get_account::<Pool>(&test_setup.program_test_ctx, test_setup.pool_pda).await;
             let custody_account = utils::get_account::<Custody>(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 test_setup.custodies_info[0].custody_pda,
             )
             .await;
@@ -95,11 +92,11 @@ pub async fn fixed_fees() {
     // Check remove liquidity fee
     {
         instructions::test_remove_liquidity(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &usdc_mint,
+            usdc_mint,
             RemoveLiquidityParams {
                 lp_amount_in: utils::scale(100, Perpetuals::LP_DECIMALS),
                 min_amount_out: 1,
@@ -109,13 +106,10 @@ pub async fn fixed_fees() {
         .unwrap();
 
         {
-            let pool_account = utils::get_account::<Pool>(
-                &mut test_setup.program_test_ctx.borrow_mut(),
-                test_setup.pool_pda,
-            )
-            .await;
+            let pool_account =
+                utils::get_account::<Pool>(&test_setup.program_test_ctx, test_setup.pool_pda).await;
             let custody_account = utils::get_account::<Custody>(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 test_setup.custodies_info[0].custody_pda,
             )
             .await;

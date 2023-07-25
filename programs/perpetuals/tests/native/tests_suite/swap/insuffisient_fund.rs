@@ -87,13 +87,13 @@ pub async fn insuffisient_fund() {
     {
         // Martin: Swap 5k USDC for ETH
         assert!(instructions::test_swap(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &eth_mint,
+            eth_mint,
             // The program receives USDC
-            &usdc_mint,
+            usdc_mint,
             SwapParams {
                 amount_in: utils::scale(5_000, USDC_DECIMALS),
                 min_amount_out: 0,
@@ -107,13 +107,13 @@ pub async fn insuffisient_fund() {
     {
         // Martin: Swap 10 ETH for (15k) USDC
         assert!(instructions::test_swap(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             martin,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &usdc_mint,
+            usdc_mint,
             // The program receives ETH
-            &eth_mint,
+            eth_mint,
             SwapParams {
                 amount_in: utils::scale(10, ETH_DECIMALS),
                 min_amount_out: 0,

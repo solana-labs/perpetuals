@@ -97,11 +97,11 @@ pub async fn max_user_profit() {
 
     // Martin: Open 1 ETH long position x5
     let position_pda = instructions::test_open_position(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         martin,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &eth_mint,
+        eth_mint,
         OpenPositionParams {
             // max price paid (slippage implied)
             price: utils::scale(1_550, ETH_DECIMALS),
@@ -119,11 +119,10 @@ pub async fn max_user_profit() {
         let eth_test_oracle_pda = test_setup.custodies_info[1].custom_oracle_pda;
         let eth_custody_pda = test_setup.custodies_info[1].custody_pda;
 
-        let publish_time =
-            utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await;
+        let publish_time = utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await;
 
         instructions::test_set_custom_oracle_price(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             admin_a,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
@@ -142,14 +141,14 @@ pub async fn max_user_profit() {
         .unwrap();
     }
 
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+    utils::warp_forward(&test_setup.program_test_ctx, 1).await;
 
     instructions::test_close_position(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         martin,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &eth_mint,
+        eth_mint,
         &position_pda,
         ClosePositionParams {
             // lowest exit price paid (slippage implied)
@@ -159,17 +158,14 @@ pub async fn max_user_profit() {
     .await
     .unwrap();
 
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+    utils::warp_forward(&test_setup.program_test_ctx, 1).await;
 
     // Check user gains
     {
-        let martin_eth_pda = utils::find_associated_token_account(&martin.pubkey(), &eth_mint).0;
+        let martin_eth_pda = utils::find_associated_token_account(&martin.pubkey(), eth_mint).0;
 
-        let martin_eth_balance = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            martin_eth_pda,
-        )
-        .await;
+        let martin_eth_balance =
+            utils::get_token_account_balance(&test_setup.program_test_ctx, martin_eth_pda).await;
 
         // Gains are limited to 0.25 * 5 = 1.25 ETH
         // True gains should be 2.5 ETH less fees (price did x2 on x5 leverage)

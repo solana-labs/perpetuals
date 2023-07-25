@@ -76,7 +76,7 @@ pub async fn lp_token_price() {
     // Check LP token price after pool setup
     assert_eq!(
         instructions::test_get_lp_token_price(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
             &test_setup.lp_token_mint_pda,
@@ -94,11 +94,10 @@ pub async fn lp_token_price() {
             let eth_custody_pda = test_setup.custodies_info[1].custody_pda;
 
             let publish_time =
-                utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut())
-                    .await;
+                utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await;
 
             instructions::test_set_custom_oracle_price(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 admin_a,
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
@@ -119,7 +118,7 @@ pub async fn lp_token_price() {
 
         assert_eq!(
             instructions::test_get_lp_token_price(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
                 &test_setup.lp_token_mint_pda,
@@ -138,11 +137,10 @@ pub async fn lp_token_price() {
             let eth_custody_pda = test_setup.custodies_info[1].custody_pda;
 
             let publish_time =
-                utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut())
-                    .await;
+                utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await;
 
             instructions::test_set_custom_oracle_price(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 admin_a,
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
@@ -163,7 +161,7 @@ pub async fn lp_token_price() {
 
         assert_eq!(
             instructions::test_get_lp_token_price(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 &test_setup.payer_keypair,
                 &test_setup.pool_pda,
                 &test_setup.lp_token_mint_pda,
