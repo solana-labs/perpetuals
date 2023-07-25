@@ -646,8 +646,12 @@ impl Pool {
                     collateral_token_price
                         .get_min_price(collateral_token_ema_price, collateral_custody.is_stable)?
                 };
-                let max_profit_usd = min_collateral_price
-                    .get_asset_amount_usd(position.locked_amount, collateral_custody.decimals)?;
+                let max_profit_usd = if curtime <= position.open_time {
+                    0
+                } else {
+                    min_collateral_price
+                        .get_asset_amount_usd(position.locked_amount, collateral_custody.decimals)?
+                };
                 Ok((
                     std::cmp::min(max_profit_usd, cur_profit_usd),
                     0u64,
