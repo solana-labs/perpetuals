@@ -233,8 +233,15 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     )?;
 
     let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
-    collateral_custody.assets.protocol_fees =
-        math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
+
+    // Pay protocol_fee from custody if possible, otherwise no protocol_fee
+    if pool.check_available_amount(protocol_fee, collateral_custody)? {
+        collateral_custody.assets.protocol_fees =
+            math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
+
+        collateral_custody.assets.owned =
+            math::checked_sub(collateral_custody.assets.owned, protocol_fee)?;
+    }
 
     // if custody and collateral_custody accounts are the same, ensure that data is in sync
     if position.side == Side::Long && !custody.is_virtual {

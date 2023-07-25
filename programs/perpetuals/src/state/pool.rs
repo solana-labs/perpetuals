@@ -243,7 +243,10 @@ impl Pool {
         };
         let close_amount = max_collateral_price
             .get_token_amount(available_amount_usd, collateral_custody.decimals)?;
-        let max_amount = math::checked_add(position.locked_amount, position.collateral_amount)?;
+        let max_amount = math::checked_add(
+            position.locked_amount.saturating_sub(fee_amount),
+            position.collateral_amount,
+        )?;
 
         Ok((
             std::cmp::min(max_amount, close_amount),
