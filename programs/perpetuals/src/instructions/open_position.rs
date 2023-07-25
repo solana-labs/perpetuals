@@ -221,6 +221,21 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         custody.get_locked_amount(params.size, params.side)?
     };
 
+    let borrow_size_usd = if custody.pricing.max_payoff_mult as u128 != Perpetuals::BPS_POWER {
+        if use_collateral_custody {
+            let max_collateral_price = if collateral_token_price < collateral_token_ema_price {
+                collateral_token_ema_price
+            } else {
+                collateral_token_price
+            };
+            max_collateral_price.get_asset_amount_usd(locked_amount, collateral_custody.decimals)?
+        } else {
+            position_oracle_price.get_asset_amount_usd(locked_amount, custody.decimals)?
+        }
+    } else {
+        size_usd
+    };
+
     // compute fee
     let mut fee_amount = pool.get_entry_fee(
         custody.fees.open_position,
@@ -250,6 +265,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     position.side = params.side;
     position.price = position_price;
     position.size_usd = size_usd;
+    position.borrow_size_usd = borrow_size_usd;
     position.collateral_usd = collateral_usd;
     position.unrealized_profit_usd = 0;
     position.unrealized_loss_usd = 0;
