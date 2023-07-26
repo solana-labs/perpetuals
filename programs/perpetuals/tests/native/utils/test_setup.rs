@@ -312,8 +312,10 @@ impl TestSetup {
 
         // Initialize users token accounts for each mints
         {
-            let mints_pubkeys: Vec<Pubkey> =
+            let mut mints_pubkeys: Vec<Pubkey> =
                 mints.values().into_iter().map(|info| info.pubkey).collect();
+
+            mints_pubkeys.push(lm_token_mint);
 
             let users_pubkeys: Vec<Pubkey> = users
                 .values()

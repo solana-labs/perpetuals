@@ -190,7 +190,7 @@ pub async fn basic_interactions() {
             let usdc_balance_after =
                 utils::get_token_account_balance(&test_setup.program_test_ctx, paul_usdc_ata).await;
 
-            assert_eq!(eth_balance_after - eth_balance_before, 96_262_804);
+            assert_eq!(eth_balance_after - eth_balance_before, 96_272_504);
             assert_eq!(usdc_balance_before - usdc_balance_after, 150_000_000);
         }
 
@@ -225,7 +225,7 @@ pub async fn basic_interactions() {
                 utils::get_token_account_balance(&test_setup.program_test_ctx, paul_usdc_ata).await;
 
             assert_eq!(eth_balance_before - eth_balance_after, 100_000_000);
-            assert_eq!(usdc_balance_after - usdc_balance_before, 143_608_500);
+            assert_eq!(usdc_balance_after - usdc_balance_before, 143_579_400);
         }
     }
 
