@@ -8,6 +8,7 @@ pub mod claim_stakes;
 pub mod claim_vest;
 pub mod close_position;
 pub mod get_lp_token_price;
+pub mod get_update_pool_ix;
 pub mod init;
 pub mod init_staking;
 pub mod init_user_staking;
@@ -24,8 +25,9 @@ pub mod swap;
 
 pub use {
     add_custody::*, add_liquid_stake::*, add_liquidity::*, add_locked_stake::*, add_pool::*,
-    add_vest::*, claim_stakes::*, claim_vest::*, close_position::*, get_lp_token_price::*, init::*,
-    init_staking::*, init_user_staking::*, liquidate::*, mint_lm_tokens_from_bucket::*,
-    open_position::*, remove_liquid_stake::*, remove_liquidity::*, remove_locked_stake::*,
-    resolve_staking_round::*, set_custody_config::*, set_custom_oracle_price::*, swap::*,
+    add_vest::*, claim_stakes::*, claim_vest::*, close_position::*, get_lp_token_price::*,
+    get_update_pool_ix::*, init::*, init_staking::*, init_user_staking::*, liquidate::*,
+    mint_lm_tokens_from_bucket::*, open_position::*, remove_liquid_stake::*, remove_liquidity::*,
+    remove_locked_stake::*, resolve_staking_round::*, set_custody_config::*,
+    set_custom_oracle_price::*, swap::*,
 };

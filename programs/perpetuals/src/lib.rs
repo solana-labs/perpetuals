@@ -19,10 +19,10 @@ use {
 solana_security_txt::security_txt! {
     name: "Perpetuals",
     project_url: "https://github.com/solana-labs/perpetuals",
-    contacts: "email:solana.farms@protonmail.com",
+    contacts: "email:defi@solana.com",
     policy: "",
     preferred_languages: "en",
-    auditors: ""
+    auditors: "Halborn"
 }
 
 declare_id!("Bmr31xzZYYVUdoHmAJL1DAp2anaitW8Tw9YfASS94MKJ");
@@ -178,6 +178,10 @@ pub mod perpetuals {
 
     pub fn liquidate(ctx: Context<Liquidate>, params: LiquidateParams) -> Result<()> {
         instructions::liquidate(ctx, &params)
+    }
+
+    pub fn update_pool_aum(ctx: Context<UpdatePoolAum>) -> Result<u128> {
+        instructions::update_pool_aum(ctx)
     }
 
     pub fn get_add_liquidity_amount_and_fee(

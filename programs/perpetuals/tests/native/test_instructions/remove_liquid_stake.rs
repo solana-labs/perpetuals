@@ -106,6 +106,8 @@ pub async fn remove_liquid_stake(
         },
         Some(&payer.pubkey()),
         &[owner, payer],
+        None,
+        None,
     )
     .await?;
 

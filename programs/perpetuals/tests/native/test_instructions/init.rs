@@ -86,6 +86,8 @@ pub async fn init(
         perpetuals::instruction::Init { params },
         Some(&upgrade_authority.pubkey()),
         &[&[upgrade_authority], multisig_signers].concat(),
+        None,
+        None,
     )
     .await?;
 

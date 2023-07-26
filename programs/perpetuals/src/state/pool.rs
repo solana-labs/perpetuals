@@ -243,7 +243,10 @@ impl Pool {
         };
         let close_amount = max_collateral_price
             .get_token_amount(available_amount_usd, collateral_custody.decimals)?;
-        let max_amount = math::checked_add(position.locked_amount, position.collateral_amount)?;
+        let max_amount = math::checked_add(
+            position.locked_amount.saturating_sub(fee_amount),
+            position.collateral_amount,
+        )?;
 
         Ok((
             std::cmp::min(max_amount, close_amount),
@@ -1252,7 +1255,7 @@ mod test {
             pool.get_entry_fee(
                 custody.fees.open_position,
                 0,
-                custody.get_locked_amount(0).unwrap(),
+                custody.get_locked_amount(0, Side::Long).unwrap(),
                 &custody
             )
             .unwrap()
@@ -1263,7 +1266,7 @@ mod test {
             pool.get_entry_fee(
                 custody.fees.open_position,
                 100_000,
-                custody.get_locked_amount(100_000).unwrap(),
+                custody.get_locked_amount(100_000, Side::Long).unwrap(),
                 &custody
             )
             .unwrap()
@@ -1274,7 +1277,7 @@ mod test {
             pool.get_entry_fee(
                 custody.fees.open_position,
                 150_000,
-                custody.get_locked_amount(150_000).unwrap(),
+                custody.get_locked_amount(150_000, Side::Long).unwrap(),
                 &custody
             )
             .unwrap()
@@ -1285,7 +1288,7 @@ mod test {
             pool.get_entry_fee(
                 custody.fees.open_position,
                 200_000,
-                custody.get_locked_amount(200_000).unwrap(),
+                custody.get_locked_amount(200_000, Side::Long).unwrap(),
                 &custody
             )
             .unwrap()
@@ -1296,7 +1299,7 @@ mod test {
             pool.get_entry_fee(
                 custody.fees.open_position,
                 300_000,
-                custody.get_locked_amount(300_000).unwrap(),
+                custody.get_locked_amount(300_000, Side::Long).unwrap(),
                 &custody
             )
             .unwrap()
@@ -1311,7 +1314,7 @@ mod test {
             pool.get_entry_fee(
                 custody.fees.open_position,
                 100_000,
-                custody.get_locked_amount(100_000).unwrap(),
+                custody.get_locked_amount(100_000, Side::Long).unwrap(),
                 &custody
             )
             .unwrap()
@@ -1322,7 +1325,7 @@ mod test {
             pool.get_entry_fee(
                 custody.fees.open_position,
                 150_000,
-                custody.get_locked_amount(150_000).unwrap(),
+                custody.get_locked_amount(150_000, Side::Long).unwrap(),
                 &custody
             )
             .unwrap()
@@ -1333,7 +1336,7 @@ mod test {
             pool.get_entry_fee(
                 custody.fees.open_position,
                 200_000,
-                custody.get_locked_amount(200_000).unwrap(),
+                custody.get_locked_amount(200_000, Side::Long).unwrap(),
                 &custody
             )
             .unwrap()
@@ -1344,7 +1347,7 @@ mod test {
             pool.get_entry_fee(
                 custody.fees.open_position,
                 300_000,
-                custody.get_locked_amount(300_000).unwrap(),
+                custody.get_locked_amount(300_000, Side::Long).unwrap(),
                 &custody
             )
             .unwrap()
@@ -1357,7 +1360,7 @@ mod test {
             pool.get_entry_fee(
                 custody.fees.open_position,
                 100_000,
-                custody.get_locked_amount(100_000).unwrap(),
+                custody.get_locked_amount(100_000, Side::Long).unwrap(),
                 &custody
             )
             .unwrap()
@@ -1368,7 +1371,7 @@ mod test {
             pool.get_entry_fee(
                 custody.fees.open_position,
                 150_000,
-                custody.get_locked_amount(150_000).unwrap(),
+                custody.get_locked_amount(150_000, Side::Long).unwrap(),
                 &custody
             )
             .unwrap()
@@ -1379,7 +1382,7 @@ mod test {
             pool.get_entry_fee(
                 custody.fees.open_position,
                 200_000,
-                custody.get_locked_amount(200_000).unwrap(),
+                custody.get_locked_amount(200_000, Side::Long).unwrap(),
                 &custody
             )
             .unwrap()
@@ -1390,7 +1393,7 @@ mod test {
             pool.get_entry_fee(
                 custody.fees.open_position,
                 300_000,
-                custody.get_locked_amount(300_000).unwrap(),
+                custody.get_locked_amount(300_000, Side::Long).unwrap(),
                 &custody
             )
             .unwrap()
@@ -1404,7 +1407,7 @@ mod test {
             pool.get_entry_fee(
                 custody.fees.open_position,
                 100_000,
-                custody.get_locked_amount(100_000).unwrap(),
+                custody.get_locked_amount(100_000, Side::Long).unwrap(),
                 &custody
             )
             .unwrap()
@@ -1415,7 +1418,7 @@ mod test {
             pool.get_entry_fee(
                 custody.fees.open_position,
                 150_000,
-                custody.get_locked_amount(150_000).unwrap(),
+                custody.get_locked_amount(150_000, Side::Long).unwrap(),
                 &custody
             )
             .unwrap()
@@ -1426,7 +1429,7 @@ mod test {
             pool.get_entry_fee(
                 custody.fees.open_position,
                 200_000,
-                custody.get_locked_amount(200_000).unwrap(),
+                custody.get_locked_amount(200_000, Side::Long).unwrap(),
                 &custody
             )
             .unwrap()
@@ -1437,7 +1440,7 @@ mod test {
             pool.get_entry_fee(
                 custody.fees.open_position,
                 300_000,
-                custody.get_locked_amount(300_000).unwrap(),
+                custody.get_locked_amount(300_000, Side::Long).unwrap(),
                 &custody
             )
             .unwrap()

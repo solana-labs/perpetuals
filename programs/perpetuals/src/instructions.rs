@@ -48,6 +48,7 @@ pub mod remove_liquidity;
 pub mod remove_locked_stake;
 pub mod resolve_staking_round;
 pub mod swap;
+pub mod update_pool_aum;
 
 // bring everything in scope
 pub use {
@@ -61,5 +62,6 @@ pub use {
     remove_collateral::*, remove_custody::*, remove_liquid_stake::*, remove_liquidity::*,
     remove_locked_stake::*, remove_pool::*, resolve_staking_round::*, set_admin_signers::*,
     set_custody_config::*, set_custom_oracle_price::*, set_permissions::*, set_test_time::*,
-    swap::*, test_init::*, upgrade_custody::*, withdraw_fees::*, withdraw_sol_fees::*,
+    swap::*, test_init::*, update_pool_aum::*, upgrade_custody::*, withdraw_fees::*,
+    withdraw_sol_fees::*,
 };

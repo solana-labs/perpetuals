@@ -104,6 +104,8 @@ pub async fn add_vest(
             },
             Some(&payer.pubkey()),
             &[admin, payer, signer],
+            None,
+            None,
         )
         .await?;
     }

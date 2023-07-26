@@ -129,6 +129,8 @@ pub async fn remove_liquidity(
         perpetuals::instruction::RemoveLiquidity { params },
         Some(&payer.pubkey()),
         &[owner, payer],
+        None,
+        None,
     )
     .await?;
 

@@ -158,6 +158,7 @@ pub async fn liquidate_position() {
                 price: utils::scale(1_350, ETH_DECIMALS),
                 expo: -(ETH_DECIMALS as i32),
                 conf: utils::scale(10, ETH_DECIMALS),
+                ema: utils::scale(1_350, ETH_DECIMALS),
                 publish_time,
             },
             &multisig_signers,
@@ -189,7 +190,7 @@ pub async fn liquidate_position() {
 
         assert_eq!(
             martin_eth_balance,
-            utils::scale_f64(1.376624036, ETH_DECIMALS)
+            utils::scale_f64(1.369834721, ETH_DECIMALS)
         );
     }
 }

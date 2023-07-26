@@ -79,6 +79,8 @@ pub async fn init_staking(
             },
             Some(&payer.pubkey()),
             &[admin, payer, signer],
+            None,
+            None,
         )
         .await?;
     }

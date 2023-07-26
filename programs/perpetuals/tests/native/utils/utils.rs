@@ -465,6 +465,8 @@ pub async fn create_and_execute_perpetuals_ix<T: InstructionData, U: Signers>(
     args: T,
     payer: Option<&Pubkey>,
     signing_keypairs: &U,
+    pre_ix: Option<solana_sdk::instruction::Instruction>,
+    post_ix: Option<solana_sdk::instruction::Instruction>,
 ) -> std::result::Result<(), BanksClientError> {
     let ix = solana_sdk::instruction::Instruction {
         program_id: perpetuals::id(),
@@ -476,11 +478,22 @@ pub async fn create_and_execute_perpetuals_ix<T: InstructionData, U: Signers>(
     let last_blockhash = ctx.last_blockhash;
     let banks_client = &mut ctx.banks_client;
 
+    let mut instructions: Vec<solana_sdk::instruction::Instruction> = Vec::new();
+
+    instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(800_000u32));
+
+    if pre_ix.is_some() {
+        instructions.push(pre_ix.unwrap());
+    }
+
+    instructions.push(ix);
+
+    if post_ix.is_some() {
+        instructions.push(post_ix.unwrap());
+    }
+
     let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[
-            ComputeBudgetInstruction::set_compute_unit_limit(800_000u32),
-            ix,
-        ],
+        instructions.as_slice(),
         payer,
         signing_keypairs,
         last_blockhash,

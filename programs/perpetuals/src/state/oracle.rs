@@ -43,6 +43,7 @@ pub struct CustomOracle {
     pub price: u64,
     pub expo: i32,
     pub conf: u64,
+    pub ema: u64,
     pub publish_time: i64,
 }
 
@@ -94,6 +95,7 @@ impl OraclePrice {
                 oracle_params.max_price_error,
                 oracle_params.max_price_age_sec,
                 current_time,
+                use_ema,
             ),
             OracleType::Pyth => Self::get_pyth_price(
                 oracle_account,
@@ -231,6 +233,7 @@ impl OraclePrice {
         max_price_error: u64,
         max_price_age_sec: u32,
         current_time: i64,
+        use_ema: bool,
     ) -> Result<OraclePrice> {
         require!(
             !Perpetuals::is_empty_account(custom_price_info)?,
@@ -244,11 +247,16 @@ impl OraclePrice {
             msg!("Error: Custom oracle price is stale");
             return err!(PerpetualsError::StaleOraclePrice);
         }
+        let price = if use_ema {
+            oracle_acc.ema
+        } else {
+            oracle_acc.price
+        };
 
-        if oracle_acc.price == 0
+        if price == 0
             || math::checked_div(
                 math::checked_mul(oracle_acc.conf as u128, Perpetuals::BPS_POWER)?,
-                oracle_acc.price as u128,
+                price as u128,
             )? > max_price_error as u128
         {
             msg!("Error: Custom oracle price is out of bounds");
@@ -257,7 +265,7 @@ impl OraclePrice {
 
         Ok(OraclePrice {
             // price is i64 and > 0 per check above
-            price: oracle_acc.price,
+            price,
             exponent: oracle_acc.expo,
         })
     }

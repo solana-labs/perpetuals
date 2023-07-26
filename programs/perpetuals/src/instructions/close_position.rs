@@ -26,7 +26,7 @@ pub struct ClosePosition<'info> {
 
     #[account(
         mut,
-        constraint = receiving_account.mint == custody.mint,
+        constraint = receiving_account.mint == collateral_custody.mint,
         has_one = owner
     )]
     pub receiving_account: Box<Account<'info, TokenAccount>>,
@@ -260,7 +260,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     }
 
     msg!("Settle position");
-    let (transfer_amount, fee_amount, profit_usd, loss_usd) = pool.get_close_amount(
+    let (transfer_amount, mut fee_amount, profit_usd, loss_usd) = pool.get_close_amount(
         position,
         &token_price,
         &token_ema_price,
@@ -272,7 +272,11 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         false,
     )?;
 
-    let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
+    let fee_amount_usd = token_ema_price.get_asset_amount_usd(fee_amount, custody.decimals)?;
+    if position.side == Side::Short || custody.is_virtual {
+        fee_amount = collateral_token_ema_price
+            .get_token_amount(fee_amount_usd, collateral_custody.decimals)?;
+    }
 
     // unlock pool funds
     collateral_custody.unlock_funds(position.locked_amount)?;
@@ -341,6 +345,8 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     //
     // Calculate fee distribution between (Staked LM, Locked Staked LP, Organic LP)
     //
+    let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
+
     let fee_distribution = ctx.accounts.cortex.calculate_fee_distribution(
         math::checked_sub(fee_amount, protocol_fee)?,
         ctx.accounts.lp_token_mint.as_ref(),
@@ -352,10 +358,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     collateral_custody.collected_fees.close_position_usd = collateral_custody
         .collected_fees
         .close_position_usd
-        .wrapping_add(
-            collateral_token_ema_price
-                .get_asset_amount_usd(fee_amount, collateral_custody.decimals)?,
-        );
+        .wrapping_add(fee_amount_usd);
 
     collateral_custody.distributed_rewards.close_position_lm = collateral_custody
         .distributed_rewards
@@ -377,8 +380,6 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     //
     // Takes fees from custody
     //
-    collateral_custody.assets.owned =
-        math::checked_sub(collateral_custody.assets.owned, protocol_fee)?;
 
     if custody.mint == ctx.accounts.staking_reward_token_custody.mint {
         collateral_custody.assets.owned = math::checked_sub(
@@ -394,8 +395,15 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
         collateral_custody.assets.collateral,
         position.collateral_amount,
     )?;
-    collateral_custody.assets.protocol_fees =
-        math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
+
+    // Pay protocol_fee from custody if possible, otherwise no protocol_fee
+    if pool.check_available_amount(protocol_fee, collateral_custody)? {
+        collateral_custody.assets.protocol_fees =
+            math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
+
+        collateral_custody.assets.owned =
+            math::checked_sub(collateral_custody.assets.owned, protocol_fee)?;
+    }
 
     // if custody and collateral_custody accounts are the same, ensure that data is in sync
     if position.side == Side::Long && !custody.is_virtual {

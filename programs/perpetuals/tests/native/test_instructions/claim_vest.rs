@@ -75,6 +75,8 @@ pub async fn claim_vest(
         perpetuals::instruction::ClaimVest {},
         Some(&payer.pubkey()),
         &[payer, owner],
+        None,
+        None,
     )
     .await?;
 

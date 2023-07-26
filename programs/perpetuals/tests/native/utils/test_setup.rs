@@ -312,9 +312,8 @@ impl TestSetup {
 
         // Initialize users token accounts for each mints
         {
-            let mut mints_pubkeys: Vec<Pubkey> = mints.values().map(|info| info.pubkey).collect();
-
-            mints_pubkeys.push(lm_token_mint);
+            let mints_pubkeys: Vec<Pubkey> =
+                mints.values().into_iter().map(|info| info.pubkey).collect();
 
             let users_pubkeys: Vec<Pubkey> = users
                 .values()
@@ -444,6 +443,7 @@ impl TestSetup {
                         price: custody_param.setup_custody_params.initial_price,
                         expo: -(mint_info.decimals as i32),
                         conf: custody_param.setup_custody_params.initial_conf,
+                        ema: custody_param.setup_custody_params.initial_price,
                         publish_time,
                     },
                     &multisig_signers,

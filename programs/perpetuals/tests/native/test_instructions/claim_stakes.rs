@@ -60,6 +60,8 @@ pub async fn claim_stakes(
         perpetuals::instruction::ClaimStakes {},
         Some(&payer.pubkey()),
         &[caller, payer],
+        None,
+        None,
     )
     .await?;
 

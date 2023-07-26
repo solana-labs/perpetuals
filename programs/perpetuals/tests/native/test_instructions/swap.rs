@@ -1,5 +1,8 @@
 use {
-    crate::utils::{self, pda},
+    crate::{
+        test_instructions::get_update_pool_ix,
+        utils::{self, pda},
+    },
     anchor_lang::{prelude::Pubkey, ToAccountMetas},
     perpetuals::{
         instructions::SwapParams,
@@ -110,6 +113,8 @@ pub async fn swap(
         perpetuals::instruction::Swap { params },
         Some(&payer.pubkey()),
         &[owner, payer],
+        Some(get_update_pool_ix(program_test_ctx, payer, pool_pda).await?),
+        Some(get_update_pool_ix(program_test_ctx, payer, pool_pda).await?),
     )
     .await?;
 

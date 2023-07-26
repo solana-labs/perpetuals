@@ -50,6 +50,8 @@ pub async fn resolve_staking_round(
         perpetuals::instruction::ResolveStakingRound {},
         Some(&payer.pubkey()),
         &[caller, payer],
+        None,
+        None,
     )
     .await?;
 

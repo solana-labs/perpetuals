@@ -23,14 +23,14 @@ pub struct Liquidate<'info> {
 
     #[account(
         mut,
-        constraint = receiving_account.mint == custody.mint,
+        constraint = receiving_account.mint == collateral_custody.mint,
         constraint = receiving_account.owner == position.owner
     )]
     pub receiving_account: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
-        constraint = rewards_receiving_account.mint == custody.mint,
+        constraint = rewards_receiving_account.mint == collateral_custody.mint,
         constraint = rewards_receiving_account.owner == signer.key()
     )]
     pub rewards_receiving_account: Box<Account<'info, TokenAccount>>,
@@ -173,7 +173,7 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
     );
 
     msg!("Settle position");
-    let (total_amount_out, fee_amount, profit_usd, loss_usd) = pool.get_close_amount(
+    let (total_amount_out, mut fee_amount, profit_usd, loss_usd) = pool.get_close_amount(
         position,
         &token_price,
         &token_ema_price,
@@ -185,7 +185,11 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
         true,
     )?;
 
-    let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
+    let fee_amount_usd = token_ema_price.get_asset_amount_usd(fee_amount, custody.decimals)?;
+    if position.side == Side::Short || custody.is_virtual {
+        fee_amount = collateral_token_ema_price
+            .get_token_amount(fee_amount_usd, collateral_custody.decimals)?;
+    }
 
     msg!("Net profit: {}, loss: {}", profit_usd, loss_usd);
     msg!("Collected fee: {}", fee_amount);
@@ -233,10 +237,7 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
     collateral_custody.collected_fees.liquidation_usd = collateral_custody
         .collected_fees
         .liquidation_usd
-        .wrapping_add(
-            collateral_token_ema_price
-                .get_asset_amount_usd(fee_amount, collateral_custody.decimals)?,
-        );
+        .wrapping_add(fee_amount_usd);
 
     if total_amount_out > position.collateral_amount {
         let amount_lost = total_amount_out.saturating_sub(position.collateral_amount);
@@ -251,8 +252,17 @@ pub fn liquidate(ctx: Context<Liquidate>, _params: &LiquidateParams) -> Result<(
         collateral_custody.assets.collateral,
         position.collateral_amount,
     )?;
-    collateral_custody.assets.protocol_fees =
-        math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
+
+    let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
+
+    // Pay protocol_fee from custody if possible, otherwise no protocol_fee
+    if pool.check_available_amount(protocol_fee, collateral_custody)? {
+        collateral_custody.assets.protocol_fees =
+            math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
+
+        collateral_custody.assets.owned =
+            math::checked_sub(collateral_custody.assets.owned, protocol_fee)?;
+    }
 
     // if custody and collateral_custody accounts are the same, ensure that data is in sync
     if position.side == Side::Long && !custody.is_virtual {

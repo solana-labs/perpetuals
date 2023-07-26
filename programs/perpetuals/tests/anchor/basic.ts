@@ -396,6 +396,7 @@ describe("perpetuals", () => {
       price: new BN(123000),
       expo: -3,
       conf: new BN(0),
+      ema: new BN(123000),
       publishTime: oracle.publishTime,
     };
     expect(JSON.stringify(oracle)).to.equal(JSON.stringify(oracleExpected));
@@ -482,7 +483,7 @@ describe("perpetuals", () => {
       updateTime: "0",
       side: { long: {} },
       price: "124230000",
-      sizeUsd: "861000000",
+      sizeUsd: "869610000",
       collateralUsd: "123000000",
       unrealizedProfitUsd: "0",
       unrealizedLossUsd: "0",

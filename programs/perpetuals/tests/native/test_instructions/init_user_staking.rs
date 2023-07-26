@@ -81,6 +81,8 @@ pub async fn init_user_staking(
         },
         Some(&payer.pubkey()),
         &[owner, payer],
+        None,
+        None,
     )
     .await?;
 
