@@ -1,9 +1,9 @@
 use {
-    crate::{instructions, utils},
+    crate::{test_instructions, utils},
     maplit::hashmap,
     perpetuals::{
         instructions::{ClosePositionParams, OpenPositionParams, SetCustomOraclePriceParams},
-        state::{custody::PricingParams, position::Side},
+        state::{cortex::Cortex, custody::PricingParams, position::Side},
     },
     solana_sdk::signer::Signer,
 };
@@ -17,7 +17,7 @@ pub async fn max_user_profit() {
             utils::UserParam {
                 name: "alice",
                 token_balances: hashmap! {
-                    "usdc" => utils::scale(1_000, USDC_DECIMALS),
+                    "usdc" => utils::scale(1_000_000, USDC_DECIMALS),
                     "eth" => utils::scale(10_000, ETH_DECIMALS),
                 },
             },
@@ -41,6 +41,7 @@ pub async fn max_user_profit() {
         ],
         vec!["admin_a", "admin_b", "admin_c"],
         "usdc",
+        "usdc",
         6,
         "ADRENA",
         "main_pool",
@@ -60,7 +61,7 @@ pub async fn max_user_profit() {
                     fees: None,
                     borrow_rate: None,
                 },
-                liquidity_amount: utils::scale(1_000, USDC_DECIMALS),
+                liquidity_amount: utils::scale(1_000_000, USDC_DECIMALS),
                 payer_user_name: "alice",
             },
             utils::SetupCustodyWithLiquidityParams {
@@ -87,12 +88,14 @@ pub async fn max_user_profit() {
                 payer_user_name: "alice",
             },
         ],
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
     )
     .await;
 
     let martin = test_setup.get_user_keypair_by_name("martin");
-
-    let cortex_stake_reward_mint = test_setup.get_cortex_stake_reward_mint();
 
     let admin_a = test_setup.get_multisig_member_keypair_by_name("admin_a");
 
@@ -101,13 +104,12 @@ pub async fn max_user_profit() {
     let eth_mint = &test_setup.get_mint_by_name("eth");
 
     // Martin: Open 1 ETH long position x5
-    let position_pda = instructions::test_open_position(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+    let position_pda = test_instructions::open_position(
+        &test_setup.program_test_ctx,
         martin,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &eth_mint,
-        &cortex_stake_reward_mint,
+        eth_mint,
         OpenPositionParams {
             // max price paid (slippage implied)
             price: utils::scale(1_550, ETH_DECIMALS),
@@ -125,11 +127,10 @@ pub async fn max_user_profit() {
         let eth_test_oracle_pda = test_setup.custodies_info[1].custom_oracle_pda;
         let eth_custody_pda = test_setup.custodies_info[1].custody_pda;
 
-        let publish_time =
-            utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await;
+        let publish_time = utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await;
 
-        instructions::test_set_custom_oracle_price(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+        test_instructions::set_custom_oracle_price(
+            &test_setup.program_test_ctx,
             admin_a,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
@@ -139,6 +140,7 @@ pub async fn max_user_profit() {
                 price: utils::scale(3_000, ETH_DECIMALS),
                 expo: -(ETH_DECIMALS as i32),
                 conf: utils::scale(10, ETH_DECIMALS),
+                ema: utils::scale(3_000, ETH_DECIMALS),
                 publish_time,
             },
             &multisig_signers,
@@ -147,15 +149,14 @@ pub async fn max_user_profit() {
         .unwrap();
     }
 
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+    utils::warp_forward(&test_setup.program_test_ctx, 1).await;
 
-    instructions::test_close_position(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+    test_instructions::close_position(
+        &test_setup.program_test_ctx,
         martin,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &eth_mint,
-        &cortex_stake_reward_mint,
+        eth_mint,
         &position_pda,
         ClosePositionParams {
             // lowest exit price paid (slippage implied)
@@ -165,17 +166,14 @@ pub async fn max_user_profit() {
     .await
     .unwrap();
 
-    utils::warp_forward(&mut test_setup.program_test_ctx.borrow_mut(), 1).await;
+    utils::warp_forward(&test_setup.program_test_ctx, 1).await;
 
     // Check user gains
     {
-        let martin_eth_pda = utils::find_associated_token_account(&martin.pubkey(), &eth_mint).0;
+        let martin_eth_pda = utils::find_associated_token_account(&martin.pubkey(), eth_mint).0;
 
-        let martin_eth_balance = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            martin_eth_pda,
-        )
-        .await;
+        let martin_eth_balance =
+            utils::get_token_account_balance(&test_setup.program_test_ctx, martin_eth_pda).await;
 
         // Gains are limited to 0.25 * 5 = 1.25 ETH
         // True gains should be 2.5 ETH less fees (price did x2 on x5 leverage)

@@ -2,6 +2,7 @@ use {
     crate::{
         adapters::SplGovernanceV3Adapter,
         error::PerpetualsError,
+        instructions::{BucketName, MintLmTokensFromBucketParams},
         math,
         state::{cortex::Cortex, perpetuals::Perpetuals, vest::Vest},
     },
@@ -88,6 +89,7 @@ pub struct ClaimVest<'info> {
 
     pub governance_program: Program<'info, SplGovernanceV3Adapter>,
 
+    perpetuals_program: Program<'info, Perpetuals>,
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
     rent: Sysvar<'info, Rent>,
@@ -113,13 +115,41 @@ pub fn claim_vest<'info>(ctx: Context<'_, '_, '_, 'info, ClaimVest<'info>>) -> R
 
     // Mint lm token to user account
     {
-        ctx.accounts.perpetuals.mint_tokens(
-            ctx.accounts.lm_token_mint.to_account_info(),
-            ctx.accounts.receiving_account.to_account_info(),
-            ctx.accounts.transfer_authority.to_account_info(),
-            ctx.accounts.token_program.to_account_info(),
-            claimable_amount,
-        )?;
+        if claimable_amount > 0 {
+            let cpi_accounts = crate::cpi::accounts::MintLmTokensFromBucket {
+                admin: ctx.accounts.transfer_authority.to_account_info(),
+                receiving_account: ctx.accounts.receiving_account.to_account_info(),
+                transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
+                cortex: ctx.accounts.cortex.to_account_info(),
+                perpetuals: ctx.accounts.perpetuals.to_account_info(),
+                lm_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+                token_program: ctx.accounts.token_program.to_account_info(),
+            };
+
+            let cpi_program = ctx.accounts.perpetuals_program.to_account_info();
+            crate::cpi::mint_lm_tokens_from_bucket(
+                CpiContext::new_with_signer(
+                    cpi_program,
+                    cpi_accounts,
+                    &[&[
+                        b"transfer_authority",
+                        &[ctx.accounts.perpetuals.transfer_authority_bump],
+                    ]],
+                ),
+                MintLmTokensFromBucketParams {
+                    bucket_name: BucketName::Ecosystem,
+                    amount: claimable_amount,
+                    reason: String::from("Liquidity mining rewards"),
+                },
+            )?;
+
+            {
+                ctx.accounts.receiving_account.reload()?;
+                ctx.accounts.cortex.reload()?;
+                ctx.accounts.perpetuals.reload()?;
+                ctx.accounts.lm_token_mint.reload()?;
+            }
+        }
     }
 
     // Update vest accounting

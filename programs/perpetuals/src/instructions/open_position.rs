@@ -3,7 +3,7 @@
 use {
     crate::{
         error::PerpetualsError,
-        instructions::SwapParams,
+        instructions::{BucketName, MintLmTokensFromBucketParams},
         math,
         state::{
             cortex::Cortex,
@@ -12,11 +12,11 @@ use {
             perpetuals::Perpetuals,
             pool::Pool,
             position::{Position, Side},
+            staking::Staking,
         },
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
-    num_traits::Zero,
     solana_program::program_error::ProgramError,
 };
 
@@ -48,9 +48,25 @@ pub struct OpenPosition<'info> {
     pub transfer_authority: AccountInfo<'info>,
 
     #[account(
+        mut,
+        seeds = [b"staking", lm_staking.staked_token_mint.as_ref()],
+        bump = lm_staking.bump,
+        constraint = lm_staking.reward_token_mint.key() == staking_reward_token_mint.key()
+    )]
+    pub lm_staking: Box<Account<'info, Staking>>,
+
+    #[account(
+        mut,
+        seeds = [b"staking", lp_staking.staked_token_mint.as_ref()],
+        bump = lp_staking.bump,
+        constraint = lp_staking.reward_token_mint.key() == staking_reward_token_mint.key()
+    )]
+    pub lp_staking: Box<Account<'info, Staking>>,
+
+    #[account(
+        mut,
         seeds = [b"cortex"],
         bump = cortex.bump,
-        has_one = stake_reward_token_mint
     )]
     pub cortex: Box<Account<'info, Cortex>>,
 
@@ -85,26 +101,26 @@ pub struct OpenPosition<'info> {
         mut,
         seeds = [b"custody",
                  pool.key().as_ref(),
-                 stake_reward_token_custody.mint.as_ref()],
-        bump = stake_reward_token_custody.bump,
-        constraint = stake_reward_token_custody.mint == stake_reward_token_mint.key(),
+                 staking_reward_token_custody.mint.as_ref()],
+        bump = staking_reward_token_custody.bump,
+        constraint = staking_reward_token_custody.mint == staking_reward_token_mint.key(),
     )]
-    pub stake_reward_token_custody: Box<Account<'info, Custody>>,
+    pub staking_reward_token_custody: Box<Account<'info, Custody>>,
 
     /// CHECK: oracle account for the stake_reward token
     #[account(
-        constraint = stake_reward_token_custody_oracle_account.key() == stake_reward_token_custody.oracle.oracle_account
+        constraint = staking_reward_token_custody_oracle_account.key() == staking_reward_token_custody.oracle.oracle_account
     )]
-    pub stake_reward_token_custody_oracle_account: AccountInfo<'info>,
+    pub staking_reward_token_custody_oracle_account: AccountInfo<'info>,
 
     #[account(
         mut,
         seeds = [b"custody_token_account",
                  pool.key().as_ref(),
-                 stake_reward_token_custody.mint.as_ref()],
-        bump = stake_reward_token_custody.token_account_bump,
+                 staking_reward_token_custody.mint.as_ref()],
+        bump = staking_reward_token_custody.token_account_bump,
     )]
-    pub stake_reward_token_custody_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_reward_token_custody_token_account: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
@@ -145,14 +161,21 @@ pub struct OpenPosition<'info> {
     )]
     pub collateral_custody_token_account: Box<Account<'info, TokenAccount>>,
 
-    // staking reward token vault (receiving fees swapped to `stake_reward_token_mint`)
     #[account(
         mut,
-        token::mint = cortex.stake_reward_token_mint,
-        seeds = [b"stake_reward_token_account"],
-        bump = cortex.stake_reward_token_account_bump
+        token::mint = lm_staking.reward_token_mint,
+        seeds = [b"staking_reward_token_vault", lm_staking.key().as_ref()],
+        bump = lm_staking.reward_token_vault_bump
     )]
-    pub stake_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub lm_staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        token::mint = lp_staking.reward_token_mint,
+        seeds = [b"staking_reward_token_vault", lp_staking.key().as_ref()],
+        bump = lp_staking.reward_token_vault_bump
+    )]
+    pub lp_staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
@@ -161,8 +184,16 @@ pub struct OpenPosition<'info> {
     )]
     pub lm_token_mint: Box<Account<'info, Mint>>,
 
+    #[account(
+        mut,
+        seeds = [b"lp_token_mint",
+                 pool.key().as_ref()],
+        bump = pool.lp_token_bump
+    )]
+    pub lp_token_mint: Box<Account<'info, Mint>>,
+
     #[account()]
-    pub stake_reward_token_mint: Box<Account<'info, Mint>>,
+    pub staking_reward_token_mint: Box<Account<'info, Mint>>,
 
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
@@ -196,7 +227,8 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     {
         return Err(ProgramError::InvalidArgument.into());
     }
-    if params.side == Side::Short || custody.is_virtual {
+    let use_collateral_custody = params.side == Side::Short || custody.is_virtual;
+    if use_collateral_custody {
         require_keys_neq!(custody.key(), collateral_custody.key());
         require!(
             collateral_custody.is_stable && !collateral_custody.is_virtual,
@@ -224,12 +256,6 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         curtime,
         custody.pricing.use_ema,
     )?;
-
-    let max_price = if token_price > token_ema_price {
-        token_price
-    } else {
-        token_ema_price
-    };
 
     let collateral_token_price = OraclePrice::new_from_oracle(
         &ctx.accounts
@@ -271,25 +297,35 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     }
 
     // compute position parameters
-    let size_usd = max_price.get_asset_amount_usd(params.size, custody.decimals)?;
+    let position_oracle_price = OraclePrice {
+        price: position_price,
+        exponent: -(Perpetuals::PRICE_DECIMALS as i32),
+    };
+    let size_usd = position_oracle_price.get_asset_amount_usd(params.size, custody.decimals)?;
     let collateral_usd = min_collateral_price
         .get_asset_amount_usd(params.collateral, collateral_custody.decimals)?;
 
-    let locked_amount = if params.side == Side::Short || custody.is_virtual {
+    let locked_amount = if use_collateral_custody {
         custody.get_locked_amount(
             min_collateral_price.get_token_amount(size_usd, collateral_custody.decimals)?,
+            params.side,
         )?
     } else {
-        custody.get_locked_amount(params.size)?
+        custody.get_locked_amount(params.size, params.side)?
     };
 
     // compute fee
-    let fee_amount = pool.get_entry_fee(
+    let mut fee_amount = pool.get_entry_fee(
         custody.fees.open_position,
         params.size,
         locked_amount,
         collateral_custody,
     )?;
+    let fee_amount_usd = token_ema_price.get_asset_amount_usd(fee_amount, custody.decimals)?;
+    if use_collateral_custody {
+        fee_amount = collateral_token_ema_price
+            .get_token_amount(fee_amount_usd, collateral_custody.decimals)?;
+    }
     msg!("Collected fee: {}", fee_amount);
 
     // compute amount to transfer
@@ -324,6 +360,8 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         position.locked_amount > 0,
         PerpetualsError::InsufficientAmountReturned
     );
+
+    msg!("Check leverage");
     require!(
         pool.check_leverage(
             position,
@@ -340,6 +378,7 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
     );
 
     // lock funds for potential profit payoff
+    msg!("Lock funds");
     collateral_custody.lock_funds(position.locked_amount)?;
 
     // transfer tokens
@@ -359,39 +398,86 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
         // compute amount of lm token to mint
         let amount = ctx.accounts.cortex.get_lm_rewards_amount(fee_amount)?;
 
-        // mint lm tokens
-        perpetuals.mint_tokens(
-            ctx.accounts.lm_token_mint.to_account_info(),
-            ctx.accounts.lm_token_account.to_account_info(),
-            ctx.accounts.transfer_authority.to_account_info(),
-            ctx.accounts.token_program.to_account_info(),
-            amount,
-        )?;
+        if amount > 0 {
+            let cpi_accounts = crate::cpi::accounts::MintLmTokensFromBucket {
+                admin: ctx.accounts.transfer_authority.to_account_info(),
+                receiving_account: ctx.accounts.lm_token_account.to_account_info(),
+                transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
+                cortex: ctx.accounts.cortex.to_account_info(),
+                perpetuals: perpetuals.to_account_info(),
+                lm_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+                token_program: ctx.accounts.token_program.to_account_info(),
+            };
+
+            let cpi_program = ctx.accounts.perpetuals_program.to_account_info();
+            crate::cpi::mint_lm_tokens_from_bucket(
+                CpiContext::new_with_signer(
+                    cpi_program,
+                    cpi_accounts,
+                    &[&[b"transfer_authority", &[perpetuals.transfer_authority_bump]]],
+                ),
+                MintLmTokensFromBucketParams {
+                    bucket_name: BucketName::Ecosystem,
+                    amount,
+                    reason: String::from("Liquidity mining rewards"),
+                },
+            )?;
+
+            {
+                ctx.accounts.lm_token_account.reload()?;
+                ctx.accounts.cortex.reload()?;
+                perpetuals.reload()?;
+                ctx.accounts.lm_token_mint.reload()?;
+            }
+        }
+
         msg!("Amount LM rewards out: {}", amount);
         amount
     };
+
+    let protocol_fee = Pool::get_fee_amount(collateral_custody.fees.protocol_share, fee_amount)?;
+    collateral_custody.assets.protocol_fees =
+        math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
+
+    //
+    // Calculate fee distribution between (Staked LM, Locked Staked LP, Organic LP)
+    //
+    let fee_distribution = ctx.accounts.cortex.calculate_fee_distribution(
+        math::checked_sub(fee_amount, protocol_fee)?,
+        ctx.accounts.lp_token_mint.as_ref(),
+        ctx.accounts.lp_staking.as_ref(),
+    )?;
 
     // update custody stats
     msg!("Update custody stats");
     collateral_custody.collected_fees.open_position_usd = collateral_custody
         .collected_fees
         .open_position_usd
-        .wrapping_add(
-            collateral_token_ema_price
-                .get_asset_amount_usd(fee_amount, collateral_custody.decimals)?,
-        );
-
-    custody.distributed_rewards.open_position_lm = custody
-        .distributed_rewards
-        .open_position_lm
-        .wrapping_add(lm_rewards_amount);
+        .wrapping_add(fee_amount_usd);
 
     collateral_custody.assets.collateral =
         math::checked_add(collateral_custody.assets.collateral, params.collateral)?;
 
-    let protocol_fee = Pool::get_fee_amount(custody.fees.protocol_share, fee_amount)?;
-    collateral_custody.assets.protocol_fees =
-        math::checked_add(collateral_custody.assets.protocol_fees, protocol_fee)?;
+    collateral_custody.distributed_rewards.open_position_lm = collateral_custody
+        .distributed_rewards
+        .open_position_lm
+        .wrapping_add(lm_rewards_amount);
+
+    if collateral_custody.mint == ctx.accounts.staking_reward_token_custody.mint {
+        collateral_custody.assets.owned = math::checked_add(
+            collateral_custody.assets.owned,
+            fee_distribution.lp_organic_fee,
+        )?;
+    } else {
+        collateral_custody.assets.owned = math::checked_add(
+            collateral_custody.assets.owned,
+            math::checked_sub(fee_amount, protocol_fee)?,
+        )?;
+    }
+
+    if collateral_custody.key() == custody.key() {
+        *custody = collateral_custody.clone();
+    }
 
     // if custody and collateral_custody accounts are the same, ensure that data is in sync
     if position.side == Side::Long && !custody.is_virtual {
@@ -410,7 +496,10 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
 
         collateral_custody.add_position(position, &token_ema_price, curtime, None)?;
         collateral_custody.update_borrow_rate(curtime)?;
-        *custody = collateral_custody.clone();
+
+        if collateral_custody.key() == custody.key() {
+            *custody = collateral_custody.clone();
+        }
     } else {
         custody.volume_stats.open_position_usd = custody
             .volume_stats
@@ -431,70 +520,56 @@ pub fn open_position(ctx: Context<OpenPosition>, params: &OpenPositionParams) ->
             curtime,
             Some(collateral_custody),
         )?;
-        collateral_custody.update_borrow_rate(curtime)?;
-    }
 
-    // if there is no collected fees, skip transfer to staking vault
-    if !protocol_fee.is_zero() {
-        // It is possible that the custody targeted by the function and the stake_reward one are the same, in that
-        // case we need to only use one else there are some complication when saving state at the end.
-        //
-        // if the collected fees are in the right denomination, skip swap
-        if custody.mint == ctx.accounts.stake_reward_token_custody.mint {
-            msg!("Transfer collected fees to stake vault (no swap)");
-            perpetuals.transfer_tokens(
-                ctx.accounts
-                    .collateral_custody_token_account
-                    .to_account_info(),
-                ctx.accounts.stake_reward_token_account.to_account_info(),
-                ctx.accounts.transfer_authority.to_account_info(),
-                ctx.accounts.token_program.to_account_info(),
-                fee_amount,
-            )?;
-        } else {
-            // swap the collected fee_amount to stable and send to staking rewards
-            msg!("Swap collected fees to stake reward mint internally");
-            perpetuals.internal_swap(
-                ctx.accounts.transfer_authority.to_account_info(),
-                ctx.accounts
-                    .collateral_custody_token_account
-                    .to_account_info(),
-                ctx.accounts.stake_reward_token_account.to_account_info(),
-                ctx.accounts.lm_token_account.to_account_info(),
-                ctx.accounts.cortex.to_account_info(),
-                perpetuals.to_account_info(),
-                ctx.accounts.pool.to_account_info(),
-                custody.to_account_info(),
-                ctx.accounts.custody_oracle_account.to_account_info(),
-                ctx.accounts
-                    .collateral_custody_token_account
-                    .to_account_info(),
-                ctx.accounts.stake_reward_token_custody.to_account_info(),
-                ctx.accounts
-                    .stake_reward_token_custody_oracle_account
-                    .to_account_info(),
-                ctx.accounts
-                    .stake_reward_token_custody_token_account
-                    .to_account_info(),
-                ctx.accounts.stake_reward_token_custody.to_account_info(),
-                ctx.accounts
-                    .stake_reward_token_custody_oracle_account
-                    .to_account_info(),
-                ctx.accounts
-                    .stake_reward_token_custody_token_account
-                    .to_account_info(),
-                ctx.accounts.stake_reward_token_account.to_account_info(),
-                ctx.accounts.stake_reward_token_mint.to_account_info(),
-                ctx.accounts.lm_token_mint.to_account_info(),
-                ctx.accounts.token_program.to_account_info(),
-                ctx.accounts.perpetuals_program.to_account_info(),
-                SwapParams {
-                    amount_in: protocol_fee,
-                    min_amount_out: protocol_fee,
-                },
-            )?;
+        custody.update_borrow_rate(curtime)?;
+
+        if collateral_custody.key() == custody.key() {
+            *collateral_custody = custody.clone();
         }
     }
+
+    //
+    // Distribute fees
+    //
+
+    let swap_required = custody.mint != ctx.accounts.staking_reward_token_custody.mint;
+
+    // Force save
+    {
+        perpetuals.exit(&crate::ID)?;
+        pool.exit(&crate::ID)?;
+        custody.exit(&crate::ID)?;
+        collateral_custody.exit(&crate::ID)?;
+    }
+
+    ctx.accounts.perpetuals.distribute_fees(
+        swap_required,
+        fee_distribution,
+        ctx.accounts.transfer_authority.to_account_info(),
+        ctx.accounts.collateral_custody_token_account.as_mut(),
+        ctx.accounts.lm_token_account.as_mut(),
+        ctx.accounts.cortex.as_mut(),
+        ctx.accounts.perpetuals.clone().as_mut(),
+        ctx.accounts.pool.as_mut(),
+        ctx.accounts.collateral_custody.as_mut(),
+        ctx.accounts.custody_oracle_account.to_account_info(),
+        ctx.accounts.staking_reward_token_custody.as_mut(),
+        ctx.accounts
+            .staking_reward_token_custody_oracle_account
+            .to_account_info(),
+        ctx.accounts
+            .staking_reward_token_custody_token_account
+            .as_mut(),
+        ctx.accounts.lm_staking_reward_token_vault.as_mut(),
+        ctx.accounts.lp_staking_reward_token_vault.as_mut(),
+        ctx.accounts.staking_reward_token_mint.as_mut(),
+        ctx.accounts.lm_staking.as_mut(),
+        ctx.accounts.lp_staking.as_mut(),
+        ctx.accounts.lm_token_mint.as_mut(),
+        ctx.accounts.lp_token_mint.as_mut(),
+        ctx.accounts.token_program.to_account_info(),
+        ctx.accounts.perpetuals_program.to_account_info(),
+    )?;
 
     Ok(())
 }

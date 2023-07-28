@@ -1,5 +1,8 @@
 use {
-    perpetuals::{adapters::spl_governance_program_adapter, state::position::Side},
+    perpetuals::{
+        adapters::spl_governance_program_adapter,
+        state::{position::Side, user_staking::USER_STAKING_THREAD_AUTHORITY_SEED},
+    },
     solana_sdk::pubkey::Pubkey,
 };
 
@@ -23,20 +26,126 @@ pub fn get_lm_token_mint_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(&["lm_token_mint".as_ref()], &perpetuals::id())
 }
 
+pub fn get_clockwork_thread_pda(thread_authority: &Pubkey, thread_id: Vec<u8>) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[
+            clockwork_thread_program::state::SEED_THREAD,
+            thread_authority.as_ref(),
+            thread_id.as_slice(),
+        ],
+        &clockwork_thread_program::id(),
+    )
+}
+
+pub fn get_clockwork_network_config_pda() -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[clockwork_network_program::state::SEED_CONFIG],
+        &clockwork_network_program::id(),
+    )
+}
+
+pub fn get_clockwork_network_registry_pda() -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[clockwork_network_program::state::SEED_REGISTRY],
+        &clockwork_network_program::id(),
+    )
+}
+
+pub fn get_clockwork_network_snapshot_pda() -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[
+            clockwork_network_program::state::SEED_SNAPSHOT,
+            (0_u64).to_be_bytes().as_ref(),
+        ],
+        &clockwork_network_program::id(),
+    )
+}
+
+pub fn get_clockwork_network_fee_pda(worker: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[clockwork_network_program::state::SEED_FEE, worker.as_ref()],
+        &clockwork_network_program::id(),
+    )
+}
+
+pub fn get_clockwork_network_penalty_pda(worker: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[
+            clockwork_network_program::state::SEED_PENALTY,
+            worker.as_ref(),
+        ],
+        &clockwork_network_program::id(),
+    )
+}
+
+pub fn get_clockwork_network_worker_pda(index: u64) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[
+            clockwork_network_program::state::SEED_WORKER,
+            index.to_be_bytes().as_ref(),
+        ],
+        &clockwork_network_program::id(),
+    )
+}
+
 pub fn get_governance_token_mint_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(&["governance_token_mint".as_ref()], &perpetuals::id())
 }
 
-pub fn get_stake_pda(owner: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&["stake".as_ref(), owner.as_ref()], &perpetuals::id())
+pub fn get_user_staking_pda(owner: &Pubkey, staking_pda: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[
+            "user_staking".as_ref(),
+            owner.as_ref(),
+            staking_pda.as_ref(),
+        ],
+        &perpetuals::id(),
+    )
 }
 
-pub fn get_stake_token_account_pda() -> (Pubkey, u8) {
-    Pubkey::find_program_address(&["stake_token_account".as_ref()], &perpetuals::id())
+pub fn get_staking_pda(staked_token_mint: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &["staking".as_ref(), staked_token_mint.as_ref()],
+        &perpetuals::id(),
+    )
 }
 
-pub fn get_stake_reward_token_account_pda() -> (Pubkey, u8) {
-    Pubkey::find_program_address(&["stake_reward_token_account".as_ref()], &perpetuals::id())
+pub fn get_thread_address(user_staking_thread_authority: &Pubkey, thread_id: Vec<u8>) -> Pubkey {
+    clockwork_sdk::state::Thread::pubkey(*user_staking_thread_authority, thread_id)
+}
+
+pub fn get_user_staking_thread_authority(user_staking_pda: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[
+            USER_STAKING_THREAD_AUTHORITY_SEED,
+            user_staking_pda.as_ref(),
+        ],
+        &perpetuals::id(),
+    )
+}
+
+pub fn get_staking_staked_token_vault_pda(staking_pda: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &["staking_staked_token_vault".as_ref(), staking_pda.as_ref()],
+        &perpetuals::id(),
+    )
+}
+
+pub fn get_staking_reward_token_vault_pda(staking_pda: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &["staking_reward_token_vault".as_ref(), staking_pda.as_ref()],
+        &perpetuals::id(),
+    )
+}
+
+pub fn get_staking_lm_reward_token_vault_pda(staking_pda: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[
+            "staking_lm_reward_token_vault".as_ref(),
+            staking_pda.as_ref(),
+        ],
+        &perpetuals::id(),
+    )
 }
 
 pub fn get_program_data_pda() -> (Pubkey, u8) {

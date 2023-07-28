@@ -1,9 +1,9 @@
 use {
-    crate::{instructions, utils},
+    crate::{test_instructions, utils},
     maplit::hashmap,
     perpetuals::{
         instructions::{AddLiquidityParams, RemoveLiquidityParams},
-        state::{custody::Custody, perpetuals::Perpetuals, pool::Pool},
+        state::{cortex::Cortex, custody::Custody, perpetuals::Perpetuals, pool::Pool},
     },
 };
 
@@ -22,6 +22,7 @@ pub async fn fixed_fees() {
             decimals: USDC_DECIMALS,
         }],
         vec!["admin_a", "admin_b", "admin_c"],
+        "usdc",
         "usdc",
         6,
         "ADRENA",
@@ -44,22 +45,24 @@ pub async fn fixed_fees() {
             liquidity_amount: utils::scale(0, USDC_DECIMALS),
             payer_user_name: "alice",
         }],
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
     )
     .await;
 
     let alice = test_setup.get_user_keypair_by_name("alice");
-    let cortex_stake_reward_mint = test_setup.get_cortex_stake_reward_mint();
     let usdc_mint = &test_setup.get_mint_by_name("usdc");
 
     // Check add liquidity fee
     {
-        instructions::test_add_liquidity(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+        test_instructions::add_liquidity(
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &usdc_mint,
-            &cortex_stake_reward_mint,
+            usdc_mint,
             AddLiquidityParams {
                 amount_in: utils::scale(1_000, USDC_DECIMALS),
                 min_lp_amount_out: 1,
@@ -69,20 +72,17 @@ pub async fn fixed_fees() {
         .unwrap();
 
         {
-            let pool_account = utils::get_account::<Pool>(
-                &mut test_setup.program_test_ctx.borrow_mut(),
-                test_setup.pool_pda,
-            )
-            .await;
+            let pool_account =
+                utils::get_account::<Pool>(&test_setup.program_test_ctx, test_setup.pool_pda).await;
             let custody_account = utils::get_account::<Custody>(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 test_setup.custodies_info[0].custody_pda,
             )
             .await;
 
             assert_eq!(
                 pool_account.aum_usd,
-                utils::scale_f64(999.95, USDC_DECIMALS).into(),
+                utils::scale_f64(993.965, USDC_DECIMALS).into(),
             );
 
             assert_eq!(
@@ -99,13 +99,12 @@ pub async fn fixed_fees() {
 
     // Check remove liquidity fee
     {
-        instructions::test_remove_liquidity(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+        test_instructions::remove_liquidity(
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &usdc_mint,
-            &cortex_stake_reward_mint,
+            usdc_mint,
             RemoveLiquidityParams {
                 lp_amount_in: utils::scale(100, Perpetuals::LP_DECIMALS),
                 min_amount_out: 1,
@@ -115,30 +114,27 @@ pub async fn fixed_fees() {
         .unwrap();
 
         {
-            let pool_account = utils::get_account::<Pool>(
-                &mut test_setup.program_test_ctx.borrow_mut(),
-                test_setup.pool_pda,
-            )
-            .await;
+            let pool_account =
+                utils::get_account::<Pool>(&test_setup.program_test_ctx, test_setup.pool_pda).await;
             let custody_account = utils::get_account::<Custody>(
-                &mut test_setup.program_test_ctx.borrow_mut(),
+                &test_setup.program_test_ctx,
                 test_setup.custodies_info[0].custody_pda,
             )
             .await;
 
             assert_eq!(
                 pool_account.aum_usd,
-                utils::scale_f64(900.967705, USDC_DECIMALS).into(),
+                utils::scale_f64(896.789201, USDC_DECIMALS).into(),
             );
 
             assert_eq!(
                 custody_account.collected_fees.remove_liquidity_usd,
-                utils::scale_f64(3.061072, USDC_DECIMALS),
+                utils::scale_f64(3.042750, USDC_DECIMALS),
             );
 
             assert_eq!(
                 custody_account.assets.protocol_fees,
-                utils::scale_f64(0.057653, USDC_DECIMALS),
+                utils::scale_f64(0.057607, USDC_DECIMALS),
             );
         }
     }

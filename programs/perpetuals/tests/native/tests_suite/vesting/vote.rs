@@ -1,5 +1,5 @@
 use {
-    crate::{adapters, instructions, utils},
+    crate::{adapters, test_instructions, utils},
     maplit::hashmap,
     perpetuals::{instructions::AddVestParams, state::cortex::Cortex},
 };
@@ -17,6 +17,7 @@ pub async fn vote() {
             decimals: USDC_DECIMALS,
         }],
         vec!["admin_a", "admin_b", "admin_c"],
+        "usdc",
         "usdc",
         6,
         "ADRENA",
@@ -39,6 +40,10 @@ pub async fn vote() {
             liquidity_amount: utils::scale(0, USDC_DECIMALS),
             payer_user_name: "alice",
         }],
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
     )
     .await;
 
@@ -49,11 +54,10 @@ pub async fn vote() {
     let multisig_signers = test_setup.get_multisig_signers();
 
     // Alice: vest 1m token, unlock period from now to in 7 days
-    let current_time =
-        utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await;
+    let current_time = utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await;
 
-    let alice_vest_pda = instructions::test_add_vest(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+    let alice_vest_pda = test_instructions::add_vest(
+        &test_setup.program_test_ctx,
         admin_a,
         &test_setup.payer_keypair,
         alice,
@@ -70,7 +74,7 @@ pub async fn vote() {
     .0;
 
     let governance_pda = adapters::spl_governance::create_governance(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         &alice_vest_pda,
         alice,
         &test_setup.payer_keypair,
@@ -87,7 +91,7 @@ pub async fn vote() {
     .0;
 
     let proposal_pda = adapters::spl_governance::create_proposal(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         &test_setup.payer_keypair,
         "Test Proposal".to_string(),
         "Description".to_string(),
@@ -101,7 +105,7 @@ pub async fn vote() {
     .unwrap();
 
     adapters::spl_governance::cast_vote(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         &test_setup.payer_keypair,
         &test_setup.governance_realm_pda,
         &governance_pda,
@@ -116,7 +120,7 @@ pub async fn vote() {
     .unwrap();
 
     adapters::spl_governance::cancel_proposal(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         &test_setup.payer_keypair,
         &test_setup.governance_realm_pda,
         &governance_pda,
@@ -129,7 +133,7 @@ pub async fn vote() {
     .unwrap();
 
     adapters::spl_governance::relinquish_vote(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         &test_setup.payer_keypair,
         &test_setup.governance_realm_pda,
         &governance_pda,
@@ -142,8 +146,8 @@ pub async fn vote() {
     .unwrap();
 
     // Alice: claim vest
-    instructions::test_claim_vest(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+    test_instructions::claim_vest(
+        &test_setup.program_test_ctx,
         &test_setup.payer_keypair,
         alice,
         &test_setup.governance_realm_pda,

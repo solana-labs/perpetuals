@@ -1,22 +1,26 @@
 use {
     super::{pda, SetupCustodyInfo},
     crate::{
-        adapters, instructions,
+        adapters, test_instructions,
         utils::{self, fixtures},
     },
     bonfida_test_utils::ProgramTestExt,
     perpetuals::{
-        instructions::{AddCustodyParams, AddLiquidityParams, SetCustomOraclePriceParams},
+        instructions::{
+            AddCustodyParams, AddLiquidityParams, InitStakingParams, SetCustomOraclePriceParams,
+        },
         state::{
             custody::{BorrowRateParams, Fees, PricingParams},
             perpetuals::Permissions,
             pool::TokenRatios,
+            staking::StakingType,
         },
     },
     solana_program::pubkey::Pubkey,
     solana_program_test::{ProgramTest, ProgramTestContext},
     solana_sdk::{signature::Keypair, signer::Signer},
-    std::{cell::RefCell, collections::HashMap},
+    std::collections::HashMap,
+    tokio::sync::RwLock,
 };
 
 pub struct SetupCustodyWithLiquidityParams<'a> {
@@ -62,7 +66,7 @@ pub struct MintInfo {
 }
 
 pub struct TestSetup {
-    pub program_test_ctx: RefCell<ProgramTestContext>,
+    pub program_test_ctx: RwLock<ProgramTestContext>,
 
     pub root_authority_keypair: Keypair,
     pub payer_keypair: Keypair,
@@ -82,15 +86,23 @@ pub struct TestSetup {
     pub lp_token_mint_pda: Pubkey,
     pub lp_token_mint_bump: u8,
     pub custodies_info: Vec<SetupCustodyInfo>,
+
+    pub clockwork_signatory: Keypair,
+    pub clockwork_mint_reward_name: String,
 }
 
 impl TestSetup {
+    // Only use one worker in the tests
+    pub fn get_clockwork_worker(&self) -> Pubkey {
+        pda::get_clockwork_network_worker_pda(0).0
+    }
+
     pub fn get_user_keypair_by_name(&self, name: &str) -> &Keypair {
-        &self.users.get(&name.to_string()).unwrap()
+        self.users.get(&name.to_string()).unwrap()
     }
 
     pub fn get_multisig_member_keypair_by_name(&self, name: &str) -> &Keypair {
-        &self.multisig_members.get(&name.to_string()).unwrap()
+        self.multisig_members.get(&name.to_string()).unwrap()
     }
 
     pub fn get_multisig_signers(&self) -> Vec<&Keypair> {
@@ -110,16 +122,23 @@ impl TestSetup {
 
     // Initialize everything required to test the program
     // Create the mints, the users, deploy the program, create the pool and the custodies, provide liquidity.
+    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         users_param: Vec<UserParam<'_>>,
         mints_param: Vec<MintParam<'_>>,
         multisig_members_names: Vec<&str>,
         // mint for the payouts of the LM token staking (ADX staking)
         cortex_stake_reward_mint_name: &str,
+        // mint used by clockwork to distribute rewards
+        clockwork_mint_reward_name: &str,
         governance_token_decimals: u8,
         governance_realm_name: &str,
         pool_name: &str,
         custodies_params: Vec<SetupCustodyWithLiquidityParams<'_>>,
+        core_contributor_bucket_allocation: u64,
+        dao_treasury_bucket_allocation: u64,
+        pol_bucket_allocation: u64,
+        ecosystem_bucket_allocation: u64,
     ) -> TestSetup {
         let mut program_test = ProgramTest::default();
 
@@ -130,6 +149,8 @@ impl TestSetup {
             users_param.len() +
             // payer
             1 +
+            // clockwork signatory
+            1+
             // root authority
             1 +
             // program upgrade authority
@@ -143,6 +164,7 @@ impl TestSetup {
         let (
             users_keypairs,
             payer_keypair,
+            clockwork_signatory,
             root_authority_keypair,
             program_authority_keypair,
             multisig_members_keypairs,
@@ -152,20 +174,19 @@ impl TestSetup {
                 keypairs.get(users_param.len()).unwrap(),
                 keypairs.get(users_param.len() + 1).unwrap(),
                 keypairs.get(users_param.len() + 2).unwrap(),
+                keypairs.get(users_param.len() + 3).unwrap(),
                 &keypairs
-                    [users_param.len() + 3..(users_param.len() + 3 + multisig_members_names.len())],
+                    [users_param.len() + 4..(users_param.len() + 4 + multisig_members_names.len())],
             )
         };
 
         let users = {
             let mut users: HashMap<String, Keypair> = HashMap::new();
-            let mut i = 0;
-            for user_param in users_param.as_slice() {
+            for (i, user_param) in users_param.as_slice().iter().enumerate() {
                 users.insert(
                     user_param.name.to_string(),
                     utils::copy_keypair(&users_keypairs[i]),
                 );
-                i += 1;
             }
 
             users
@@ -196,22 +217,23 @@ impl TestSetup {
         {
             utils::add_perpetuals_program(&mut program_test, program_authority_keypair).await;
             utils::add_spl_governance_program(&mut program_test, program_authority_keypair).await;
+            utils::add_clockwork_network_program(&mut program_test, program_authority_keypair)
+                .await;
+            utils::add_clockwork_thread_program(&mut program_test, program_authority_keypair).await;
         }
 
         // Start the client and connect to localnet validator
-        let program_test_ctx: RefCell<ProgramTestContext> =
-            RefCell::new(program_test.start_with_context().await);
+        let program_test_ctx: RwLock<ProgramTestContext> =
+            RwLock::new(program_test.start_with_context().await);
 
         // Initialize multisig
         let multisig_members = {
             let mut multisig_members: HashMap<String, Keypair> = HashMap::new();
-            let mut i: usize = 0;
-            for multisig_member_name in multisig_members_names {
+            for (i, multisig_member_name) in multisig_members_names.into_iter().enumerate() {
                 multisig_members.insert(
                     multisig_member_name.to_string(),
                     utils::copy_keypair(&multisig_members_keypairs[i]),
                 );
-                i += 1;
             }
 
             multisig_members
@@ -219,21 +241,24 @@ impl TestSetup {
 
         let multisig_signers: Vec<&Keypair> = multisig_members.values().collect();
 
-        let cortex_stake_reward_mint = &mints
-            .get(&cortex_stake_reward_mint_name.to_string())
-            .unwrap()
-            .pubkey;
+        let staking_reward_token_mint = &mints.get(cortex_stake_reward_mint_name).unwrap().pubkey;
 
         let governance_realm_pda = pda::get_governance_realm_pda(governance_realm_name.to_string());
         let gov_token_mint_pda = pda::get_governance_token_mint_pda().0;
 
         // Execute the initialize transaction
-        instructions::test_init(
-            &mut program_test_ctx.borrow_mut(),
+        test_instructions::init(
+            &program_test_ctx,
             program_authority_keypair,
-            fixtures::init_params_permissions_full(1),
+            fixtures::init_params_permissions_full(
+                1,
+                core_contributor_bucket_allocation,
+                dao_treasury_bucket_allocation,
+                pol_bucket_allocation,
+                ecosystem_bucket_allocation,
+            ),
             &governance_realm_pda,
-            &cortex_stake_reward_mint,
+            staking_reward_token_mint,
             &multisig_signers,
         )
         .await
@@ -242,7 +267,7 @@ impl TestSetup {
         // Setup the governance
         {
             adapters::spl_governance::create_realm(
-                &mut program_test_ctx.borrow_mut(),
+                &program_test_ctx,
                 root_authority_keypair,
                 payer_keypair,
                 governance_realm_name.to_string(),
@@ -253,28 +278,53 @@ impl TestSetup {
             .unwrap();
         }
 
+        // Setup clockwork
+        {
+            adapters::clockwork::network::initialize(
+                &program_test_ctx,
+                root_authority_keypair,
+                payer_keypair,
+                &mints[clockwork_mint_reward_name].pubkey,
+            )
+            .await
+            .unwrap();
+
+            adapters::clockwork::network::pool_create(
+                &program_test_ctx,
+                root_authority_keypair,
+                payer_keypair,
+            )
+            .await
+            .unwrap();
+
+            adapters::clockwork::network::worker_create(
+                &program_test_ctx,
+                root_authority_keypair,
+                clockwork_signatory,
+                payer_keypair,
+                &mints[clockwork_mint_reward_name].pubkey,
+            )
+            .await
+            .unwrap();
+        }
+
         let lm_token_mint = utils::pda::get_lm_token_mint_pda().0;
 
         // Initialize users token accounts for each mints
         {
-            let mints_infos: Vec<&MintInfo> = mints.values().collect();
             let mut mints_pubkeys: Vec<Pubkey> =
-                mints_infos.into_iter().map(|info| info.pubkey).collect();
+                mints.values().into_iter().map(|info| info.pubkey).collect();
 
             mints_pubkeys.push(lm_token_mint);
 
-            let users_keypairs: Vec<&Keypair> = users.values().collect();
-            let users_pubkeys: Vec<Pubkey> = users_keypairs
+            let users_pubkeys: Vec<Pubkey> = users
+                .values()
                 .into_iter()
                 .map(|keypair| keypair.pubkey())
                 .collect();
 
-            utils::initialize_users_token_accounts(
-                &mut program_test_ctx.borrow_mut(),
-                mints_pubkeys,
-                users_pubkeys,
-            )
-            .await;
+            utils::initialize_users_token_accounts(&program_test_ctx, mints_pubkeys, users_pubkeys)
+                .await;
         }
 
         // Mint tokens for users to match specified balances
@@ -284,10 +334,10 @@ impl TestSetup {
                     let mint = mints.get(&mint_name.to_string()).unwrap().pubkey;
                     let user = users.get(&user_param.name.to_string()).unwrap().pubkey();
 
-                    let (ata, _) = utils::find_associated_token_account(&user, &mint);
+                    let ata = utils::find_associated_token_account(&user, &mint).0;
 
                     utils::mint_tokens(
-                        &mut program_test_ctx.borrow_mut(),
+                        &program_test_ctx,
                         root_authority_keypair,
                         &mint,
                         &ata,
@@ -300,8 +350,8 @@ impl TestSetup {
 
         // Setup the pool
         let (pool_pda, pool_bump, lp_token_mint_pda, lp_token_mint_bump) =
-            instructions::test_add_pool(
-                &mut program_test_ctx.borrow_mut(),
+            test_instructions::add_pool(
+                &program_test_ctx,
                 &multisig_members_keypairs[0],
                 payer_keypair,
                 pool_name,
@@ -367,8 +417,8 @@ impl TestSetup {
                         ratios: ratios.clone(),
                     };
 
-                    instructions::test_add_custody(
-                        &mut program_test_ctx.borrow_mut(),
+                    test_instructions::add_custody(
+                        &program_test_ctx,
                         &multisig_members_keypairs[0],
                         payer_keypair,
                         &pool_pda,
@@ -382,11 +432,10 @@ impl TestSetup {
                     .0
                 };
 
-                let publish_time =
-                    utils::get_current_unix_timestamp(&mut program_test_ctx.borrow_mut()).await;
+                let publish_time = utils::get_current_unix_timestamp(&program_test_ctx).await;
 
-                instructions::test_set_custom_oracle_price(
-                    &mut program_test_ctx.borrow_mut(),
+                test_instructions::set_custom_oracle_price(
+                    &program_test_ctx,
                     &multisig_members_keypairs[0],
                     payer_keypair,
                     &pool_pda,
@@ -396,6 +445,7 @@ impl TestSetup {
                         price: custody_param.setup_custody_params.initial_price,
                         expo: -(mint_info.decimals as i32),
                         conf: custody_param.setup_custody_params.initial_conf,
+                        ema: custody_param.setup_custody_params.initial_price,
                         publish_time,
                     },
                     &multisig_signers,
@@ -412,16 +462,35 @@ impl TestSetup {
             custodies_info
         };
 
+        // Initialize LP staking
+        {
+            test_instructions::init_staking(
+                &program_test_ctx,
+                &multisig_members_keypairs[0],
+                payer_keypair,
+                staking_reward_token_mint,
+                &lp_token_mint_pda,
+                &InitStakingParams {
+                    staking_type: StakingType::LP,
+                },
+                &multisig_signers,
+            )
+            .await
+            .unwrap();
+        }
+
+        utils::warp_forward(&program_test_ctx, 1).await;
+
         // Initialize users token accounts for lp token mint
         {
-            let users_keypairs: Vec<&Keypair> = users.values().collect();
-            let users_pubkeys: Vec<Pubkey> = users_keypairs
+            let users_pubkeys: Vec<Pubkey> = users
+                .values()
                 .into_iter()
                 .map(|keypair| keypair.pubkey())
                 .collect();
 
             utils::initialize_users_token_accounts(
-                &mut program_test_ctx.borrow_mut(),
+                &program_test_ctx,
                 vec![lp_token_mint_pda],
                 users_pubkeys,
             )
@@ -444,13 +513,12 @@ impl TestSetup {
             );
 
             if custody_param.liquidity_amount > 0 {
-                instructions::test_add_liquidity(
-                    &mut program_test_ctx.borrow_mut(),
+                test_instructions::add_liquidity(
+                    &program_test_ctx,
                     liquidity_provider,
                     payer_keypair,
                     &pool_pda,
                     &mint_info.pubkey,
-                    cortex_stake_reward_mint,
                     AddLiquidityParams {
                         amount_in: custody_param.liquidity_amount,
                         min_lp_amount_out: 1,
@@ -482,7 +550,7 @@ impl TestSetup {
 
             for (idx, _params) in custodies_params.as_slice().iter().enumerate() {
                 utils::set_custody_ratios(
-                    &mut program_test_ctx.borrow_mut(),
+                    &program_test_ctx,
                     &multisig_members_keypairs[0],
                     payer_keypair,
                     &custodies_info[idx].custody_pda,
@@ -509,6 +577,8 @@ impl TestSetup {
             lp_token_mint_pda,
             lp_token_mint_bump,
             custodies_info,
+            clockwork_signatory: utils::copy_keypair(clockwork_signatory),
+            clockwork_mint_reward_name: clockwork_mint_reward_name.to_string(),
         }
     }
 }

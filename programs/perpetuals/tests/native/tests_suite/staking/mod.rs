@@ -1,11 +1,19 @@
-pub mod test_bounty_no_rewards;
-pub mod test_bounty_phase_one;
-pub mod test_staking_rewards_from_add_and_remove_liquidity;
-pub mod test_staking_rewards_from_open_and_close_position;
-pub mod test_staking_rewards_from_swap;
+pub mod auto_claim;
+pub mod liquid_staking;
+pub mod liquid_staking_overlap;
+pub mod liquid_staking_overlap_remove_less_than_overlap;
+pub mod liquid_staking_overlap_remove_more_than_overlap;
+pub mod liquid_staking_overlap_remove_same_as_overlap;
+pub mod locked_staking_30d;
+pub mod multiple_stakers_get_correct_rewards;
+pub mod resolved_round_overflow;
+pub mod staking_rewards_generation;
 
 pub use {
-    test_bounty_no_rewards::*, test_bounty_phase_one::*,
-    test_staking_rewards_from_add_and_remove_liquidity::*,
-    test_staking_rewards_from_open_and_close_position::*, test_staking_rewards_from_swap::*,
+    auto_claim::*, liquid_staking::*, liquid_staking_overlap::*,
+    liquid_staking_overlap_remove_less_than_overlap::*,
+    liquid_staking_overlap_remove_more_than_overlap::*,
+    liquid_staking_overlap_remove_same_as_overlap::*, locked_staking_30d::*,
+    multiple_stakers_get_correct_rewards::*, resolved_round_overflow::*,
+    staking_rewards_generation::*,
 };

@@ -1,6 +1,6 @@
 use {
     super::get_program_data_pda,
-    crate::instructions,
+    crate::test_instructions,
     anchor_lang::{prelude::*, InstructionData},
     anchor_spl::token::spl_token,
     bonfida_test_utils::ProgramTestContextExt,
@@ -24,6 +24,7 @@ use {
         ops::{Div, Mul},
         path::Path,
     },
+    tokio::sync::RwLock,
 };
 
 pub const ANCHOR_DISCRIMINATOR_SIZE: usize = 8;
@@ -54,36 +55,36 @@ pub fn copy_keypair(keypair: &Keypair) -> Keypair {
 }
 
 pub fn days_in_seconds(nb_days: u32) -> i64 {
-    return (nb_days as i64) * (3_600 * 24);
+    (nb_days as i64) * (3_600 * 24)
 }
 
 pub async fn get_token_account(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     key: Pubkey,
 ) -> spl_token::state::Account {
-    let raw_account = program_test_ctx
-        .banks_client
-        .get_account(key)
-        .await
-        .unwrap()
-        .unwrap();
+    let mut ctx = program_test_ctx.write().await;
+    let banks_client = &mut ctx.banks_client;
+
+    let raw_account = banks_client.get_account(key).await.unwrap().unwrap();
 
     spl_token::state::Account::unpack(&raw_account.data).unwrap()
 }
 
 pub async fn get_token_account_balance(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     key: Pubkey,
 ) -> u64 {
     get_token_account(program_test_ctx, key).await.amount
 }
 
 pub async fn get_borsh_account<T: BorshDeserialize>(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     address: &Pubkey,
 ) -> T {
-    program_test_ctx
-        .banks_client
+    let mut ctx = program_test_ctx.write().await;
+    let banks_client = &mut ctx.banks_client;
+
+    banks_client
         .get_account(*address)
         .await
         .unwrap()
@@ -92,14 +93,13 @@ pub async fn get_borsh_account<T: BorshDeserialize>(
 }
 
 pub async fn try_get_account<T: anchor_lang::AccountDeserialize>(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     key: Pubkey,
 ) -> Option<T> {
-    let account = program_test_ctx
-        .banks_client
-        .get_account(key)
-        .await
-        .unwrap();
+    let mut ctx = program_test_ctx.write().await;
+    let banks_client = &mut ctx.banks_client;
+
+    let account = banks_client.get_account(key).await.unwrap();
 
     // an account with 0 lamport can be considered inexistant in the context of our tests
     // on mainnet, someone might just send lamports to the right place but doesn't matter here
@@ -111,22 +111,22 @@ pub async fn try_get_account<T: anchor_lang::AccountDeserialize>(
 }
 
 pub async fn get_account<T: anchor_lang::AccountDeserialize>(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     key: Pubkey,
 ) -> T {
-    let account = program_test_ctx
-        .banks_client
-        .get_account(key)
-        .await
-        .unwrap()
-        .unwrap();
+    let mut ctx = program_test_ctx.write().await;
+    let banks_client = &mut ctx.banks_client;
+
+    let account = banks_client.get_account(key).await.unwrap().unwrap();
 
     T::try_deserialize(&mut account.data.as_slice()).unwrap()
 }
 
-pub async fn get_current_unix_timestamp(program_test_ctx: &mut ProgramTestContext) -> i64 {
-    program_test_ctx
-        .banks_client
+pub async fn get_current_unix_timestamp(program_test_ctx: &RwLock<ProgramTestContext>) -> i64 {
+    let mut ctx = program_test_ctx.write().await;
+    let banks_client = &mut ctx.banks_client;
+
+    banks_client
         .get_sysvar::<solana_program::sysvar::clock::Clock>()
         .await
         .unwrap()
@@ -134,18 +134,19 @@ pub async fn get_current_unix_timestamp(program_test_ctx: &mut ProgramTestContex
 }
 
 pub async fn initialize_token_account(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     mint: &Pubkey,
     owner: &Pubkey,
 ) -> Pubkey {
-    program_test_ctx
-        .initialize_token_accounts(*mint, &[*owner])
+    let mut ctx = program_test_ctx.write().await;
+
+    ctx.initialize_token_accounts(*mint, &[*owner])
         .await
         .unwrap()[0]
 }
 
 pub async fn initialize_and_fund_token_account(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     mint: &Pubkey,
     owner: &Pubkey,
     mint_authority: &Keypair,
@@ -166,20 +167,23 @@ pub async fn initialize_and_fund_token_account(
 }
 
 pub async fn mint_tokens(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     mint_authority: &Keypair,
     mint: &Pubkey,
     token_account: &Pubkey,
     amount: u64,
 ) {
-    program_test_ctx
-        .mint_tokens(mint_authority, mint, token_account, amount)
+    let mut ctx = program_test_ctx.write().await;
+
+    ctx.mint_tokens(mint_authority, mint, token_account, amount)
         .await
         .unwrap();
 }
 
 // Doesn't check if you go before epoch 0 when passing negative amounts, be wary
-pub async fn warp_forward(ctx: &mut ProgramTestContext, seconds: i64) {
+pub async fn warp_forward(ctx: &RwLock<ProgramTestContext>, seconds: i64) {
+    let mut ctx = ctx.write().await;
+
     let clock_sysvar: Clock = ctx.banks_client.get_sysvar().await.unwrap();
     println!(
         "Original Time: epoch = {}, timestamp = {}",
@@ -201,7 +205,101 @@ pub async fn warp_forward(ctx: &mut ProgramTestContext, seconds: i64) {
         clock_sysvar.epoch, clock_sysvar.unix_timestamp
     );
 
-    ctx.last_blockhash = ctx.banks_client.get_latest_blockhash().await.unwrap();
+    let blockhash = ctx.banks_client.get_latest_blockhash().await.unwrap();
+
+    ctx.last_blockhash = blockhash;
+}
+
+pub async fn add_clockwork_network_program(
+    program_test: &mut ProgramTest,
+    upgrade_authority: &Keypair,
+) {
+    let mut program_bytes = read_file(std::env::current_dir().unwrap().join(Path::new(
+        "tests/native/external_programs_binaries/clockwork_network_program_2_0_17.so",
+    )));
+
+    let program_data_pda = Pubkey::find_program_address(
+        &[clockwork_network_program::ID.as_ref()],
+        &solana_program::bpf_loader_upgradeable::id(),
+    )
+    .0;
+
+    let program = UpgradeableLoaderState::Program {
+        programdata_address: program_data_pda,
+    };
+    let program_data = UpgradeableLoaderState::ProgramData {
+        slot: 1,
+        upgrade_authority_address: Some(upgrade_authority.pubkey()),
+    };
+
+    let serialized_program = bincode::serialize(&program).unwrap();
+
+    let mut serialized_program_data = bincode::serialize(&program_data).unwrap();
+    serialized_program_data.append(&mut program_bytes);
+
+    let program_account = account::Account {
+        lamports: Rent::default().minimum_balance(serialized_program.len()),
+        data: serialized_program,
+        owner: bpf_loader_upgradeable::ID,
+        executable: true,
+        rent_epoch: Epoch::default(),
+    };
+    let program_data_account = account::Account {
+        lamports: Rent::default().minimum_balance(serialized_program_data.len()),
+        data: serialized_program_data,
+        owner: bpf_loader_upgradeable::ID,
+        executable: false,
+        rent_epoch: Epoch::default(),
+    };
+
+    program_test.add_account(clockwork_network_program::ID, program_account);
+    program_test.add_account(program_data_pda, program_data_account);
+}
+
+pub async fn add_clockwork_thread_program(
+    program_test: &mut ProgramTest,
+    upgrade_authority: &Keypair,
+) {
+    let mut program_bytes = read_file(std::env::current_dir().unwrap().join(Path::new(
+        "tests/native/external_programs_binaries/clockwork_thread_program_2_0_17.so",
+    )));
+
+    let program_data_pda = Pubkey::find_program_address(
+        &[clockwork_sdk::ID.as_ref()],
+        &solana_program::bpf_loader_upgradeable::id(),
+    )
+    .0;
+
+    let program = UpgradeableLoaderState::Program {
+        programdata_address: program_data_pda,
+    };
+    let program_data = UpgradeableLoaderState::ProgramData {
+        slot: 1,
+        upgrade_authority_address: Some(upgrade_authority.pubkey()),
+    };
+
+    let serialized_program = bincode::serialize(&program).unwrap();
+
+    let mut serialized_program_data = bincode::serialize(&program_data).unwrap();
+    serialized_program_data.append(&mut program_bytes);
+
+    let program_account = account::Account {
+        lamports: Rent::default().minimum_balance(serialized_program.len()),
+        data: serialized_program,
+        owner: bpf_loader_upgradeable::ID,
+        executable: true,
+        rent_epoch: Epoch::default(),
+    };
+    let program_data_account = account::Account {
+        lamports: Rent::default().minimum_balance(serialized_program_data.len()),
+        data: serialized_program_data,
+        owner: bpf_loader_upgradeable::ID,
+        executable: false,
+        rent_epoch: Epoch::default(),
+    };
+
+    program_test.add_account(clockwork_sdk::ID, program_account);
+    program_test.add_account(program_data_pda, program_data_account);
 }
 
 pub async fn add_spl_governance_program(
@@ -228,8 +326,8 @@ pub async fn add_spl_governance_program(
 
     let serialized_program = bincode::serialize(&program).unwrap();
 
-    let mut serialzed_program_data = bincode::serialize(&program_data).unwrap();
-    serialzed_program_data.append(&mut program_bytes);
+    let mut serialized_program_data = bincode::serialize(&program_data).unwrap();
+    serialized_program_data.append(&mut program_bytes);
 
     let program_account = account::Account {
         lamports: Rent::default().minimum_balance(serialized_program.len()),
@@ -239,8 +337,8 @@ pub async fn add_spl_governance_program(
         rent_epoch: Epoch::default(),
     };
     let program_data_account = account::Account {
-        lamports: Rent::default().minimum_balance(serialzed_program_data.len()),
-        data: serialzed_program_data,
+        lamports: Rent::default().minimum_balance(serialized_program_data.len()),
+        data: serialized_program_data,
         owner: bpf_loader_upgradeable::ID,
         executable: false,
         rent_epoch: Epoch::default(),
@@ -272,8 +370,8 @@ pub async fn add_perpetuals_program(program_test: &mut ProgramTest, upgrade_auth
 
     let serialized_program = bincode::serialize(&program).unwrap();
 
-    let mut serialzed_program_data = bincode::serialize(&program_data).unwrap();
-    serialzed_program_data.append(&mut program_bytes);
+    let mut serialized_program_data = bincode::serialize(&program_data).unwrap();
+    serialized_program_data.append(&mut program_bytes);
 
     let program_account = account::Account {
         lamports: Rent::default().minimum_balance(serialized_program.len()),
@@ -283,8 +381,8 @@ pub async fn add_perpetuals_program(program_test: &mut ProgramTest, upgrade_auth
         rent_epoch: Epoch::default(),
     };
     let program_data_account = account::Account {
-        lamports: Rent::default().minimum_balance(serialzed_program_data.len()),
-        data: serialzed_program_data,
+        lamports: Rent::default().minimum_balance(serialized_program_data.len()),
+        data: serialized_program_data,
         owner: bpf_loader_upgradeable::ID,
         executable: false,
         rent_epoch: Epoch::default(),
@@ -312,7 +410,7 @@ pub async fn create_and_fund_multiple_accounts(
 }
 
 pub async fn create_and_simulate_perpetuals_view_ix<T: InstructionData, U: BorshDeserialize>(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     accounts_meta: Vec<AccountMeta>,
     args: T,
     payer: &Keypair,
@@ -325,14 +423,18 @@ pub async fn create_and_simulate_perpetuals_view_ix<T: InstructionData, U: Borsh
 
     let payer_pubkey = payer.pubkey();
 
+    let mut ctx = program_test_ctx.write().await;
+    let last_blockhash = ctx.last_blockhash;
+    let banks_client = &mut ctx.banks_client;
+
     let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer_pubkey),
         &[payer],
-        program_test_ctx.last_blockhash,
+        last_blockhash,
     );
 
-    let result = program_test_ctx.banks_client.simulate_transaction(tx).await;
+    let result = banks_client.simulate_transaction(tx).await;
 
     if result.is_err() {
         return Err(result.err().unwrap());
@@ -358,11 +460,13 @@ pub async fn create_and_simulate_perpetuals_view_ix<T: InstructionData, U: Borsh
 }
 
 pub async fn create_and_execute_perpetuals_ix<T: InstructionData, U: Signers>(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     accounts_meta: Vec<AccountMeta>,
     args: T,
     payer: Option<&Pubkey>,
     signing_keypairs: &U,
+    pre_ix: Option<solana_sdk::instruction::Instruction>,
+    post_ix: Option<solana_sdk::instruction::Instruction>,
 ) -> std::result::Result<(), BanksClientError> {
     let ix = solana_sdk::instruction::Instruction {
         program_id: perpetuals::id(),
@@ -370,17 +474,32 @@ pub async fn create_and_execute_perpetuals_ix<T: InstructionData, U: Signers>(
         data: args.data(),
     };
 
+    let mut ctx = program_test_ctx.write().await;
+    let last_blockhash = ctx.last_blockhash;
+    let banks_client = &mut ctx.banks_client;
+
+    let mut instructions: Vec<solana_sdk::instruction::Instruction> = Vec::new();
+
+    instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(800_000u32));
+
+    if pre_ix.is_some() {
+        instructions.push(pre_ix.unwrap());
+    }
+
+    instructions.push(ix);
+
+    if post_ix.is_some() {
+        instructions.push(post_ix.unwrap());
+    }
+
     let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
-        &[
-            ComputeBudgetInstruction::set_compute_unit_limit(400_000u32),
-            ix,
-        ],
+        instructions.as_slice(),
         payer,
         signing_keypairs,
-        program_test_ctx.last_blockhash,
+        last_blockhash,
     );
 
-    let result = program_test_ctx.banks_client.process_transaction(tx).await;
+    let result = banks_client.process_transaction(tx).await;
 
     if result.is_err() {
         return Err(result.err().unwrap());
@@ -390,7 +509,7 @@ pub async fn create_and_execute_perpetuals_ix<T: InstructionData, U: Signers>(
 }
 
 pub async fn create_and_execute_spl_governance_ix<U: Signers>(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     accounts_meta: Vec<AccountMeta>,
     data: Vec<u8>,
     payer: Option<&Pubkey>,
@@ -402,14 +521,18 @@ pub async fn create_and_execute_spl_governance_ix<U: Signers>(
         data,
     };
 
+    let mut ctx = program_test_ctx.write().await;
+    let last_blockhash = ctx.last_blockhash;
+    let banks_client = &mut ctx.banks_client;
+
     let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
         &[ix],
         payer,
         signing_keypairs,
-        program_test_ctx.last_blockhash,
+        last_blockhash,
     );
 
-    let result = program_test_ctx.banks_client.process_transaction(tx).await;
+    let result = banks_client.process_transaction(tx).await;
 
     if result.is_err() {
         return Err(result.err().unwrap());
@@ -420,7 +543,7 @@ pub async fn create_and_execute_spl_governance_ix<U: Signers>(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn set_custody_ratios(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     custody_admin: &Keypair,
     payer: &Keypair,
     custody_pda: &Pubkey,
@@ -429,7 +552,7 @@ pub async fn set_custody_ratios(
 ) {
     let custody_account = get_account::<Custody>(program_test_ctx, *custody_pda).await;
 
-    instructions::test_set_custody_config(
+    test_instructions::set_custody_config(
         program_test_ctx,
         custody_admin,
         payer,
@@ -476,13 +599,14 @@ pub fn ratio_from_percentage(percentage: f64) -> u64 {
 }
 
 pub async fn initialize_users_token_accounts(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     mints: Vec<Pubkey>,
     users: Vec<Pubkey>,
 ) {
     for mint in mints {
-        program_test_ctx
-            .initialize_token_accounts(mint, users.as_slice())
+        let mut ctx = program_test_ctx.write().await;
+
+        ctx.initialize_token_accounts(mint, users.as_slice())
             .await
             .unwrap();
     }

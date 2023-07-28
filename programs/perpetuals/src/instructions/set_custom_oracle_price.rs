@@ -64,6 +64,7 @@ pub struct SetCustomOraclePriceParams {
     pub price: u64,
     pub expo: i32,
     pub conf: u64,
+    pub ema: u64,
     pub publish_time: i64,
 }
 
@@ -92,6 +93,7 @@ pub fn set_custom_oracle_price<'info>(
     oracle_account.price = params.price;
     oracle_account.expo = params.expo;
     oracle_account.conf = params.conf;
+    oracle_account.ema = params.ema;
     oracle_account.publish_time = params.publish_time;
 
     Ok(0)

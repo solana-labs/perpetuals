@@ -1,9 +1,9 @@
 use {
-    crate::{instructions, utils},
+    crate::{test_instructions, utils},
     maplit::hashmap,
     perpetuals::{
         instructions::{OpenPositionParams, SetCustomOraclePriceParams},
-        state::{custody::PricingParams, position::Side},
+        state::{cortex::Cortex, custody::PricingParams, position::Side},
     },
     solana_sdk::signer::Signer,
 };
@@ -44,6 +44,7 @@ pub async fn liquidate_position() {
             },
         ],
         vec!["admin_a", "admin_b", "admin_c"],
+        "usdc",
         "usdc",
         6,
         "ADRENA",
@@ -91,14 +92,16 @@ pub async fn liquidate_position() {
                 payer_user_name: "alice",
             },
         ],
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
     )
     .await;
 
     let alice = test_setup.get_user_keypair_by_name("alice");
     let martin = test_setup.get_user_keypair_by_name("martin");
     let executioner = test_setup.get_user_keypair_by_name("executioner");
-
-    let cortex_stake_reward_mint = test_setup.get_cortex_stake_reward_mint();
 
     let admin_a = test_setup.get_multisig_member_keypair_by_name("admin_a");
 
@@ -107,13 +110,12 @@ pub async fn liquidate_position() {
     let eth_mint = &test_setup.get_mint_by_name("eth");
 
     // Martin: Open 1 ETH long position x5
-    let position_pda = instructions::test_open_position(
-        &mut test_setup.program_test_ctx.borrow_mut(),
-        &martin,
+    let position_pda = test_instructions::open_position(
+        &test_setup.program_test_ctx,
+        martin,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &eth_mint,
-        &cortex_stake_reward_mint,
+        eth_mint,
         OpenPositionParams {
             // max price paid (slippage implied)
             price: utils::scale(1_550, ETH_DECIMALS),
@@ -127,12 +129,12 @@ pub async fn liquidate_position() {
     .0;
 
     // Alice: Try and fail to liquidate Martin ETH position
-    assert!(instructions::test_liquidate(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+    assert!(test_instructions::liquidate(
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &eth_mint,
+        eth_mint,
         &position_pda,
     )
     .await
@@ -143,11 +145,10 @@ pub async fn liquidate_position() {
         let eth_test_oracle_pda = test_setup.custodies_info[1].custom_oracle_pda;
         let eth_custody_pda = test_setup.custodies_info[1].custody_pda;
 
-        let publish_time =
-            utils::get_current_unix_timestamp(&mut test_setup.program_test_ctx.borrow_mut()).await;
+        let publish_time = utils::get_current_unix_timestamp(&test_setup.program_test_ctx).await;
 
-        instructions::test_set_custom_oracle_price(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+        test_instructions::set_custom_oracle_price(
+            &test_setup.program_test_ctx,
             admin_a,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
@@ -157,6 +158,7 @@ pub async fn liquidate_position() {
                 price: utils::scale(1_350, ETH_DECIMALS),
                 expo: -(ETH_DECIMALS as i32),
                 conf: utils::scale(10, ETH_DECIMALS),
+                ema: utils::scale(1_350, ETH_DECIMALS),
                 publish_time,
             },
             &multisig_signers,
@@ -168,12 +170,12 @@ pub async fn liquidate_position() {
     // Price drop makes the position to go over authorized leverage
 
     // Executioner: Liquidate Martin ETH position
-    instructions::test_liquidate(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+    test_instructions::liquidate(
+        &test_setup.program_test_ctx,
         executioner,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &eth_mint,
+        eth_mint,
         &position_pda,
     )
     .await
@@ -181,17 +183,14 @@ pub async fn liquidate_position() {
 
     // Check user final balance
     {
-        let martin_eth_pda = utils::find_associated_token_account(&martin.pubkey(), &eth_mint).0;
+        let martin_eth_pda = utils::find_associated_token_account(&martin.pubkey(), eth_mint).0;
 
-        let martin_eth_balance = utils::get_token_account_balance(
-            &mut test_setup.program_test_ctx.borrow_mut(),
-            martin_eth_pda,
-        )
-        .await;
+        let martin_eth_balance =
+            utils::get_token_account_balance(&test_setup.program_test_ctx, martin_eth_pda).await;
 
         assert_eq!(
             martin_eth_balance,
-            utils::scale_f64(1.376624036, ETH_DECIMALS)
+            utils::scale_f64(1.369834721, ETH_DECIMALS)
         );
     }
 }

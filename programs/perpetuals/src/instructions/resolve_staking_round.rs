@@ -3,10 +3,12 @@
 use {
     crate::{
         error::PerpetualsError,
+        instructions::{BucketName, MintLmTokensFromBucketParams},
         math,
         state::{
-            cortex::{Cortex, StakingRound},
+            cortex::Cortex,
             perpetuals::Perpetuals,
+            staking::{Staking, StakingRound},
         },
     },
     anchor_lang::prelude::*,
@@ -19,23 +21,29 @@ pub struct ResolveStakingRound<'info> {
     #[account(mut)]
     pub caller: Signer<'info>,
 
-    // staked token vault
+    #[account(
+        mut,
+        token::mint = staking.staked_token_mint,
+        seeds = [b"staking_staked_token_vault", staking.key().as_ref()],
+        bump = staking.staked_token_vault_bump
+    )]
+    pub staking_staked_token_vault: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        token::mint = staking_reward_token_mint,
+        seeds = [b"staking_reward_token_vault", staking.key().as_ref()],
+        bump = staking.reward_token_vault_bump
+    )]
+    pub staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
+
     #[account(
         mut,
         token::mint = lm_token_mint,
-        seeds = [b"stake_token_account"],
-        bump = cortex.stake_token_account_bump
+        seeds = [b"staking_lm_reward_token_vault", staking.key().as_ref()],
+        bump = staking.lm_reward_token_vault_bump
     )]
-    pub stake_token_account: Box<Account<'info, TokenAccount>>,
-
-    // staking reward token vault
-    #[account(
-        mut,
-        token::mint = stake_reward_token_mint,
-        seeds = [b"stake_reward_token_account"],
-        bump = cortex.stake_reward_token_account_bump
-    )]
-    pub stake_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_lm_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: empty PDA, authority for token accounts
     #[account(
@@ -43,6 +51,13 @@ pub struct ResolveStakingRound<'info> {
         bump = perpetuals.transfer_authority_bump
     )]
     pub transfer_authority: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"staking", staking.staked_token_mint.as_ref()],
+        bump = staking.bump,
+    )]
+    pub staking: Box<Account<'info, Staking>>,
 
     #[account(
         mut,
@@ -65,113 +80,291 @@ pub struct ResolveStakingRound<'info> {
     pub lm_token_mint: Box<Account<'info, Mint>>,
 
     #[account()]
-    pub stake_reward_token_mint: Box<Account<'info, Mint>>,
+    pub staking_reward_token_mint: Box<Account<'info, Mint>>,
 
+    pub perpetuals_program: Program<'info, Perpetuals>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
 }
 
+// Note: the rewards will go to the next round stakers if a round finishes without anyone staking
 pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
-    let cortex = &mut ctx.accounts.cortex;
+    let staking = &mut ctx.accounts.staking;
 
     // verify that the current round is eligible for resolution
     require!(
-        cortex.current_staking_round_is_resolvable(ctx.accounts.perpetuals.get_time()?)?,
+        staking.current_staking_round_is_resolvable(ctx.accounts.perpetuals.get_time()?)?,
         PerpetualsError::InvalidStakingRoundState
     );
 
-    msg!("Calculate current round's rate");
-    let current_round_reward_token_amount = math::checked_sub(
-        ctx.accounts.stake_reward_token_account.amount,
-        cortex.resolved_reward_token_amount,
-    )?;
-
-    let current_round_stake_token_amount = cortex.current_staking_round.total_stake;
-
-    msg!("reward_token_amount {}", current_round_reward_token_amount);
-    msg!("stake_token_amount {}", current_round_stake_token_amount);
-
-    msg!("updates Cortex.current_staking_round data");
+    // Calculate and mint LM token rewards for current round
     {
+        // @TODO calculate this one based on emission formula
+        let current_round_lm_reward_token_amount = 1_000_000;
+
+        // Mint LM tokens
+        {
+            if current_round_lm_reward_token_amount > 0 {
+                let cpi_accounts = crate::cpi::accounts::MintLmTokensFromBucket {
+                    admin: ctx.accounts.transfer_authority.to_account_info(),
+                    receiving_account: ctx.accounts.staking_lm_reward_token_vault.to_account_info(),
+                    transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
+                    cortex: ctx.accounts.cortex.to_account_info(),
+                    perpetuals: ctx.accounts.perpetuals.to_account_info(),
+                    lm_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+                    token_program: ctx.accounts.token_program.to_account_info(),
+                };
+
+                let cpi_program = ctx.accounts.perpetuals_program.to_account_info();
+                crate::cpi::mint_lm_tokens_from_bucket(
+                    CpiContext::new_with_signer(
+                        cpi_program,
+                        cpi_accounts,
+                        &[&[
+                            b"transfer_authority",
+                            &[ctx.accounts.perpetuals.transfer_authority_bump],
+                        ]],
+                    ),
+                    MintLmTokensFromBucketParams {
+                        bucket_name: BucketName::Ecosystem,
+                        amount: current_round_lm_reward_token_amount,
+                        reason: String::from("UserStaking rewards"),
+                    },
+                )?;
+
+                {
+                    ctx.accounts.staking_lm_reward_token_vault.reload()?;
+                    ctx.accounts.cortex.reload()?;
+                    ctx.accounts.perpetuals.reload()?;
+                    ctx.accounts.lm_token_mint.reload()?;
+                }
+            }
+        }
+
+        /*
+        ctx.accounts.perpetuals.mint_tokens(
+            ctx.accounts.lm_token_mint.to_account_info(),
+            ctx.accounts
+                .staking_lm_reward_token_account
+                .to_account_info(),
+            ctx.accounts.transfer_authority.to_account_info(),
+            ctx.accounts.token_program.to_account_info(),
+            current_round_lm_reward_token_amount,
+        )?;*/
+
+        // reload account to account for newly minted tokens
+        ctx.accounts.staking_lm_reward_token_vault.reload()?;
+    }
+
+    // Calculate metrics
+    let (
+        current_round_reward_token_amount,
+        current_round_stake_token_amount,
+        current_round_lm_reward_token_amount,
+        current_round_lm_stake_token_amount,
+    ) = {
+        // Consider as reward everything that is in the vault, minus what is already assigned as reward
+        let current_round_reward_token_amount = math::checked_sub(
+            ctx.accounts.staking_reward_token_vault.amount,
+            staking.resolved_reward_token_amount,
+        )?;
+
+        let current_round_stake_token_amount = staking.current_staking_round.total_stake;
+
+        // Consider as reward everything that is in the vault, minus what is already assigned as reward
+        let current_round_lm_reward_token_amount = math::checked_sub(
+            ctx.accounts.staking_lm_reward_token_vault.amount,
+            staking.resolved_lm_reward_token_amount,
+        )?;
+
+        let current_round_lm_stake_token_amount = staking.current_staking_round.lm_total_stake;
+
+        (
+            current_round_reward_token_amount,
+            current_round_stake_token_amount,
+            current_round_lm_reward_token_amount,
+            current_round_lm_stake_token_amount,
+        )
+    };
+
+    // Calculate rates
+    {
+        // rate
         match current_round_stake_token_amount {
-            0 => cortex.current_staking_round.rate = 0,
+            0 => staking.current_staking_round.rate = 0,
             _ => {
-                cortex.current_staking_round.rate = math::checked_decimal_div(
+                staking.current_staking_round.rate = math::checked_decimal_div(
                     current_round_reward_token_amount,
-                    -(cortex.stake_reward_token_decimals as i32),
+                    -(staking.reward_token_decimals as i32),
                     current_round_stake_token_amount,
-                    -(cortex.stake_token_decimals as i32),
+                    -(staking.staked_token_decimals as i32),
                     -(Perpetuals::RATE_DECIMALS as i32),
                 )?
             }
         }
-        cortex.current_staking_round.total_claim = u64::MIN;
-    }
-    msg!("rate {}", cortex.current_staking_round.rate);
 
-    msg!("updates Cortex data");
-    {
-        // add the current round to resolved rounds and update data if there was any stake
-        // Note: the rewards will go to the next round stakers if a round finishes without anyone staking
-        if !current_round_stake_token_amount.is_zero() {
-            require!(
-                ctx.accounts.stake_token_account.amount
-                    == math::checked_add(
-                        cortex.resolved_stake_token_amount,
-                        current_round_stake_token_amount
-                    )?,
-                PerpetualsError::InvalidStakingRoundState
-            );
-            cortex.resolved_stake_token_amount = ctx.accounts.stake_token_account.amount;
-            require!(
-                ctx.accounts.stake_reward_token_account.amount
-                    == math::checked_add(
-                        cortex.resolved_reward_token_amount,
-                        current_round_reward_token_amount
-                    )?,
-                PerpetualsError::InvalidStakingRoundState
-            );
-            cortex.resolved_reward_token_amount = ctx.accounts.stake_reward_token_account.amount;
-            let current_staking_round = cortex.current_staking_round.clone();
-            cortex.resolved_staking_rounds.push(current_staking_round);
+        msg!("current round rate {}", staking.current_staking_round.rate);
 
-            msg!("realloc cortex size to accomodate for the newly added round");
-            {
-                // realloc Cortex after update to its `stake_rounds` if needed
-                Perpetuals::realloc(
-                    ctx.accounts.caller.to_account_info(),
-                    cortex.clone().to_account_info(),
-                    ctx.accounts.system_program.to_account_info(),
-                    cortex.new_size(1)?,
-                    true,
-                )?;
+        // lm rate
+        match current_round_lm_stake_token_amount {
+            0 => staking.current_staking_round.lm_rate = 0,
+            _ => {
+                staking.current_staking_round.lm_rate = math::checked_decimal_div(
+                    current_round_lm_reward_token_amount,
+                    -(Cortex::LM_DECIMALS as i32),
+                    current_round_lm_stake_token_amount,
+                    -(Cortex::LM_DECIMALS as i32),
+                    -(Perpetuals::RATE_DECIMALS as i32),
+                )?
             }
         }
 
-        // now replace the current_round with the next_round, and groom the new current_round data
-        let mut new_current_round = cortex.next_staking_round.clone();
-        new_current_round.start_time = ctx.accounts.perpetuals.get_time()?;
-        new_current_round.total_stake = math::checked_add(
-            cortex.next_staking_round.total_stake,
-            cortex.current_staking_round.total_stake,
-        )?;
-
-        // and shift the rounds
-        cortex.current_staking_round = new_current_round;
-        cortex.next_staking_round = StakingRound::new(0);
+        msg!(
+            "current round lm rate {}",
+            staking.current_staking_round.lm_rate
+        );
     }
+
+    // If there are staked tokens and there are tokens to distribute
+    if (!current_round_stake_token_amount.is_zero()
+        || !current_round_lm_stake_token_amount.is_zero())
+        && (staking.current_staking_round.rate != 0 || staking.current_staking_round.lm_rate != 0)
+    {
+        // Update cortex data
+        {
+            {
+                staking.resolved_staked_token_amount = math::checked_add(
+                    staking.resolved_staked_token_amount,
+                    current_round_stake_token_amount,
+                )?;
+
+                require!(
+                    ctx.accounts.staking_reward_token_vault.amount
+                        == math::checked_add(
+                            staking.resolved_reward_token_amount,
+                            current_round_reward_token_amount
+                        )?,
+                    PerpetualsError::InvalidStakingRoundState
+                );
+
+                staking.resolved_reward_token_amount =
+                    ctx.accounts.staking_reward_token_vault.amount;
+            }
+
+            {
+                staking.resolved_lm_staked_token_amount = math::checked_add(
+                    staking.resolved_lm_staked_token_amount,
+                    current_round_lm_stake_token_amount,
+                )?;
+
+                require!(
+                    ctx.accounts.staking_lm_reward_token_vault.amount
+                        == math::checked_add(
+                            staking.resolved_lm_reward_token_amount,
+                            current_round_lm_reward_token_amount
+                        )?,
+                    PerpetualsError::InvalidStakingRoundState
+                );
+
+                staking.resolved_lm_reward_token_amount =
+                    ctx.accounts.staking_lm_reward_token_vault.amount;
+            }
+        }
+
+        // Move current round to resolved rounds array
+        {
+            let current_staking_round = staking.current_staking_round.clone();
+
+            staking.resolved_staking_rounds.push(current_staking_round);
+        }
+
+        // Resize cortex account to adapt to resolved_staking_rounds size
+        {
+            // Safety mesure
+            // If too many resolved staking rounds, drop the oldest
+            // Should never happens as cron should auto-claim on behalf of users, cleaning resolved rounds on the way
+            // Hovever if it does happens, rewards will be redirected to current round (implicit)
+            if staking.resolved_staking_rounds.len() > StakingRound::MAX_RESOLVED_ROUNDS {
+                let oldest_round = staking.resolved_staking_rounds.first().unwrap();
+
+                msg!(
+                    "MAX_RESOLVED_ROUNDS ({}) have been reached, drop oldest round",
+                    StakingRound::MAX_RESOLVED_ROUNDS
+                );
+
+                // Remove round from accounting
+                {
+                    let stake_token_elligible_to_rewards =
+                        math::checked_sub(oldest_round.total_stake, oldest_round.total_claim)?;
+
+                    let unclaimed_rewards = math::checked_decimal_mul(
+                        oldest_round.rate,
+                        -(Perpetuals::RATE_DECIMALS as i32),
+                        stake_token_elligible_to_rewards,
+                        -(staking.staked_token_decimals as i32),
+                        -(staking.reward_token_decimals as i32),
+                    )?;
+
+                    staking.resolved_reward_token_amount =
+                        math::checked_sub(staking.resolved_reward_token_amount, unclaimed_rewards)?;
+
+                    staking.resolved_staked_token_amount = math::checked_sub(
+                        staking.resolved_staked_token_amount,
+                        stake_token_elligible_to_rewards,
+                    )?;
+                }
+
+                // Delete the round from array
+                staking.resolved_staking_rounds.remove(0);
+            } else {
+                msg!("realloc cortex size to accomodate for the newly added round");
+                {
+                    // realloc Cortex after update to its `stake_rounds` if needed
+                    Perpetuals::realloc(
+                        ctx.accounts.caller.to_account_info(),
+                        staking.to_account_info(),
+                        ctx.accounts.system_program.to_account_info(),
+                        staking.size(),
+                        true,
+                    )?;
+                }
+            }
+        }
+    }
+
+    // Now that current round got resolved, setup the new current round
+    {
+        // replace the current_round with the next_round
+        staking.current_staking_round = staking.next_staking_round.clone();
+        staking.current_staking_round.start_time = ctx.accounts.perpetuals.get_time()?;
+    }
+
+    // Generate new next round
+    {
+        staking.next_staking_round = StakingRound {
+            start_time: 0,
+            rate: u64::MIN,
+            total_stake: staking.next_staking_round.total_stake,
+            total_claim: u64::MIN,
+            lm_rate: u64::MIN,
+            lm_total_stake: staking.next_staking_round.lm_total_stake,
+            lm_total_claim: u64::MIN,
+        };
+    }
+
     msg!(
-        "Cortex.resolved_staking_rounds after {:?}",
-        cortex.resolved_staking_rounds
+        "staking.resolved_staking_rounds after {:?} / {}",
+        staking.resolved_staking_rounds,
+        staking.resolved_staking_rounds.len()
     );
     msg!(
-        "Cortex.current_staking_round after {:?}",
-        cortex.current_staking_round
+        "staking.current_staking_round after {:?}",
+        staking.current_staking_round
     );
     msg!(
-        "Cortex.next_staking_round after {:?}",
-        cortex.next_staking_round
+        "staking.next_staking_round after {:?}",
+        staking.next_staking_round
     );
-    // msg!("STATE after {:?}", stake);
+
     Ok(())
 }

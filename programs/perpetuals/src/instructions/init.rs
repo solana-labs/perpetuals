@@ -1,14 +1,11 @@
 //! Init instruction handler
 
 use {
+    super::InitStakingParams,
     crate::{
         adapters::SplGovernanceV3Adapter,
         error::PerpetualsError,
-        state::{
-            cortex::{Cortex, StakingRound},
-            multisig::Multisig,
-            perpetuals::Perpetuals,
-        },
+        state::{cortex::Cortex, multisig::Multisig, perpetuals::Perpetuals, staking::StakingType},
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
@@ -39,10 +36,14 @@ pub struct Init<'info> {
     )]
     pub transfer_authority: AccountInfo<'info>,
 
+    /// CHECK: checked by init_staking ix
+    #[account(mut)]
+    pub lm_staking: UncheckedAccount<'info>,
+
     #[account(
         init,
         payer = upgrade_authority,
-        space = Cortex::LEN + std::mem::size_of::<StakingRound>(),
+        space = Cortex::LEN,
         seeds = [b"cortex"],
         bump
     )]
@@ -71,27 +72,38 @@ pub struct Init<'info> {
     )]
     pub governance_token_mint: Box<Account<'info, Mint>>,
 
-    // staked token vault
     #[account(
         init,
         payer = upgrade_authority,
         token::mint = lm_token_mint,
         token::authority = transfer_authority,
-        seeds = [b"stake_token_account"],
+        seeds = [b"staking_staked_token_vault", lm_staking.key().as_ref()],
         bump
     )]
-    pub stake_token_account: Box<Account<'info, TokenAccount>>,
+    pub lm_staking_staked_token_vault: Box<Account<'info, TokenAccount>>,
 
-    // staking reward token vault
     #[account(
         init,
         payer = upgrade_authority,
-        token::mint = stake_reward_token_mint,
+        token::mint = lm_staking_reward_token_mint,
         token::authority = transfer_authority,
-        seeds = [b"stake_reward_token_account"],
+        seeds = [b"staking_reward_token_vault", lm_staking.key().as_ref()],
         bump
     )]
-    pub stake_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub lm_staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        init,
+        payer = upgrade_authority,
+        token::mint = lm_token_mint,
+        token::authority = transfer_authority,
+        seeds = [b"staking_lm_reward_token_vault", lm_staking.key().as_ref()],
+        bump
+    )]
+    pub lm_staking_lm_reward_token_vault: Box<Account<'info, TokenAccount>>,
+
+    #[account()]
+    pub lm_staking_reward_token_mint: Box<Account<'info, Mint>>,
 
     #[account(
         init,
@@ -118,11 +130,9 @@ pub struct Init<'info> {
 
     pub governance_program: Program<'info, SplGovernanceV3Adapter>,
 
-    #[account()]
-    pub stake_reward_token_mint: Box<Account<'info, Mint>>,
-
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
+    rent: Sysvar<'info, Rent>,
     // remaining accounts: 1 to Multisig::MAX_SIGNERS admin signers (read-only, unsigned)
 }
 
@@ -137,9 +147,16 @@ pub struct InitParams {
     pub allow_pnl_withdrawal: bool,
     pub allow_collateral_withdrawal: bool,
     pub allow_size_change: bool,
+    pub core_contributor_bucket_allocation: u64,
+    pub dao_treasury_bucket_allocation: u64,
+    pub pol_bucket_allocation: u64,
+    pub ecosystem_bucket_allocation: u64,
 }
 
-pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
+pub fn init<'info>(
+    ctx: Context<'_, '_, '_, 'info, Init<'info>>,
+    params: &InitParams,
+) -> Result<()> {
     // initialize multisig, this will fail if account is already initialized
     {
         let mut multisig = ctx.accounts.multisig.load_init()?;
@@ -154,7 +171,7 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
     }
 
     // record perpetuals
-    let perpetuals = {
+    {
         let perpetuals = ctx.accounts.perpetuals.as_mut();
         perpetuals.permissions.allow_swap = params.allow_swap;
         perpetuals.permissions.allow_add_liquidity = params.allow_add_liquidity;
@@ -177,40 +194,106 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
         if !perpetuals.validate() {
             return err!(PerpetualsError::InvalidPerpetualsConfig);
         }
-        perpetuals
     };
 
     // record cortex
     {
         let cortex = ctx.accounts.cortex.as_mut();
-        cortex.lm_token_bump = *ctx
-            .bumps
-            .get("lm_token_mint")
-            .ok_or(ProgramError::InvalidSeeds)?;
-        cortex.governance_token_bump = *ctx
-            .bumps
-            .get("governance_token_mint")
-            .ok_or(ProgramError::InvalidSeeds)?;
-        cortex.bump = *ctx.bumps.get("cortex").ok_or(ProgramError::InvalidSeeds)?;
-        cortex.stake_token_account_bump = *ctx
-            .bumps
-            .get("stake_token_account")
-            .ok_or(ProgramError::InvalidSeeds)?;
-        cortex.stake_reward_token_account_bump = *ctx
-            .bumps
-            .get("stake_reward_token_account")
-            .ok_or(ProgramError::InvalidSeeds)?;
-        cortex.inception_epoch = cortex.get_epoch()?;
-        cortex.governance_program = ctx.accounts.governance_program.key();
-        cortex.governance_realm = ctx.accounts.governance_realm.key();
-        cortex.stake_reward_token_mint = ctx.accounts.stake_reward_token_mint.key();
-        cortex.resolved_reward_token_amount = u64::MIN;
-        cortex.resolved_stake_token_amount = u64::MIN;
-        cortex.stake_token_decimals = ctx.accounts.lm_token_mint.decimals;
-        cortex.stake_reward_token_decimals = ctx.accounts.stake_reward_token_mint.decimals;
-        // initialize the first staking rounds
-        cortex.current_staking_round = StakingRound::new(perpetuals.get_time()?);
-        cortex.next_staking_round = StakingRound::new(0);
+
+        // Bumps
+        {
+            cortex.lm_token_bump = *ctx
+                .bumps
+                .get("lm_token_mint")
+                .ok_or(ProgramError::InvalidSeeds)?;
+            cortex.governance_token_bump = *ctx
+                .bumps
+                .get("governance_token_mint")
+                .ok_or(ProgramError::InvalidSeeds)?;
+            cortex.bump = *ctx.bumps.get("cortex").ok_or(ProgramError::InvalidSeeds)?;
+        }
+
+        // Time
+        {
+            cortex.inception_epoch = cortex.get_epoch()?;
+        }
+
+        // Governance
+        {
+            cortex.governance_program = ctx.accounts.governance_program.key();
+            cortex.governance_realm = ctx.accounts.governance_realm.key();
+        }
+
+        // Vesting
+        {
+            cortex.vests = Vec::new();
+        }
+
+        // Lm tokens minting rules
+        {
+            cortex.core_contributor_bucket_allocation = params.core_contributor_bucket_allocation;
+            cortex.core_contributor_bucket_minted_amount = u64::MIN;
+
+            cortex.dao_treasury_bucket_allocation = params.dao_treasury_bucket_allocation;
+            cortex.dao_treasury_bucket_minted_amount = u64::MIN;
+
+            cortex.pol_bucket_allocation = params.pol_bucket_allocation;
+            cortex.pol_bucket_minted_amount = u64::MIN;
+
+            cortex.ecosystem_bucket_allocation = params.ecosystem_bucket_allocation;
+            cortex.ecosystem_bucket_minted_amount = u64::MIN;
+        }
+
+        // Force the save of the multisig account
+        ctx.accounts.multisig.exit(&crate::ID)?;
+        ctx.accounts.cortex.exit(&crate::ID)?;
+        ctx.accounts.perpetuals.exit(&crate::ID)?;
+        ctx.accounts.transfer_authority.exit(&crate::ID)?;
+        ctx.accounts.lm_token_mint.exit(&crate::ID)?;
+
+        // Initialize LM Staking
+        {
+            for i in 0..params.min_signatures {
+                let cpi_accounts = crate::cpi::accounts::InitStaking {
+                    admin: ctx.remaining_accounts[i as usize].clone(),
+                    payer: ctx.accounts.upgrade_authority.to_account_info(),
+                    multisig: ctx.accounts.multisig.to_account_info(),
+                    transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
+                    staking: ctx.accounts.lm_staking.to_account_info(),
+                    lm_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+                    cortex: ctx.accounts.cortex.to_account_info().clone(),
+                    perpetuals: ctx.accounts.perpetuals.to_account_info(),
+                    staking_staked_token_vault: ctx
+                        .accounts
+                        .lm_staking_staked_token_vault
+                        .to_account_info(),
+                    staking_reward_token_vault: ctx
+                        .accounts
+                        .lm_staking_reward_token_vault
+                        .to_account_info(),
+                    staking_lm_reward_token_vault: ctx
+                        .accounts
+                        .lm_staking_lm_reward_token_vault
+                        .to_account_info(),
+                    staking_reward_token_mint: ctx
+                        .accounts
+                        .lm_staking_reward_token_mint
+                        .to_account_info(),
+                    staking_staked_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+                    system_program: ctx.accounts.system_program.to_account_info(),
+                    token_program: ctx.accounts.token_program.to_account_info(),
+                    rent: ctx.accounts.rent.to_account_info(),
+                };
+
+                let cpi_program = ctx.accounts.perpetuals_program.to_account_info();
+                crate::cpi::init_staking(
+                    CpiContext::new(cpi_program, cpi_accounts),
+                    InitStakingParams {
+                        staking_type: StakingType::LM,
+                    },
+                )?;
+            }
+        }
     }
 
     Ok(())

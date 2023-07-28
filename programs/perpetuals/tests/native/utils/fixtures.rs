@@ -79,7 +79,13 @@ pub fn oracle_params_regular(oracle_account: Pubkey) -> OracleParams {
     }
 }
 
-pub fn init_params_permissions_full(min_signatures: u8) -> InitParams {
+pub fn init_params_permissions_full(
+    min_signatures: u8,
+    core_contributor_bucket_allocation: u64,
+    dao_treasury_bucket_allocation: u64,
+    pol_bucket_allocation: u64,
+    ecosystem_bucket_allocation: u64,
+) -> InitParams {
     InitParams {
         min_signatures,
         allow_swap: true,
@@ -90,5 +96,9 @@ pub fn init_params_permissions_full(min_signatures: u8) -> InitParams {
         allow_pnl_withdrawal: true,
         allow_collateral_withdrawal: true,
         allow_size_change: true,
+        core_contributor_bucket_allocation,
+        dao_treasury_bucket_allocation,
+        pol_bucket_allocation,
+        ecosystem_bucket_allocation,
     }
 }

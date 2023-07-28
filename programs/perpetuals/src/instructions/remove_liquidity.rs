@@ -3,7 +3,7 @@
 use {
     crate::{
         error::PerpetualsError,
-        instructions::SwapParams,
+        instructions::{BucketName, MintLmTokensFromBucketParams},
         math,
         state::{
             cortex::Cortex,
@@ -11,11 +11,11 @@ use {
             oracle::OraclePrice,
             perpetuals::Perpetuals,
             pool::{AumCalcMode, Pool},
+            staking::Staking,
         },
     },
     anchor_lang::prelude::*,
     anchor_spl::token::{Mint, Token, TokenAccount},
-    num_traits::Zero,
     solana_program::program_error::ProgramError,
 };
 
@@ -54,6 +54,23 @@ pub struct RemoveLiquidity<'info> {
     pub transfer_authority: AccountInfo<'info>,
 
     #[account(
+        mut,
+        seeds = [b"staking", lm_staking.staked_token_mint.as_ref()],
+        bump = lm_staking.bump,
+        constraint = lm_staking.reward_token_mint.key() == staking_reward_token_mint.key()
+    )]
+    pub lm_staking: Box<Account<'info, Staking>>,
+
+    #[account(
+        mut,
+        seeds = [b"staking", lp_token_mint.key().as_ref()],
+        bump = lp_staking.bump,
+        constraint = lp_staking.reward_token_mint.key() == staking_reward_token_mint.key()
+    )]
+    pub lp_staking: Box<Account<'info, Staking>>,
+
+    #[account(
+        mut,
         seeds = [b"cortex"],
         bump = cortex.bump
     )]
@@ -77,26 +94,26 @@ pub struct RemoveLiquidity<'info> {
         mut,
         seeds = [b"custody",
                  pool.key().as_ref(),
-                 stake_reward_token_custody.mint.as_ref()],
-        bump = stake_reward_token_custody.bump,
-        constraint = stake_reward_token_custody.mint == stake_reward_token_mint.key(),
+                 staking_reward_token_custody.mint.as_ref()],
+        bump = staking_reward_token_custody.bump,
+        constraint = staking_reward_token_custody.mint == staking_reward_token_mint.key(),
     )]
-    pub stake_reward_token_custody: Box<Account<'info, Custody>>,
+    pub staking_reward_token_custody: Box<Account<'info, Custody>>,
 
     /// CHECK: oracle account for the stake_reward token
     #[account(
-        constraint = stake_reward_token_custody_oracle_account.key() == stake_reward_token_custody.oracle.oracle_account
+        constraint = staking_reward_token_custody_oracle_account.key() == staking_reward_token_custody.oracle.oracle_account
     )]
-    pub stake_reward_token_custody_oracle_account: AccountInfo<'info>,
+    pub staking_reward_token_custody_oracle_account: AccountInfo<'info>,
 
     #[account(
         mut,
         seeds = [b"custody_token_account",
                  pool.key().as_ref(),
-                 stake_reward_token_custody.mint.as_ref()],
-        bump = stake_reward_token_custody.token_account_bump,
+                 staking_reward_token_custody.mint.as_ref()],
+        bump = staking_reward_token_custody.token_account_bump,
     )]
-    pub stake_reward_token_custody_token_account: Box<Account<'info, TokenAccount>>,
+    pub staking_reward_token_custody_token_account: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
@@ -122,14 +139,21 @@ pub struct RemoveLiquidity<'info> {
     )]
     pub custody_token_account: Box<Account<'info, TokenAccount>>,
 
-    // staking reward token vault (receiving fees swapped to `stake_reward_token_mint`)
     #[account(
         mut,
-        token::mint = cortex.stake_reward_token_mint,
-        seeds = [b"stake_reward_token_account"],
-        bump = cortex.stake_reward_token_account_bump
+        token::mint = lm_staking.reward_token_mint,
+        seeds = [b"staking_reward_token_vault", lm_staking.key().as_ref()],
+        bump = lm_staking.reward_token_vault_bump
     )]
-    pub stake_reward_token_account: Box<Account<'info, TokenAccount>>,
+    pub lm_staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        token::mint = lp_staking.reward_token_mint,
+        seeds = [b"staking_reward_token_vault", lp_staking.key().as_ref()],
+        bump = lp_staking.reward_token_vault_bump
+    )]
+    pub lp_staking_reward_token_vault: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
@@ -147,7 +171,7 @@ pub struct RemoveLiquidity<'info> {
     pub lm_token_mint: Box<Account<'info, Mint>>,
 
     #[account()]
-    pub stake_reward_token_mint: Box<Account<'info, Mint>>,
+    pub staking_reward_token_mint: Box<Account<'info, Mint>>,
 
     token_program: Program<'info, Token>,
     perpetuals_program: Program<'info, Perpetuals>,
@@ -189,6 +213,10 @@ pub fn remove_liquidity(
     msg!("Compute assets under management");
     let curtime = perpetuals.get_time()?;
 
+    // Refresh pool.aum_usm to adapt to token price change
+    pool.aum_usd =
+        pool.get_assets_under_management_usd(AumCalcMode::EMA, ctx.remaining_accounts, curtime)?;
+
     let token_price = OraclePrice::new_from_oracle(
         &ctx.accounts.custody_oracle_account.to_account_info(),
         &custody.oracle,
@@ -227,6 +255,8 @@ pub fn remove_liquidity(
 
     let transfer_amount = math::checked_sub(remove_amount, fee_amount)?;
     msg!("Amount out: {}", transfer_amount);
+
+    msg!("LP amount in: {}", params.lp_amount_in);
 
     require!(
         transfer_amount >= params.min_amount_out,
@@ -272,17 +302,51 @@ pub fn remove_liquidity(
         // compute amount of lm token to mint
         let amount = ctx.accounts.cortex.get_lm_rewards_amount(fee_amount)?;
 
-        // mint lm tokens
-        perpetuals.mint_tokens(
-            ctx.accounts.lm_token_mint.to_account_info(),
-            ctx.accounts.lm_token_account.to_account_info(),
-            ctx.accounts.transfer_authority.to_account_info(),
-            ctx.accounts.token_program.to_account_info(),
-            amount,
-        )?;
+        if amount > 0 {
+            let cpi_accounts = crate::cpi::accounts::MintLmTokensFromBucket {
+                admin: ctx.accounts.transfer_authority.to_account_info(),
+                receiving_account: ctx.accounts.lm_token_account.to_account_info(),
+                transfer_authority: ctx.accounts.transfer_authority.to_account_info(),
+                cortex: ctx.accounts.cortex.to_account_info(),
+                perpetuals: perpetuals.to_account_info(),
+                lm_token_mint: ctx.accounts.lm_token_mint.to_account_info(),
+                token_program: ctx.accounts.token_program.to_account_info(),
+            };
+
+            let cpi_program = ctx.accounts.perpetuals_program.to_account_info();
+            crate::cpi::mint_lm_tokens_from_bucket(
+                CpiContext::new_with_signer(
+                    cpi_program,
+                    cpi_accounts,
+                    &[&[b"transfer_authority", &[perpetuals.transfer_authority_bump]]],
+                ),
+                MintLmTokensFromBucketParams {
+                    bucket_name: BucketName::Ecosystem,
+                    amount,
+                    reason: String::from("Liquidity mining rewards"),
+                },
+            )?;
+
+            {
+                ctx.accounts.lm_token_account.reload()?;
+                ctx.accounts.cortex.reload()?;
+                perpetuals.reload()?;
+                ctx.accounts.lm_token_mint.reload()?;
+            }
+        }
+
         msg!("Amount LM rewards out: {}", amount);
         amount
     };
+
+    //
+    // Calculate fee distribution between (Staked LM, Locked Staked LP, Organic LP)
+    //
+    let fee_distribution = ctx.accounts.cortex.calculate_fee_distribution(
+        math::checked_sub(fee_amount, protocol_fee)?,
+        ctx.accounts.lp_token_mint.as_ref(),
+        ctx.accounts.lp_staking.as_ref(),
+    )?;
 
     // update custody stats
     msg!("Update custody stats");
@@ -302,7 +366,22 @@ pub fn remove_liquidity(
         .wrapping_add(remove_amount_usd);
 
     custody.assets.protocol_fees = math::checked_add(custody.assets.protocol_fees, protocol_fee)?;
+
     custody.assets.owned = math::checked_sub(custody.assets.owned, withdrawal_amount)?;
+
+    if custody.mint == ctx.accounts.staking_reward_token_custody.mint {
+        custody.assets.owned = math::checked_sub(
+            custody.assets.owned,
+            math::checked_add(
+                fee_distribution.lm_stakers_fee,
+                fee_distribution.locked_lp_stakers_fee,
+            )?,
+        )?;
+    }
+
+    custody.assets.owned =
+        math::checked_add(custody.assets.owned, fee_distribution.lp_organic_fee)?;
+
     custody.update_borrow_rate(curtime)?;
 
     // update pool stats
@@ -311,61 +390,47 @@ pub fn remove_liquidity(
     pool.aum_usd =
         pool.get_assets_under_management_usd(AumCalcMode::EMA, ctx.remaining_accounts, curtime)?;
 
-    // if there is no collected fees, skip transfer to staking vault
-    if !protocol_fee.is_zero() {
-        // It is possible that the custody targeted by the function and the stake_reward one are the same, in that
-        // case we need to only use one else there are some complication when saving state at the end.
-        //
-        // if the collected fees are in the right denomination, skip swap
-        if custody.mint == ctx.accounts.stake_reward_token_custody.mint {
-            msg!("Transfer collected fees to stake vault (no swap)");
-            perpetuals.transfer_tokens(
-                ctx.accounts.custody_token_account.to_account_info(),
-                ctx.accounts.stake_reward_token_account.to_account_info(),
-                ctx.accounts.transfer_authority.to_account_info(),
-                ctx.accounts.token_program.to_account_info(),
-                fee_amount,
-            )?;
-        } else {
-            // swap the collected fee_amount to stable and send to staking rewards
-            msg!("Swap collected fees to stake reward mint internally");
-            perpetuals.internal_swap(
-                ctx.accounts.transfer_authority.to_account_info(),
-                ctx.accounts.custody_token_account.to_account_info(),
-                ctx.accounts.stake_reward_token_account.to_account_info(),
-                ctx.accounts.lm_token_account.to_account_info(),
-                ctx.accounts.cortex.to_account_info(),
-                perpetuals.to_account_info(),
-                pool.to_account_info(),
-                custody.to_account_info(),
-                ctx.accounts.custody_oracle_account.to_account_info(),
-                ctx.accounts.custody_token_account.to_account_info(),
-                ctx.accounts.stake_reward_token_custody.to_account_info(),
-                ctx.accounts
-                    .stake_reward_token_custody_oracle_account
-                    .to_account_info(),
-                ctx.accounts
-                    .stake_reward_token_custody_token_account
-                    .to_account_info(),
-                ctx.accounts.stake_reward_token_custody.to_account_info(),
-                ctx.accounts
-                    .stake_reward_token_custody_oracle_account
-                    .to_account_info(),
-                ctx.accounts
-                    .stake_reward_token_custody_token_account
-                    .to_account_info(),
-                ctx.accounts.stake_reward_token_account.to_account_info(),
-                ctx.accounts.stake_reward_token_mint.to_account_info(),
-                ctx.accounts.lm_token_mint.to_account_info(),
-                ctx.accounts.token_program.to_account_info(),
-                ctx.accounts.perpetuals_program.to_account_info(),
-                SwapParams {
-                    amount_in: protocol_fee,
-                    min_amount_out: protocol_fee,
-                },
-            )?;
-        }
+    //
+    // Distribute fees
+    //
+
+    let swap_required = custody.mint != ctx.accounts.staking_reward_token_custody.mint;
+
+    // Force save
+    {
+        perpetuals.exit(&crate::ID)?;
+        pool.exit(&crate::ID)?;
+        custody.exit(&crate::ID)?;
     }
+
+    ctx.accounts.perpetuals.distribute_fees(
+        swap_required,
+        fee_distribution,
+        ctx.accounts.transfer_authority.to_account_info(),
+        ctx.accounts.custody_token_account.as_mut(),
+        ctx.accounts.lm_token_account.as_mut(),
+        ctx.accounts.cortex.as_mut(),
+        ctx.accounts.perpetuals.clone().as_mut(),
+        ctx.accounts.pool.as_mut(),
+        ctx.accounts.custody.as_mut(),
+        ctx.accounts.custody_oracle_account.to_account_info(),
+        ctx.accounts.staking_reward_token_custody.as_mut(),
+        ctx.accounts
+            .staking_reward_token_custody_oracle_account
+            .to_account_info(),
+        ctx.accounts
+            .staking_reward_token_custody_token_account
+            .as_mut(),
+        ctx.accounts.lm_staking_reward_token_vault.as_mut(),
+        ctx.accounts.lp_staking_reward_token_vault.as_mut(),
+        ctx.accounts.staking_reward_token_mint.as_mut(),
+        ctx.accounts.lm_staking.as_mut(),
+        ctx.accounts.lp_staking.as_mut(),
+        ctx.accounts.lm_token_mint.as_mut(),
+        ctx.accounts.lp_token_mint.as_mut(),
+        ctx.accounts.token_program.to_account_info(),
+        ctx.accounts.perpetuals_program.to_account_info(),
+    )?;
 
     Ok(())
 }

@@ -676,6 +676,7 @@ export class TestClient {
             price: new BN(price * 1000),
             expo: -3,
             conf: new BN(0),
+            ema: new BN(price * 1000),
             publishTime: new BN(this.getTime()),
           })
           .accounts({

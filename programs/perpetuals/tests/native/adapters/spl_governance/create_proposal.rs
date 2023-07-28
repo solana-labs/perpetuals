@@ -4,11 +4,12 @@ use {
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
     spl_governance::state::proposal::VoteType,
+    tokio::sync::RwLock,
 };
 
 #[allow(clippy::too_many_arguments)]
 pub async fn create_proposal(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     payer: &Keypair,
     name: String,
     description_link: String,
@@ -72,17 +73,18 @@ pub async fn create_proposal(
         None,
     );
 
+    let mut ctx = program_test_ctx.write().await;
+    let last_blockhash = ctx.last_blockhash;
+    let banks_client = &mut ctx.banks_client;
+
     let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
         &[create_proposal_ix, add_signatory_ix, sign_off_proposal_ix],
         Some(&payer.pubkey()),
         &[payer, governance_authority],
-        program_test_ctx.last_blockhash,
+        last_blockhash,
     );
 
-    program_test_ctx
-        .banks_client
-        .process_transaction(tx)
-        .await?;
+    banks_client.process_transaction(tx).await?;
 
     Ok(proposal_pda)
 }

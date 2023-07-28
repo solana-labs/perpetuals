@@ -19,10 +19,10 @@ use {
 solana_security_txt::security_txt! {
     name: "Perpetuals",
     project_url: "https://github.com/solana-labs/perpetuals",
-    contacts: "email:solana.farms@protonmail.com",
+    contacts: "email:defi@solana.com",
     policy: "",
     preferred_languages: "en",
-    auditors: ""
+    auditors: "Halborn"
 }
 
 declare_id!("Bmr31xzZYYVUdoHmAJL1DAp2anaitW8Tw9YfASS94MKJ");
@@ -32,7 +32,10 @@ pub mod perpetuals {
     use super::*;
 
     // admin instructions
-    pub fn init(ctx: Context<Init>, params: InitParams) -> Result<()> {
+    pub fn init<'info>(
+        ctx: Context<'_, '_, '_, 'info, Init<'info>>,
+        params: InitParams,
+    ) -> Result<()> {
         instructions::init(ctx, &params)
     }
 
@@ -177,6 +180,10 @@ pub mod perpetuals {
         instructions::liquidate(ctx, &params)
     }
 
+    pub fn update_pool_aum(ctx: Context<UpdatePoolAum>) -> Result<u128> {
+        instructions::update_pool_aum(ctx)
+    }
+
     pub fn get_add_liquidity_amount_and_fee(
         ctx: Context<GetAddLiquidityAmountAndFee>,
         params: GetAddLiquidityAmountAndFeeParams,
@@ -244,16 +251,57 @@ pub mod perpetuals {
         instructions::get_assets_under_management(ctx, &params)
     }
 
-    pub fn add_stake(ctx: Context<AddStake>, params: AddStakeParams) -> Result<()> {
-        instructions::add_stake(ctx, &params)
+    pub fn init_user_staking(
+        ctx: Context<InitUserStaking>,
+        params: InitUserStakingParams,
+    ) -> Result<()> {
+        instructions::init_user_staking(ctx, &params)
     }
 
-    pub fn remove_stake(ctx: Context<RemoveStake>, params: RemoveStakeParams) -> Result<()> {
-        instructions::remove_stake(ctx, &params)
+    pub fn init_staking<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitStaking<'info>>,
+        params: InitStakingParams,
+    ) -> Result<u8> {
+        instructions::init_staking(ctx, &params)
     }
 
-    pub fn claim_stake(ctx: Context<ClaimStake>) -> Result<bool> {
-        instructions::claim_stake(ctx)
+    pub fn add_liquid_stake(
+        ctx: Context<AddLiquidStake>,
+        params: AddLiquidStakeParams,
+    ) -> Result<()> {
+        instructions::add_liquid_stake(ctx, &params)
+    }
+
+    pub fn add_locked_stake(
+        ctx: Context<AddLockedStake>,
+        params: AddLockedStakeParams,
+    ) -> Result<()> {
+        instructions::add_locked_stake(ctx, &params)
+    }
+
+    pub fn remove_liquid_stake(
+        ctx: Context<RemoveLiquidStake>,
+        params: RemoveLiquidStakeParams,
+    ) -> Result<()> {
+        instructions::remove_liquid_stake(ctx, &params)
+    }
+
+    pub fn remove_locked_stake(
+        ctx: Context<RemoveLockedStake>,
+        params: RemoveLockedStakeParams,
+    ) -> Result<()> {
+        instructions::remove_locked_stake(ctx, &params)
+    }
+
+    pub fn claim_stakes(ctx: Context<ClaimStakes>) -> Result<()> {
+        instructions::claim_stakes(ctx)
+    }
+
+    pub fn finalize_locked_stake(
+        ctx: Context<FinalizeLockedStake>,
+        params: FinalizeLockedStakeParams,
+    ) -> Result<()> {
+        instructions::finalize_locked_stake(ctx, &params)
     }
 
     pub fn resolve_staking_round(ctx: Context<ResolveStakingRound>) -> Result<()> {
@@ -265,5 +313,12 @@ pub mod perpetuals {
         params: GetLpTokenPriceParams,
     ) -> Result<u64> {
         instructions::get_lp_token_price(ctx, &params)
+    }
+
+    pub fn mint_lm_tokens_from_bucket<'info>(
+        ctx: Context<'_, '_, '_, 'info, MintLmTokensFromBucket<'info>>,
+        params: MintLmTokensFromBucketParams,
+    ) -> Result<u8> {
+        instructions::mint_lm_tokens_from_bucket(ctx, &params)
     }
 }

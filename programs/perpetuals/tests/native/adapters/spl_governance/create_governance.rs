@@ -7,11 +7,12 @@ use {
         enums::{VoteThreshold, VoteTipping},
         governance::GovernanceConfig,
     },
+    tokio::sync::RwLock,
 };
 
 #[allow(clippy::too_many_arguments)]
 pub async fn create_governance(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     governing_token_owner: &Pubkey,
     create_authority: &Keypair,
     payer: &Keypair,
@@ -63,17 +64,18 @@ pub async fn create_governance(
     let governance_pda = ix.accounts[1].pubkey;
     let governed_account_address_pda = ix.accounts[2].pubkey;
 
+    let mut ctx = program_test_ctx.write().await;
+    let last_blockhash = ctx.last_blockhash;
+    let banks_client = &mut ctx.banks_client;
+
     let tx = solana_sdk::transaction::Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
         &[payer, create_authority],
-        program_test_ctx.last_blockhash,
+        last_blockhash,
     );
 
-    program_test_ctx
-        .banks_client
-        .process_transaction(tx)
-        .await?;
+    banks_client.process_transaction(tx).await?;
 
     Ok((governance_pda, governed_account_address_pda))
 }

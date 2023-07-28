@@ -1,7 +1,10 @@
 use {
-    crate::{instructions, utils},
+    crate::{test_instructions, utils},
     maplit::hashmap,
-    perpetuals::instructions::{AddLiquidityParams, RemoveLiquidityParams},
+    perpetuals::{
+        instructions::{AddLiquidityParams, RemoveLiquidityParams},
+        state::cortex::Cortex,
+    },
     solana_sdk::signer::Signer,
 };
 
@@ -28,6 +31,7 @@ pub async fn insuffisient_fund() {
             },
         ],
         vec!["admin_a", "admin_b", "admin_c"],
+        "usdc",
         "usdc",
         6,
         "ADRENA",
@@ -70,24 +74,25 @@ pub async fn insuffisient_fund() {
                 payer_user_name: "alice",
             },
         ],
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
+        utils::scale(1_000_000, Cortex::LM_DECIMALS),
     )
     .await;
 
     let alice = test_setup.get_user_keypair_by_name("alice");
 
-    let cortex_stake_reward_mint = test_setup.get_cortex_stake_reward_mint();
-
     let usdc_mint = &test_setup.get_mint_by_name("usdc");
     let eth_mint = &test_setup.get_mint_by_name("eth");
 
     // Trying to add more USDC than owned should fail
-    assert!(instructions::test_add_liquidity(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+    assert!(test_instructions::add_liquidity(
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &usdc_mint,
-        &cortex_stake_reward_mint,
+        usdc_mint,
         AddLiquidityParams {
             amount_in: utils::scale(1_000_000, USDC_DECIMALS),
             min_lp_amount_out: 1
@@ -98,13 +103,12 @@ pub async fn insuffisient_fund() {
 
     // Alice: add 15k USDC and 10 ETH liquidity
     {
-        instructions::test_add_liquidity(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+        test_instructions::add_liquidity(
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &usdc_mint,
-            &cortex_stake_reward_mint,
+            usdc_mint,
             AddLiquidityParams {
                 amount_in: utils::scale(15_000, USDC_DECIMALS),
                 min_lp_amount_out: 1,
@@ -113,13 +117,12 @@ pub async fn insuffisient_fund() {
         .await
         .unwrap();
 
-        instructions::test_add_liquidity(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+        test_instructions::add_liquidity(
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &eth_mint,
-            &cortex_stake_reward_mint,
+            eth_mint,
             AddLiquidityParams {
                 amount_in: utils::scale(10, ETH_DECIMALS),
                 min_lp_amount_out: 1,
@@ -132,20 +135,17 @@ pub async fn insuffisient_fund() {
     let alice_lp_token_mint_pda =
         utils::find_associated_token_account(&alice.pubkey(), &test_setup.lp_token_mint_pda).0;
 
-    let alice_lp_token_account_balance = utils::get_token_account_balance(
-        &mut test_setup.program_test_ctx.borrow_mut(),
-        alice_lp_token_mint_pda,
-    )
-    .await;
+    let alice_lp_token_account_balance =
+        utils::get_token_account_balance(&test_setup.program_test_ctx, alice_lp_token_mint_pda)
+            .await;
 
     // Trying to remove more LP token than owned should fail
-    assert!(instructions::test_remove_liquidity(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+    assert!(test_instructions::remove_liquidity(
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &usdc_mint,
-        &cortex_stake_reward_mint,
+        usdc_mint,
         RemoveLiquidityParams {
             lp_amount_in: alice_lp_token_account_balance + 1,
             min_amount_out: 1
@@ -155,13 +155,12 @@ pub async fn insuffisient_fund() {
     .is_err());
 
     // Trying to remove more asset than owned by the pool should fail
-    assert!(instructions::test_remove_liquidity(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+    assert!(test_instructions::remove_liquidity(
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &usdc_mint,
-        &cortex_stake_reward_mint,
+        usdc_mint,
         RemoveLiquidityParams {
             lp_amount_in: alice_lp_token_account_balance * 75 / 100,
             min_amount_out: 1

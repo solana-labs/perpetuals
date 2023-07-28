@@ -8,7 +8,7 @@ use {
 };
 
 #[repr(packed)]
-#[account(zero_copy)]
+#[account(zero_copy(unsafe))]
 #[derive(Default)]
 pub struct Multisig {
     pub num_signers: u8,
@@ -36,6 +36,8 @@ pub enum AdminInstruction {
     SetCustomOraclePrice,
     SetTestTime,
     UpgradeCustody,
+    MintLmTokensFromBucket,
+    InitStaking,
 }
 
 impl Multisig {
