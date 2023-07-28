@@ -1,14 +1,15 @@
-//@ts-nocheck
 import { PublicKey } from "@solana/web3.js";
 import { PerpetualsClient } from "./client";
 import { Command } from "commander";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
+import { PerpetualsAccount } from "./types";
 
-let client;
+let client: PerpetualsClient;
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const sleep = (ms: number): Promise<void> =>
+  new Promise((r) => setTimeout(r, ms));
 
-function initClient(clusterUrl: string, adminKeyPath: string) {
+function initClient(clusterUrl: string, adminKeyPath: string): void {
   process.env["ANCHOR_WALLET"] = adminKeyPath;
   client = new PerpetualsClient(clusterUrl, adminKeyPath);
   client.log("Client Initialized");
@@ -18,36 +19,36 @@ async function processLiquidations(
   poolName: string,
   tokenMint: PublicKey,
   rewardReceivingAccount: PublicKey
-) {
+): Promise<[number, number]> {
   // read all positions
-  let positions = await client.getPoolTokenPositions(poolName, tokenMint);
+  const positions = await client.getPoolTokenPositions(poolName, tokenMint);
 
   let undercollateralized = 0;
   let liquidated = 0;
   for (const position of positions) {
-    let position_side =
+    const positionSide =
       JSON.stringify(position.side) === JSON.stringify({ long: {} })
         ? "long"
         : "short";
 
-    let collateralMint = (
-      await client.program.account.custody.fetch(position.custodyAccount)
+    const collateralMint = (
+      await client.program.account.custody.fetch(position.custody)
     ).mint;
 
     // check position state
-    let state = await client.getLiquidationState(
+    const state = await client.getLiquidationState(
       position.owner,
       poolName,
       tokenMint,
       collateralMint,
-      position_side
+      positionSide
     );
 
     if (state === 1) {
       // liquidate over-leveraged positions
       undercollateralized += 1;
 
-      let userTokenAccount = (
+      const userTokenAccount = (
         await getOrCreateAssociatedTokenAccount(
           client.provider.connection,
           client.admin,
@@ -62,7 +63,7 @@ async function processLiquidations(
           poolName,
           tokenMint,
           collateralMint,
-          position_side,
+          positionSide,
           userTokenAccount,
           rewardReceivingAccount
         );
@@ -77,11 +78,11 @@ async function processLiquidations(
   return [undercollateralized, liquidated];
 }
 
-async function run(poolName: string, tokenMint: PublicKey) {
-  let errorDelay = 10000;
-  let liquidationDelay = 5000;
+async function run(poolName: string, tokenMint: PublicKey): Promise<void> {
+  const errorDelay = 10_000;
+  const liquidationDelay = 5_000;
 
-  let rewardReceivingAccount = (
+  const rewardReceivingAccount = (
     await getOrCreateAssociatedTokenAccount(
       client.provider.connection,
       client.admin,
@@ -92,26 +93,30 @@ async function run(poolName: string, tokenMint: PublicKey) {
 
   // main loop
   while (true) {
-    let perpetuals;
+    let perpetuals: PerpetualsAccount;
+
     try {
       perpetuals = await client.getPerpetuals();
     } catch (err) {
-      console.error(err);
+      client.log(err);
+      await sleep(errorDelay);
+      continue;
     }
 
     if (!perpetuals.permissions.allowClosePosition) {
-      client.error(
+      client.log(
         `Liquidations are not allowed at this time. Retrying in ${errorDelay} sec...`
       );
       await sleep(errorDelay);
       continue;
     }
 
-    let [undercollateralized, liquidated] = await processLiquidations(
+    const [undercollateralized, liquidated] = await processLiquidations(
       poolName,
       tokenMint,
       rewardReceivingAccount
     );
+
     client.log(`Liquidated: ${liquidated} / ${undercollateralized}`);
 
     await sleep(liquidationDelay);
