@@ -42,6 +42,7 @@ pub struct Position {
     pub side: Side,
     pub price: u64,
     pub size_usd: u64,
+    pub borrow_size_usd: u64,
     pub collateral_usd: u64,
     pub unrealized_profit_usd: u64,
     pub unrealized_loss_usd: u64,

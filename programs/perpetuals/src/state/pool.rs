@@ -1116,6 +1116,7 @@ mod test {
             price: scale(25_000, Perpetuals::PRICE_DECIMALS),
             // x4 leverage
             size_usd: scale(100_000, Perpetuals::USD_DECIMALS),
+            borrow_size_usd: scale(100_000, Perpetuals::USD_DECIMALS),
             collateral_usd: scale(25_000, Perpetuals::USD_DECIMALS),
             locked_amount: scale(4, 9),
             collateral_amount: scale(1, 9),
