@@ -76,15 +76,17 @@ async function addCustody(
   tokenMint: PublicKey,
   tokenOracle: PublicKey,
   isStable: boolean,
-  isVirtual: boolean
+  isVirtual: boolean,
+  oracleType: keyof OracleParams["oracleType"] = "custom"
 ): Promise<void> {
   // to be loaded from config file
   const oracleConfig: OracleParams = {
     maxPriceError: new BN(10_000),
     maxPriceAgeSec: 60,
-    oracleType: { custom: {} },
+    oracleType: { [oracleType]: {} },
     oracleAccount: tokenOracle,
   };
+
   const pricingConfig: PricingParams = {
     useEma: true,
     useUnrealizedPnlInAum: true,
@@ -505,13 +507,15 @@ async function getAum(poolName: string): Promise<void> {
     .argument("<pubkey>", "Token oracle account")
     .option("-s, --stablecoin", "Stablecoin custody")
     .option("-v, --virtual", "Virtual asset custody")
+    .option("-t, --oracletype <string>", "Oracle type (pyth, none, custom)")
     .action(async (poolName, tokenMint, tokenOracle, options) => {
       await addCustody(
         poolName,
         new PublicKey(tokenMint),
         new PublicKey(tokenOracle),
         options.stablecoin,
-        options.virtual
+        options.virtual,
+        options.oracletype
       );
     });
 
