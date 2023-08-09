@@ -9,3 +9,4 @@ test-ledger
 **/yarn.lock
 
 **/.next
+adrena-keypair
