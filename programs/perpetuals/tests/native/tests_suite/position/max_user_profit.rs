@@ -169,6 +169,7 @@ pub async fn max_user_profit() {
 
         // Gains are limited to 0.25 * 5 = 1.25 ETH
         // True gains should be 2.5 ETH less fees (price did x2 on x5 leverage)
+        // if this fails, make sure you run a non-test build, i.e. re-run "anchor build"
         assert_eq!(martin_eth_balance, utils::scale_f64(2.7, ETH_DECIMALS));
     }
 }
