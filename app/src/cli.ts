@@ -2,20 +2,30 @@
 
 import { BN } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
-import { PerpetualsClient, PositionSide } from "./client";
+import { PerpetualsClient } from "./client";
 import { Command } from "commander";
+import {
+  BorrowRateParams,
+  Fees,
+  InitParams,
+  OracleParams,
+  Permissions,
+  PositionSide,
+  PricingParams,
+  SetCustomOraclePriceParams,
+} from "./types";
 
-let client;
+let client: PerpetualsClient;
 
-function initClient(clusterUrl: string, adminKeyPath: string) {
-  process.env["ANCHOR_WALLET"] = adminKeyPath;
+function initClient(clusterUrl: string, adminKeyPath: string): void {
+  process.env.ANCHOR_WALLET = adminKeyPath;
   client = new PerpetualsClient(clusterUrl, adminKeyPath);
   client.log("Client Initialized");
 }
 
-async function init(adminSigners: PublicKey[], minSignatures: number) {
+function init(adminSigners: PublicKey[], minSignatures: number): Promise<void> {
   // to be loaded from config file
-  let perpetualsConfig = {
+  const perpetualsConfig: InitParams = {
     minSignatures: minSignatures,
     allowSwap: true,
     allowAddLiquidity: true,
@@ -26,35 +36,39 @@ async function init(adminSigners: PublicKey[], minSignatures: number) {
     allowCollateralWithdrawal: true,
     allowSizeChange: true,
   };
-  client.init(adminSigners, perpetualsConfig);
+
+  return client.init(adminSigners, perpetualsConfig);
 }
 
-async function setAuthority(adminSigners: PublicKey[], minSignatures: number) {
-  client.setAdminSigners(adminSigners, minSignatures);
+function setAuthority(
+  adminSigners: PublicKey[],
+  minSignatures: number
+): Promise<void> {
+  return client.setAdminSigners(adminSigners, minSignatures);
 }
 
-async function getMultisig() {
+async function getMultisig(): Promise<void> {
   client.prettyPrint(await client.getMultisig());
 }
 
-async function getPerpetuals() {
+async function getPerpetuals(): Promise<void> {
   client.prettyPrint(await client.getPerpetuals());
 }
 
-async function addPool(poolName: string) {
-  client.addPool(poolName);
+function addPool(poolName: string): Promise<void> {
+  return client.addPool(poolName);
 }
 
-async function getPool(poolName: string) {
+async function getPool(poolName: string): Promise<void> {
   client.prettyPrint(await client.getPool(poolName));
 }
 
-async function getPools() {
+async function getPools(): Promise<void> {
   client.prettyPrint(await client.getPools());
 }
 
-async function removePool(poolName: string) {
-  client.removePool(poolName);
+function removePool(poolName: string): Promise<void> {
+  return client.removePool(poolName);
 }
 
 async function addCustody(
@@ -62,30 +76,32 @@ async function addCustody(
   tokenMint: PublicKey,
   tokenOracle: PublicKey,
   isStable: boolean,
-  isVirtual: boolean
-) {
+  isVirtual: boolean,
+  oracleType: keyof OracleParams["oracleType"] = "custom"
+): Promise<void> {
   // to be loaded from config file
-  let oracleConfig = {
-    maxPriceError: new BN(10000),
+  const oracleConfig: OracleParams = {
+    maxPriceError: new BN(10_000),
     maxPriceAgeSec: 60,
-    oracleType: { custom: {} },
+    oracleType: { [oracleType]: {} },
     oracleAccount: tokenOracle,
   };
-  let pricingConfig = {
+
+  const pricingConfig: PricingParams = {
     useEma: true,
     useUnrealizedPnlInAum: true,
     tradeSpreadLong: new BN(100),
     tradeSpreadShort: new BN(100),
     swapSpread: new BN(200),
-    minInitialLeverage: new BN(10000),
-    maxInitialLeverage: new BN(1000000),
-    maxLeverage: new BN(1000000),
-    maxPayoffMult: new BN(10000),
-    maxUtilization: new BN(10000),
-    maxPositionLockedUsd: new BN(1000000000),
-    maxTotalLockedUsd: new BN(1000000000),
+    minInitialLeverage: new BN(10_000),
+    maxInitialLeverage: new BN(1_000_000),
+    maxLeverage: new BN(1_000_000),
+    maxPayoffMult: new BN(10_000),
+    maxUtilization: new BN(10_000),
+    maxPositionLockedUsd: new BN(1_000_000_000),
+    maxTotalLockedUsd: new BN(1_000_000_000),
   };
-  let permissions = {
+  const permissions: Permissions = {
     allowSwap: true,
     allowAddLiquidity: true,
     allowRemoveLiquidity: true,
@@ -95,10 +111,10 @@ async function addCustody(
     allowCollateralWithdrawal: true,
     allowSizeChange: true,
   };
-  let fees = {
+  const fees: Fees = {
     mode: { linear: {} },
-    ratioMult: new BN(20000),
-    utilizationMult: new BN(20000),
+    ratioMult: new BN(20_000),
+    utilizationMult: new BN(20_000),
     swapIn: new BN(100),
     swapOut: new BN(100),
     stableSwapIn: new BN(100),
@@ -110,22 +126,23 @@ async function addCustody(
     liquidation: new BN(100),
     protocolShare: new BN(10),
   };
-  let borrowRate = {
+  const borrowRate: BorrowRateParams = {
     baseRate: new BN(0),
-    slope1: new BN(80000),
-    slope2: new BN(120000),
-    optimalUtilization: new BN(800000000),
+    slope1: new BN(80_000),
+    slope2: new BN(120_000),
+    optimalUtilization: new BN(800_000_000),
   };
 
-  let pool = await client.getPool(poolName);
+  const pool = await client.getPool(poolName);
   pool.ratios.push({
-    target: new BN(5000),
+    target: new BN(5_000),
     min: new BN(10),
-    max: new BN(10000),
+    max: new BN(10_000),
   });
-  let ratios = client.adjustTokenRatios(pool.ratios);
 
-  client.addCustody(
+  const ratios = client.adjustTokenRatios(pool.ratios);
+
+  return client.addCustody(
     poolName,
     tokenMint,
     isStable,
@@ -139,51 +156,60 @@ async function addCustody(
   );
 }
 
-async function getCustody(poolName: string, tokenMint: PublicKey) {
+async function getCustody(
+  poolName: string,
+  tokenMint: PublicKey
+): Promise<void> {
   client.prettyPrint(await client.getCustody(poolName, tokenMint));
 }
 
-async function getCustodies(poolName: string) {
+async function getCustodies(poolName: string): Promise<void> {
   client.prettyPrint(await client.getCustodies(poolName));
 }
 
-async function removeCustody(poolName: string, tokenMint: PublicKey) {
-  let pool = await client.getPool(poolName);
+async function removeCustody(
+  poolName: string,
+  tokenMint: PublicKey
+): Promise<void> {
+  const pool = await client.getPool(poolName);
+
   pool.ratios.pop();
-  let ratios = client.adjustTokenRatios(pool.ratios);
 
-  client.removeCustody(poolName, tokenMint, ratios);
+  const ratios = client.adjustTokenRatios(pool.ratios);
+
+  return client.removeCustody(poolName, tokenMint, ratios);
 }
 
-async function upgradeCustody(poolName: string, tokenMint: PublicKey) {
-  client.upgradeCustody(poolName, tokenMint);
+function upgradeCustody(poolName: string, tokenMint: PublicKey): Promise<void> {
+  return client.upgradeCustody(poolName, tokenMint);
 }
 
-async function setCustomOraclePrice(
+function setCustomOraclePrice(
   poolName: string,
   tokenMint: PublicKey,
   price: number,
   exponent: number,
   confidence: number,
   ema: number
-) {
-  let priceConfig = {
+): Promise<void> {
+  const priceConfig: SetCustomOraclePriceParams = {
     price: new BN(price),
     expo: exponent,
     conf: new BN(confidence),
     ema: new BN(ema),
     publishTime: new BN(client.getTime()),
   };
-  client.setCustomOraclePrice(poolName, tokenMint, priceConfig);
+
+  return client.setCustomOraclePrice(poolName, tokenMint, priceConfig);
 }
 
-async function addLiquidity(
+function addLiquidity(
   poolName: string,
   tokenMint: PublicKey,
   amountIn: number,
   minLpAmountOut: number
-) {
-  client.addLiquidity(
+): Promise<void> {
+  return client.addLiquidity(
     poolName,
     tokenMint,
     new BN(amountIn),
@@ -191,16 +217,16 @@ async function addLiquidity(
   );
 }
 
-async function openPosition(
+function openPosition(
   poolName: string,
   tokenMint: PublicKey,
   collateralMint: PublicKey,
-  side: string,
+  side: PositionSide,
   price: number,
   collateral: number,
   size: number
-) {
-  client.openPosition(
+): Promise<void> {
+  return client.openPosition(
     poolName,
     tokenMint,
     collateralMint,
@@ -216,21 +242,24 @@ async function getUserPosition(
   poolName: string,
   tokenMint: PublicKey,
   side: PositionSide
-) {
+): Promise<void> {
   client.prettyPrint(
     await client.getUserPosition(wallet, poolName, tokenMint, side)
   );
 }
 
-async function getUserPositions(wallet: PublicKey) {
+async function getUserPositions(wallet: PublicKey): Promise<void> {
   client.prettyPrint(await client.getUserPositions(wallet));
 }
 
-async function getPoolTokenPositions(poolName: string, tokenMint: PublicKey) {
+async function getPoolTokenPositions(
+  poolName: string,
+  tokenMint: PublicKey
+): Promise<void> {
   client.prettyPrint(await client.getPoolTokenPositions(poolName, tokenMint));
 }
 
-async function getAllPositions() {
+async function getAllPositions(): Promise<void> {
   client.prettyPrint(await client.getAllPositions());
 }
 
@@ -238,7 +267,7 @@ async function getAddLiquidityAmountAndFee(
   poolName: string,
   tokenMint: PublicKey,
   amount: BN
-) {
+): Promise<void> {
   client.prettyPrint(
     await client.getAddLiquidityAmountAndFee(poolName, tokenMint, amount)
   );
@@ -248,7 +277,7 @@ async function getRemoveLiquidityAmountAndFee(
   poolName: string,
   tokenMint: PublicKey,
   lpAmount: BN
-) {
+): Promise<void> {
   client.prettyPrint(
     await client.getRemoveLiquidityAmountAndFee(poolName, tokenMint, lpAmount)
   );
@@ -261,7 +290,7 @@ async function getEntryPriceAndFee(
   collateral: BN,
   size: BN,
   side: PositionSide
-) {
+): Promise<void> {
   client.prettyPrint(
     await client.getEntryPriceAndFee(
       poolName,
@@ -279,7 +308,7 @@ async function getExitPriceAndFee(
   poolName: string,
   tokenMint: PublicKey,
   side: PositionSide
-) {
+): Promise<void> {
   client.prettyPrint(
     await client.getExitPriceAndFee(wallet, poolName, tokenMint, side)
   );
@@ -289,18 +318,18 @@ async function getOraclePrice(
   poolName: string,
   tokenMint: PublicKey,
   useEma: boolean
-) {
+): Promise<void> {
   client.prettyPrint(await client.getOraclePrice(poolName, tokenMint, useEma));
 }
 
-async function getCustomOracleAccount(poolName: string, tokenMint: PublicKey) {
+function getCustomOracleAccount(poolName: string, tokenMint: PublicKey): void {
   client.prettyPrint(
-    await client.getCustodyCustomOracleAccountKey(poolName, tokenMint)
+    client.getCustodyCustomOracleAccountKey(poolName, tokenMint)
   );
 }
 
-async function getLpTokenMint(poolName: string) {
-  client.prettyPrint(await client.getPoolLpTokenKey(poolName));
+function getLpTokenMint(poolName: string): void {
+  client.prettyPrint(client.getPoolLpTokenKey(poolName));
 }
 
 async function getLiquidationPrice(
@@ -310,13 +339,13 @@ async function getLiquidationPrice(
   side: PositionSide,
   addCollateral: BN,
   removeCollateral: BN
-) {
+): Promise<void> {
   client.prettyPrint(
     await client.getLiquidationPrice(
       wallet,
       poolName,
       tokenMint,
-      client.getCollateralCustodyMint(wallet, poolName, tokenMint, side),
+      await client.getCollateralCustodyMint(wallet, poolName, tokenMint, side),
       side,
       addCollateral,
       removeCollateral
@@ -329,13 +358,13 @@ async function getLiquidationState(
   poolName: string,
   tokenMint: PublicKey,
   side: PositionSide
-) {
+): Promise<void> {
   client.prettyPrint(
     await client.getLiquidationState(
       wallet,
       poolName,
       tokenMint,
-      client.getCollateralCustodyMint(wallet, poolName, tokenMint, side),
+      await client.getCollateralCustodyMint(wallet, poolName, tokenMint, side),
       side
     )
   );
@@ -346,13 +375,13 @@ async function getPnl(
   poolName: string,
   tokenMint: PublicKey,
   side: PositionSide
-) {
+): Promise<void> {
   client.prettyPrint(
     await client.getPnl(
       wallet,
       poolName,
       tokenMint,
-      client.getCollateralCustodyMint(wallet, poolName, tokenMint, side),
+      await client.getCollateralCustodyMint(wallet, poolName, tokenMint, side),
       side
     )
   );
@@ -363,7 +392,7 @@ async function getSwapAmountAndFees(
   tokenMintIn: PublicKey,
   tokenMintOut: PublicKey,
   amountIn: BN
-) {
+): Promise<void> {
   client.prettyPrint(
     await client.getSwapAmountAndFees(
       poolName,
@@ -374,7 +403,7 @@ async function getSwapAmountAndFees(
   );
 }
 
-async function getAum(poolName: string) {
+async function getAum(poolName: string): Promise<void> {
   client.prettyPrint(await client.getAum(poolName));
 }
 
@@ -478,13 +507,15 @@ async function getAum(poolName: string) {
     .argument("<pubkey>", "Token oracle account")
     .option("-s, --stablecoin", "Stablecoin custody")
     .option("-v, --virtual", "Virtual asset custody")
+    .option("-t, --oracletype <string>", "Oracle type (pyth, none, custom)")
     .action(async (poolName, tokenMint, tokenOracle, options) => {
       await addCustody(
         poolName,
         new PublicKey(tokenMint),
         new PublicKey(tokenOracle),
         options.stablecoin,
-        options.virtual
+        options.virtual,
+        options.oracletype
       );
     });
 

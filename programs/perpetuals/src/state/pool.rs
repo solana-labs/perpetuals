@@ -646,8 +646,12 @@ impl Pool {
                     collateral_token_price
                         .get_min_price(collateral_token_ema_price, collateral_custody.is_stable)?
                 };
-                let max_profit_usd = min_collateral_price
-                    .get_asset_amount_usd(position.locked_amount, collateral_custody.decimals)?;
+                let max_profit_usd = if curtime <= position.open_time {
+                    0
+                } else {
+                    min_collateral_price
+                        .get_asset_amount_usd(position.locked_amount, collateral_custody.decimals)?
+                };
                 Ok((
                     std::cmp::min(max_profit_usd, cur_profit_usd),
                     0u64,
@@ -686,8 +690,12 @@ impl Pool {
                     collateral_token_price
                         .get_min_price(collateral_token_ema_price, collateral_custody.is_stable)?
                 };
-                let max_profit_usd = min_collateral_price
-                    .get_asset_amount_usd(position.locked_amount, collateral_custody.decimals)?;
+                let max_profit_usd = if curtime <= position.open_time {
+                    0
+                } else {
+                    min_collateral_price
+                        .get_asset_amount_usd(position.locked_amount, collateral_custody.decimals)?
+                };
                 Ok((
                     std::cmp::min(max_profit_usd, cur_profit_usd),
                     0u64,
@@ -1112,6 +1120,7 @@ mod test {
             price: scale(25_000, Perpetuals::PRICE_DECIMALS),
             // x4 leverage
             size_usd: scale(100_000, Perpetuals::USD_DECIMALS),
+            borrow_size_usd: scale(100_000, Perpetuals::USD_DECIMALS),
             collateral_usd: scale(25_000, Perpetuals::USD_DECIMALS),
             locked_amount: scale(4, 9),
             collateral_amount: scale(1, 9),
@@ -1578,7 +1587,7 @@ mod test {
                 &token_price,
                 &token_ema_price,
                 &custody,
-                0,
+                1,
                 false
             )
             .unwrap()
@@ -1596,7 +1605,7 @@ mod test {
                 &token_price,
                 &token_ema_price,
                 &custody,
-                0,
+                1,
                 false
             )
             .unwrap()
@@ -1614,7 +1623,7 @@ mod test {
                 &token_price,
                 &token_ema_price,
                 &custody,
-                0,
+                1,
                 false
             )
             .unwrap()
@@ -1636,7 +1645,7 @@ mod test {
                 &token_price,
                 &token_ema_price,
                 &custody,
-                0
+                1
             )
             .unwrap()
         );
@@ -1653,7 +1662,7 @@ mod test {
                 &token_price,
                 &token_ema_price,
                 &custody,
-                0
+                1
             )
             .unwrap()
         );
@@ -1669,7 +1678,7 @@ mod test {
                 &token_price,
                 &token_ema_price,
                 &custody,
-                0
+                1
             )
             .unwrap()
         );
@@ -1686,7 +1695,7 @@ mod test {
                 &token_price,
                 &token_ema_price,
                 &custody,
-                0
+                1
             )
             .unwrap()
         );
@@ -1702,7 +1711,7 @@ mod test {
                 &token_price,
                 &token_ema_price,
                 &custody,
-                0
+                1
             )
             .unwrap()
         );
@@ -1719,7 +1728,7 @@ mod test {
                 &token_price,
                 &token_ema_price,
                 &custody,
-                0
+                1
             )
             .unwrap()
         );
@@ -1736,7 +1745,7 @@ mod test {
                 &token_price,
                 &token_ema_price,
                 &custody,
-                0
+                1
             )
             .unwrap()
         );
@@ -1748,7 +1757,7 @@ mod test {
 
         assert_eq!(
             scale(21_250, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 1)
                 .unwrap()
         );
 
@@ -1756,14 +1765,14 @@ mod test {
         position.price = scale(24_500, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale(20_825, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 1)
                 .unwrap()
         );
 
         position.price = scale(20_000, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale(17_000, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 1)
                 .unwrap()
         );
 
@@ -1771,14 +1780,14 @@ mod test {
         position.price = scale(26_000, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale(22_100, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 1)
                 .unwrap()
         );
 
         position.price = scale(35_000, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale(29_750, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 1)
                 .unwrap()
         );
 
@@ -1786,7 +1795,7 @@ mod test {
         position.price = scale(0, Perpetuals::PRICE_DECIMALS);
         assert_eq!(
             scale_f64(0.0, Perpetuals::PRICE_DECIMALS),
-            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 0)
+            pool.get_liquidation_price(&position, &token_price, &custody, &custody, 1)
                 .unwrap()
         );
     }
@@ -1810,7 +1819,7 @@ mod test {
                 &token_price,
                 &token_ema_price,
                 &custody,
-                0,
+                1,
                 false
             )
             .unwrap()
