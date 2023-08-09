@@ -10,3 +10,7 @@ test-ledger
 
 **/.next
 adrena-keypair
+adrena-keypairs/admin.json
+adrena-keypairs/btc.json
+adrena-keypairs/eth.json
+adrena-keypairs/usdc.json
