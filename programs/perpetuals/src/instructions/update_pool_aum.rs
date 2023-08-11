@@ -37,9 +37,6 @@ pub fn update_pool_aum(ctx: Context<UpdatePoolAum>) -> Result<u128> {
 
     let curtime: i64 = perpetuals.get_time()?;
 
-    // update pool stats
-    msg!("Update pool asset under management");
-
     msg!("Previous value: {}", pool.aum_usd);
 
     pool.aum_usd =

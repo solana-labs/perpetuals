@@ -1,7 +1,11 @@
 use {
     crate::{test_instructions, utils},
     maplit::hashmap,
-    perpetuals::{instructions::AddGenesisLiquidityParams, state::cortex::Cortex},
+    perpetuals::{
+        instructions::{AddGenesisLiquidityParams, SwapParams},
+        state::{cortex::Cortex, staking::StakingRound},
+    },
+    solana_sdk::signer::Signer,
 };
 
 const USDC_DECIMALS: u8 = 6;
@@ -125,6 +129,8 @@ pub async fn genesis() {
     .await;
 
     let alice = test_setup.get_user_keypair_by_name("alice");
+
+    let cortex_stake_reward_mint = test_setup.get_cortex_stake_reward_mint();
 
     let usdc_mint = &test_setup.get_mint_by_name("usdc");
     let eth_mint = &test_setup.get_mint_by_name("eth");
@@ -277,5 +283,120 @@ pub async fn genesis() {
         .is_err());
 
         utils::warp_forward(&test_setup.program_test_ctx, 1).await;
+    }
+
+    {
+        // warp to the next round and resolve the current one
+        // this round bear no rewards for the new staking as the staking started during the round
+        {
+            utils::warp_forward(
+                &test_setup.program_test_ctx,
+                StakingRound::ROUND_MIN_DURATION_SECONDS,
+            )
+            .await;
+
+            test_instructions::resolve_staking_round(
+                &test_setup.program_test_ctx,
+                alice,
+                alice,
+                &test_setup.payer_keypair,
+                &test_setup.lp_token_mint_pda,
+            )
+            .await
+            .unwrap();
+        }
+    }
+
+    {
+        // warp to the next round and resolve the current one
+        // this round bear no rewards
+        {
+            utils::warp_forward(
+                &test_setup.program_test_ctx,
+                StakingRound::ROUND_MIN_DURATION_SECONDS,
+            )
+            .await;
+
+            test_instructions::resolve_staking_round(
+                &test_setup.program_test_ctx,
+                alice,
+                alice,
+                &test_setup.payer_keypair,
+                &test_setup.lp_token_mint_pda,
+            )
+            .await
+            .unwrap();
+        }
+    }
+
+    // Do a swap to generate fees to claim
+    {
+        test_instructions::swap(
+            &test_setup.program_test_ctx,
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.pool_pda,
+            eth_mint,
+            // The program receives USDC
+            usdc_mint,
+            SwapParams {
+                amount_in: utils::scale(150, USDC_DECIMALS),
+                min_amount_out: utils::scale_f64(0.09, ETH_DECIMALS),
+            },
+        )
+        .await
+        .unwrap();
+    }
+
+    {
+        // warp to the next round and resolve the current one
+        // this round bear rewards
+        {
+            utils::warp_forward(
+                &test_setup.program_test_ctx,
+                StakingRound::ROUND_MIN_DURATION_SECONDS,
+            )
+            .await;
+
+            test_instructions::resolve_staking_round(
+                &test_setup.program_test_ctx,
+                alice,
+                alice,
+                &test_setup.payer_keypair,
+                &test_setup.lp_token_mint_pda,
+            )
+            .await
+            .unwrap();
+        }
+    }
+
+    let (alice_lp_staking_reward_token_account_address, _) =
+        utils::find_associated_token_account(&alice.pubkey(), &cortex_stake_reward_mint);
+
+    // Claim when there is one round worth of rewards to claim
+    {
+        let balance_before = utils::get_token_account_balance(
+            &test_setup.program_test_ctx,
+            alice_lp_staking_reward_token_account_address,
+        )
+        .await;
+
+        test_instructions::claim_stakes(
+            &test_setup.program_test_ctx,
+            alice,
+            alice,
+            &test_setup.payer_keypair,
+            &test_setup.lp_token_mint_pda,
+        )
+        .await
+        .unwrap();
+
+        let balance_after = utils::get_token_account_balance(
+            &test_setup.program_test_ctx,
+            alice_lp_staking_reward_token_account_address,
+        )
+        .await;
+
+        assert_eq!(balance_after - balance_before, 2_073_678);
     }
 }
