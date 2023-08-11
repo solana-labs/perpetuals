@@ -76,4 +76,6 @@ pub enum PerpetualsError {
     UnresolvedStake,
     #[msg("Reached bucket mint limit")]
     BucketMintLimit,
+    #[msg("Genesis ALP add liquidity limit reached")]
+    GenesisAlpLimitReached,
 }

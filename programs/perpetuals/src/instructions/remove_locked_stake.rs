@@ -150,7 +150,7 @@ pub struct RemoveLockedStake<'info> {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
 pub struct RemoveLockedStakeParams {
-    pub locked_stake_index: usize,
+    pub locked_stake_index: u64,
 }
 
 // Remove one stake at a time
@@ -205,7 +205,7 @@ pub fn remove_locked_stake(
     let token_amount_to_unstake = {
         let locked_stake = user_staking
             .locked_stakes
-            .get(params.locked_stake_index)
+            .get(params.locked_stake_index as usize)
             .ok_or(PerpetualsError::CannotFoundStake)?;
 
         // Check the stake have ended and have been resolved
@@ -221,7 +221,9 @@ pub fn remove_locked_stake(
         let token_amount_to_unstake = locked_stake.amount;
 
         // Remove the stake from the list
-        user_staking.locked_stakes.remove(params.locked_stake_index);
+        user_staking
+            .locked_stakes
+            .remove(params.locked_stake_index as usize);
 
         token_amount_to_unstake
     };

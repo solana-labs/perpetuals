@@ -133,7 +133,8 @@ pub async fn remove_locked_stake(
         // Can be higher if user claimed lm rewards
         assert!(
             owner_staked_token_account_before
-                + user_staking_account_before.locked_stakes[params.locked_stake_index].amount
+                + user_staking_account_before.locked_stakes[params.locked_stake_index as usize]
+                    .amount
                 <= owner_staked_token_account_after,
         );
     }

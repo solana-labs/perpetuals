@@ -18,7 +18,7 @@ pub async fn execute_finalize_locked_stake_thread(
     owner: &Keypair,
     payer: &Keypair,
     governance_realm_pda: &Pubkey,
-    locked_stake_index: usize,
+    locked_stake_index: u64,
 ) -> std::result::Result<(), BanksClientError> {
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
@@ -48,7 +48,7 @@ pub async fn execute_finalize_locked_stake_thread(
         utils::get_account::<UserStaking>(program_test_ctx, user_staking_pda).await;
 
     let stake_resolution_thread_id =
-        user_staking_account.locked_stakes[locked_stake_index].stake_resolution_thread_id;
+        user_staking_account.locked_stakes[locked_stake_index as usize].stake_resolution_thread_id;
 
     let stake_resolution_thread_pda = pda::get_clockwork_thread_pda(
         &thread_authority,
