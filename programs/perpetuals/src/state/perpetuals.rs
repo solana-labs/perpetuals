@@ -90,13 +90,6 @@ impl Perpetuals {
         true
     }
 
-    // REPLACE WITH warp to slot
-    #[cfg(feature = "test")]
-    pub fn get_time(&self) -> Result<i64> {
-        Ok(self.inception_time)
-    }
-
-    #[cfg(not(feature = "test"))]
     pub fn get_time(&self) -> Result<i64> {
         let time = solana_program::sysvar::clock::Clock::get()?.unix_timestamp;
         if time > 0 {

@@ -150,6 +150,13 @@ pub mod perpetuals {
         instructions::add_liquidity(ctx, &params)
     }
 
+    pub fn add_genesis_liquidity(
+        ctx: Context<AddGenesisLiquidity>,
+        params: AddGenesisLiquidityParams,
+    ) -> Result<()> {
+        instructions::add_genesis_liquidity(ctx, &params)
+    }
+
     pub fn remove_liquidity(
         ctx: Context<RemoveLiquidity>,
         params: RemoveLiquidityParams,

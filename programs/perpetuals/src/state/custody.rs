@@ -169,6 +169,16 @@ pub struct Custody {
     pub token_account_bump: u8,
 }
 
+pub fn get_custody_mint_from_account_info(account_info: &AccountInfo<'_>) -> Pubkey {
+    let data_slice = &account_info.data.borrow()[40..72];
+
+    let mut pubkey_bytes = [0u8; 32];
+
+    pubkey_bytes.copy_from_slice(data_slice);
+
+    Pubkey::from(pubkey_bytes)
+}
+
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
 pub struct DeprecatedPricingParams {
     pub use_ema: bool,
