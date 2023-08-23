@@ -60,7 +60,7 @@ describe("perpetuals", () => {
         PublicKey.default,
         PublicKey.default,
       ],
-      signed: [false, false, false, false, false, false],
+      signed: [0, 0, 0, 0, 0, 0],
       bump: tc.multisig.bump,
     };
 

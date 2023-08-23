@@ -7,7 +7,7 @@ use {
     std::hash::Hasher,
 };
 
-#[repr(packed)]
+#[repr(C, packed)]
 #[account(zero_copy)]
 #[derive(Default)]
 pub struct Multisig {
@@ -18,7 +18,7 @@ pub struct Multisig {
     pub instruction_data_len: u16,
     pub instruction_hash: u64,
     pub signers: [Pubkey; 6], // Multisig::MAX_SIGNERS
-    pub signed: [bool; 6],    // Multisig::MAX_SIGNERS
+    pub signed: [u8; 6],      // Multisig::MAX_SIGNERS
     pub bump: u8,
 }
 
@@ -103,7 +103,7 @@ impl Multisig {
         }
 
         let mut signers: [Pubkey; Multisig::MAX_SIGNERS] = Default::default();
-        let mut signed: [bool; Multisig::MAX_SIGNERS] = Default::default();
+        let mut signed: [u8; Multisig::MAX_SIGNERS] = Default::default();
 
         for idx in 0..admin_signers.len() {
             if signers.contains(admin_signers[idx].key) {
@@ -111,7 +111,7 @@ impl Multisig {
                 return Err(ProgramError::InvalidArgument.into());
             }
             signers[idx] = *admin_signers[idx].key;
-            signed[idx] = false;
+            signed[idx] = 0;
         }
 
         *self = Multisig {
@@ -165,17 +165,17 @@ impl Multisig {
             self.instruction_accounts_len = instruction_accounts.len() as u8;
             self.instruction_data_len = instruction_data.len() as u16;
             self.instruction_hash = instruction_hash;
-            self.signed.fill(false);
-            self.signed[signer_idx] = true;
+            self.signed.fill(0);
+            self.signed[signer_idx] = 1;
             //multisig.pack(*multisig_account.try_borrow_mut_data()?)?;
 
             math::checked_sub(self.min_signatures, 1)
-        } else if self.signed[signer_idx] {
+        } else if self.signed[signer_idx] == 1 {
             err!(PerpetualsError::MultisigAlreadySigned)
         } else if self.num_signed < self.min_signatures {
             // count the signature in
             self.num_signed = math::checked_add(self.num_signed, 1)?;
-            self.signed[signer_idx] = true;
+            self.signed[signer_idx] = 1;
 
             if self.num_signed == self.min_signatures {
                 Ok(0)
@@ -207,13 +207,13 @@ impl Multisig {
         };
 
         // if not signed by this account return
-        if !self.signed[signer_idx] {
+        if self.signed[signer_idx] == 0 {
             return Ok(());
         }
 
         // remove signature
         self.num_signed = math::checked_sub(self.num_signed, 1)?;
-        self.signed[signer_idx] = false;
+        self.signed[signer_idx] = 0;
 
         Ok(())
     }
