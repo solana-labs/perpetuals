@@ -1,5 +1,5 @@
 use {
-    super::SetupCustodyInfo,
+    super::{get_program_data_pda, SetupCustodyInfo},
     crate::{
         instructions,
         utils::{self, fixtures},
@@ -13,9 +13,12 @@ use {
             pool::TokenRatios,
         },
     },
-    solana_program::pubkey::Pubkey,
+    solana_program::{
+        bpf_loader_upgradeable, bpf_loader_upgradeable::UpgradeableLoaderState, pubkey::Pubkey,
+        rent::Rent, stake_history::Epoch,
+    },
     solana_program_test::{ProgramTest, ProgramTestContext},
-    solana_sdk::{signature::Keypair, signer::Signer},
+    solana_sdk::{account, signature::Keypair, signer::Signer},
     std::collections::HashMap,
     tokio::sync::RwLock,
 };
@@ -105,7 +108,7 @@ impl TestSetup {
         pool_name: &str,
         custodies_params: Vec<SetupCustodyWithLiquidityParams<'_>>,
     ) -> TestSetup {
-        let mut program_test = ProgramTest::default();
+        let mut program_test = ProgramTest::new("perpetuals", perpetuals::id(), None);
 
         // Initialize keypairs
         let keypairs: Vec<Keypair> = utils::create_and_fund_multiple_accounts(
@@ -141,6 +144,24 @@ impl TestSetup {
             )
         };
 
+        let program_data_pda = get_program_data_pda().0;
+
+        let program_data = UpgradeableLoaderState::ProgramData {
+            slot: 1,
+            upgrade_authority_address: Some(program_authority_keypair.pubkey()),
+        };
+
+        let serialzed_program_data = bincode::serialize(&program_data).unwrap();
+
+        let program_data_account = account::Account {
+            lamports: Rent::default().minimum_balance(serialzed_program_data.len()),
+            data: serialzed_program_data,
+            owner: bpf_loader_upgradeable::ID,
+            executable: false,
+            rent_epoch: Epoch::default(),
+        };
+        program_test.add_account(program_data_pda, program_data_account);
+
         let users = {
             let mut users: HashMap<String, Keypair> = HashMap::new();
             for (i, user_param) in users_param.as_slice().iter().enumerate() {
@@ -173,9 +194,6 @@ impl TestSetup {
 
             mints
         };
-
-        // Deploy program
-        utils::add_perpetuals_program(&mut program_test, program_authority_keypair).await;
 
         // Start the client and connect to localnet validator
         let program_test_ctx: RwLock<ProgramTestContext> =

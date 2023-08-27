@@ -1,5 +1,4 @@
 use {
-    super::get_program_data_pda,
     crate::instructions,
     anchor_lang::{prelude::*, InstructionData},
     anchor_spl::token::spl_token,
@@ -11,15 +10,11 @@ use {
         state::{custody::Custody, perpetuals::Perpetuals, pool::TokenRatios},
     },
     solana_program::{
-        bpf_loader_upgradeable, clock::SLOT_MS, epoch_schedule::DEFAULT_SLOTS_PER_EPOCH,
-        program_pack::Pack, stake_history::Epoch,
+        clock::DEFAULT_MS_PER_SLOT, epoch_schedule::DEFAULT_SLOTS_PER_EPOCH, program_pack::Pack,
     },
-    solana_program_test::{read_file, BanksClientError, ProgramTest, ProgramTestContext},
+    solana_program_test::{BanksClientError, ProgramTest, ProgramTestContext},
     solana_sdk::{account, signature::Keypair, signer::Signer, signers::Signers},
-    std::{
-        ops::{Div, Mul},
-        path::Path,
-    },
+    std::ops::{Div, Mul},
     tokio::sync::RwLock,
 };
 
@@ -137,50 +132,6 @@ pub async fn mint_tokens(
     ctx.mint_tokens(mint_authority, mint, token_account, amount)
         .await
         .unwrap();
-}
-
-// Deploy the perpetuals program onchain as upgradeable program
-pub async fn add_perpetuals_program(program_test: &mut ProgramTest, upgrade_authority: &Keypair) {
-    // Deploy two accounts, one describing the program
-    // and a second one holding the program's binary bytes
-    let mut program_bytes = read_file(
-        std::env::current_dir()
-            .unwrap()
-            .join(Path::new("../../target/deploy/perpetuals.so")),
-    );
-
-    let program_data_pda = get_program_data_pda().0;
-
-    let program = UpgradeableLoaderState::Program {
-        programdata_address: program_data_pda,
-    };
-    let program_data = UpgradeableLoaderState::ProgramData {
-        slot: 1,
-        upgrade_authority_address: Some(upgrade_authority.pubkey()),
-    };
-
-    let serialized_program = bincode::serialize(&program).unwrap();
-
-    let mut serialzed_program_data = bincode::serialize(&program_data).unwrap();
-    serialzed_program_data.append(&mut program_bytes);
-
-    let program_account = account::Account {
-        lamports: Rent::default().minimum_balance(serialized_program.len()),
-        data: serialized_program,
-        owner: bpf_loader_upgradeable::ID,
-        executable: true,
-        rent_epoch: Epoch::default(),
-    };
-    let program_data_account = account::Account {
-        lamports: Rent::default().minimum_balance(serialzed_program_data.len()),
-        data: serialzed_program_data,
-        owner: bpf_loader_upgradeable::ID,
-        executable: false,
-        rent_epoch: Epoch::default(),
-    };
-
-    program_test.add_account(perpetuals::id(), program_account);
-    program_test.add_account(program_data_pda, program_data_account);
 }
 
 pub async fn create_and_fund_multiple_accounts(
@@ -382,7 +333,7 @@ pub async fn warp_forward(ctx: &RwLock<ProgramTestContext>, seconds: i64) {
 
     let seconds_since_epoch_start = new_clock.unix_timestamp - clock_sysvar.epoch_start_timestamp;
     let ms_since_epoch_start = seconds_since_epoch_start * 1_000;
-    let slots_since_epoch_start = ms_since_epoch_start / SLOT_MS as i64;
+    let slots_since_epoch_start = ms_since_epoch_start / DEFAULT_MS_PER_SLOT as i64;
     let epochs_since_epoch_start = slots_since_epoch_start / DEFAULT_SLOTS_PER_EPOCH as i64;
     new_clock.epoch = (new_clock.epoch as i64 + epochs_since_epoch_start) as u64;
 

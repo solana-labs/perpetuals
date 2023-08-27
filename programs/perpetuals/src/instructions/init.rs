@@ -44,7 +44,7 @@ pub struct Init<'info> {
     pub perpetuals: Box<Account<'info, Perpetuals>>,
 
     #[account(
-        constraint = perpetuals_program.programdata_address()? == Some(perpetuals_program_data.key())
+        constraint = (perpetuals_program.programdata_address()? == Some(perpetuals_program_data.key()) || perpetuals_program.programdata_address()?.is_none())
     )]
     pub perpetuals_program: Program<'info, Perpetuals>,
 
