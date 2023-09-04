@@ -7,10 +7,11 @@ use {
     },
     solana_program_test::{BanksClientError, ProgramTestContext},
     solana_sdk::signer::{keypair::Keypair, Signer},
+    tokio::sync::RwLock,
 };
 
 pub async fn test_init(
-    program_test_ctx: &mut ProgramTestContext,
+    program_test_ctx: &RwLock<ProgramTestContext>,
     upgrade_authority: &Keypair,
     params: InitParams,
     multisig_signers: &[&Keypair],
@@ -52,6 +53,8 @@ pub async fn test_init(
         perpetuals::instruction::Init { params },
         Some(&upgrade_authority.pubkey()),
         &[&[upgrade_authority], multisig_signers].concat(),
+        None,
+        None,
     )
     .await?;
 

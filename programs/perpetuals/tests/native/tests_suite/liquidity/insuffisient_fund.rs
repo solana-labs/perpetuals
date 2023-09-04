@@ -77,11 +77,11 @@ pub async fn insuffisient_fund() {
 
     // Trying to add more USDC than owned should fail
     assert!(instructions::test_add_liquidity(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &usdc_mint,
+        usdc_mint,
         AddLiquidityParams {
             amount_in: utils::scale(1_000_000, USDC_DECIMALS),
             min_lp_amount_out: 1
@@ -93,11 +93,11 @@ pub async fn insuffisient_fund() {
     // Alice: add 15k USDC and 10 ETH liquidity
     {
         instructions::test_add_liquidity(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &usdc_mint,
+            usdc_mint,
             AddLiquidityParams {
                 amount_in: utils::scale(15_000, USDC_DECIMALS),
                 min_lp_amount_out: 1,
@@ -107,11 +107,11 @@ pub async fn insuffisient_fund() {
         .unwrap();
 
         instructions::test_add_liquidity(
-            &mut test_setup.program_test_ctx.borrow_mut(),
+            &test_setup.program_test_ctx,
             alice,
             &test_setup.payer_keypair,
             &test_setup.pool_pda,
-            &eth_mint,
+            eth_mint,
             AddLiquidityParams {
                 amount_in: utils::scale(10, ETH_DECIMALS),
                 min_lp_amount_out: 1,
@@ -124,19 +124,17 @@ pub async fn insuffisient_fund() {
     let alice_lp_token_mint_pda =
         utils::find_associated_token_account(&alice.pubkey(), &test_setup.lp_token_mint_pda).0;
 
-    let alice_lp_token_account_balance = utils::get_token_account_balance(
-        &mut test_setup.program_test_ctx.borrow_mut(),
-        alice_lp_token_mint_pda,
-    )
-    .await;
+    let alice_lp_token_account_balance =
+        utils::get_token_account_balance(&test_setup.program_test_ctx, alice_lp_token_mint_pda)
+            .await;
 
     // Trying to remove more LP token than owned should fail
     assert!(instructions::test_remove_liquidity(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &usdc_mint,
+        usdc_mint,
         RemoveLiquidityParams {
             lp_amount_in: alice_lp_token_account_balance + 1,
             min_amount_out: 1
@@ -147,11 +145,11 @@ pub async fn insuffisient_fund() {
 
     // Trying to remove more asset than owned by the pool should fail
     assert!(instructions::test_remove_liquidity(
-        &mut test_setup.program_test_ctx.borrow_mut(),
+        &test_setup.program_test_ctx,
         alice,
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
-        &usdc_mint,
+        usdc_mint,
         RemoveLiquidityParams {
             lp_amount_in: alice_lp_token_account_balance * 75 / 100,
             min_amount_out: 1

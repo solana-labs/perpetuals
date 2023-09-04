@@ -165,6 +165,10 @@ pub mod perpetuals {
         instructions::liquidate(ctx, &params)
     }
 
+    pub fn update_pool_aum(ctx: Context<UpdatePoolAum>) -> Result<u128> {
+        instructions::update_pool_aum(ctx)
+    }
+
     pub fn get_add_liquidity_amount_and_fee(
         ctx: Context<GetAddLiquidityAmountAndFee>,
         params: GetAddLiquidityAmountAndFeeParams,
