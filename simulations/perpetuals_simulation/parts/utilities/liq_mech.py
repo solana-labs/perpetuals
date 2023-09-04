@@ -3,35 +3,48 @@ from .utils import *
 import copy
 import numpy as np
 
-def liquidity_provider_decision(liquidity_provider, pool_yield, asset_prices, asset_volatility):
+def liquidity_provider_decision(liquidity_provider, pool_yield, asset_prices, asset_volatility, ratios):
     assets = pool_yield.keys()
     decision = {asset: 0 for asset in assets}
     lp = liquidity_provider
+
+    asset_yield = 0
+    volat = 0
+    for ast in pool_yield.keys():
+        asset_yield += pool_yield[ast] * ratios[ast]
+        # Adjust thresholds based on volatility
+        if asset_volatility[ast] is not None:
+            volat += asset_volatility[ast] * 3
 
     for asset in assets:
         add_threshold = lp['add_threshold'][asset]
         remove_threshold = lp['remove_threshold'][asset]
 
-        # Adjust thresholds based on volatility
-        if asset_volatility[asset] is not None:
-            add_threshold += asset_volatility[asset]
-            remove_threshold += asset_volatility[asset]
+        add_threshold += volat
+        remove_threshold += volat
 
-        asset_yield = pool_yield[asset]
-
+        # change to the general pool yield and fees dependency
         if asset_yield > add_threshold:
+            if lp['funds'][asset] * asset_prices[asset][0] < 3:
+                continue
             # The provider adds liquidity proportional to the excess yield
-            liquidity_to_add = (lp['funds'][asset] / asset_prices[asset][0]) * 10 * (asset_yield - add_threshold)
+            liquidity_to_add = lp['funds'][asset] * 10 * (asset_yield - add_threshold)
+            if liquidity_to_add > lp['funds'][asset]:
+                liquidity_to_add = 0.95 * lp['funds'][asset]
             decision[asset] += liquidity_to_add
 
         elif asset_yield < remove_threshold:
+            if lp['liquidity'][asset] * asset_prices[asset][0] < 3:
+                continue
             # The provider removes liquidity proportional to the shortfall
-            liquidity_to_remove = lp['liquidity'][asset] * 10 * (remove_threshold - asset_yield)
+            liquidity_to_remove = lp['liquidity'][asset] * 40 * (remove_threshold - asset_yield)
+            if liquidity_to_remove > lp['liquidity'][asset]:
+                liquidity_to_remove = 0.95 * lp['liquidity'][asset]
             decision[asset] -= liquidity_to_remove
 
     return decision
 
-def liquidity_fee(pool_init, asset, provider_decision, asset_prices, base_fees, om_fees):
+def liquidity_fee(pool_init, asset, provider_decision, asset_prices, fees):
     '''
     final fee = pool receiving swap fee + pool paying swap fee + pool receiving base fee + pool paying base fee
 
@@ -52,10 +65,12 @@ def liquidity_fee(pool_init, asset, provider_decision, asset_prices, base_fees, 
     where A = (fee max - fee optional) / (min ratio * 100 - target ratio * 100) ^ 3
     
     '''
+    #'lp_fees': [{'add_base_fee': 0.005, 'optimal_fee': 0.001, 'max_fee': 0.025, 'rm_base_fee': 0.0005}]
+
     pool = copy.deepcopy(pool_init)
     tvl = pool_total_holdings(pool, asset_prices)
-    fee_max = om_fees[0]
-    fee_optimal = om_fees[1]
+    fee_max = fees['max_fee']
+    fee_optimal = fees['optimal_fee']
     amount = provider_decision[asset]
     # handle spread case
     if amount < 0 or asset.startswith('U'):
@@ -65,16 +80,39 @@ def liquidity_fee(pool_init, asset, provider_decision, asset_prices, base_fees, 
 
     target_ratio = pool['target_ratios'][asset]
     post_lp_ratio = (pool['holdings'][asset] + amount) * float(price) / tvl
-    max_ratio = target_ratio + pool['deviation'] if amount > 0 else target_ratio - pool['deviation']
+    max_ratio = pool['max_ratio'][asset]
+    min_ratio = pool['min_ratio'][asset]
 
-    # Calculate the pool receiving swap fee
-    A = (fee_max - fee_optimal) / (max_ratio * 100 - target_ratio * 100) ** 3
-    lp_fee = A * (post_lp_ratio * 100 - target_ratio * 100) ** 3 + fee_optimal
+    if amount > 0:
+        if post_lp_ratio > max_ratio:
+            return -1
+        elif post_lp_ratio > target_ratio:
+            hslope = (fee_max - fee_optimal) / (max_ratio - target_ratio)
+            hb = fee_optimal - target_ratio * hslope
+            lp_fee = hslope * post_lp_ratio + hb
+        else:
+            lslope = (fee_max - fee_optimal) / (target_ratio - min_ratio)
+            lb = fee_optimal - target_ratio * lslope
+            lp_fee = lslope * post_lp_ratio + lb
+        
+        return lp_fee + fees['add_base_fee']
 
-    # Get the pool receiving base fee and the pool paying base fee
-    tot_fee = base_fees[asset] + lp_fee
+    elif amount < 0:
+        if post_lp_ratio < min_ratio:
+            return -1
+        elif post_lp_ratio < target_ratio:
+            hslope = -(fee_max - fee_optimal) / (max_ratio - target_ratio)
+            hb = fee_optimal - target_ratio * hslope
+            lp_fee = hslope * post_lp_ratio + hb
+        else:
+            lslope = -(fee_max - fee_optimal) / (target_ratio - min_ratio)
+            lb = fee_optimal - target_ratio * lslope
+            lp_fee = lslope * post_lp_ratio + lb
 
-    return tot_fee
+        return lp_fee + fees['add_base_fee'] + fees['rm_base_fee']
+
+    else:
+        return -1
 
 def provide_liquidity(pool, provider, gen_lp, lot_size, asset, fee, asset_prices):
     tmp_pool = copy.deepcopy(pool)

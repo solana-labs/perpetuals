@@ -6,8 +6,9 @@ def more_agents_policy(params, substep, state_history, previous_state):
     traders = copy.deepcopy(previous_state['traders'])
     liquidity_providers = copy.deepcopy(previous_state['liquidity_providers'])
     timestep = previous_state['timestep']
-    print(timestep, 'traction')
-
+    if timestep % 10 == 0 or timestep == 1:
+        print('timestep', timestep)
+        
     # generate new liquidity providers
     liquidity_providers = add_providers(liquidity_providers, params['lp_traction'], timestep, params['event'])
     # generate new traders

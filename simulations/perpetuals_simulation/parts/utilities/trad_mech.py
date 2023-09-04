@@ -78,7 +78,7 @@ def close_short(trader, timestep, asset, asset_price, liquidated, pool, rate_par
 
     pnl = (trader['positions_short'][asset]['entry_price'] - asset_price) * trader['positions_short'][asset]['quantity']
     duration = timestep - trader[f'positions_short'][asset]['timestep']
-    interest = calculate_interest(trader[f'positions_short'][asset]['quantity'], duration, asset, pool, rate_params)
+    interest = calculate_interest(trader[f'positions_short'][asset]['quantity'] / asset_price, duration, trader[f'positions_short'][asset]['collateral']['denomination'], pool, rate_params)
     payout = trader[f'positions_short'][asset]['collateral']['amount'] - interest + pnl
 
     decision = {
@@ -140,7 +140,7 @@ def trading_decision(trader_passed, timestep, asset, asset_pricing, max_margin, 
 
         pnl = (trader['positions_short'][asset]['entry_price'] - cs_price) * trader['positions_short'][asset]['quantity']
         duration = timestep - trader[f'positions_short'][asset]['timestep']
-        interest = calculate_interest(trader[f'positions_short'][asset]['quantity'], duration, asset, pool, rate_params)
+        interest = calculate_interest(trader[f'positions_short'][asset]['quantity'] / cs_price, duration, trader[f'positions_short'][asset]['collateral']['denomination'], pool, rate_params)
         payout = trader[f'positions_short'][asset]['collateral']['amount'] - interest + pnl
         if payout / trader['positions_short'][asset]['quantity'] < liquidation_threshold:
             decision['short'] = {
@@ -202,8 +202,9 @@ def trading_decision(trader_passed, timestep, asset, asset_pricing, max_margin, 
             # charge interest if position exits
             if asset in trader['positions_short'] and trader['positions_short'][asset]['quantity'] != 0:
                 duration = timestep - trader[f'positions_short'][asset]['timestep']
-                interest = calculate_interest(trader[f'positions_short'][asset]['quantity'], duration, asset, pool, rate_params)
                 denomination  = trader['positions_short'][asset]['collateral']['denomination']
+                interest = calculate_interest(trader[f'positions_short'][asset]['quantity'] / os_price, duration, denomination, pool, rate_params)
+
             required_collateral = (lot_size * os_price) / max_margin
             bot = (required_collateral + interest) / usd_liquidity
             if bot < 1:
@@ -423,7 +424,7 @@ def update_pool_close_short(pool, trader, asset, trade_decision, fees, entry_pri
     # Decrease the open interest
     updated_pool['oi_short'][asset] -= trade_decision['short']['quantity']
     updated_pool['contract_oi'][asset]['oi_short'] -= trade_decision['short']['quantity']
-    updated_pool['contract_oi'][asset]['weighted_price_short'] += trade_decision['short']['asset_price'] * trade_decision['short']['quantity']
+    updated_pool['contract_oi'][asset]['weighted_price_short'] -= trade_decision['short']['asset_price'] * trade_decision['short']['quantity']
     updated_pool['short_interest'][trade_decision['short']['denomination']] -= trade_decision['short']['quantity'] * entry_price
     updated_pool['volume'][asset] += trade_decision['short']['quantity']
     updated_pool['total_fees_collected'][trade_decision['short']['denomination']] += fees[1] + trade_decision['short']['interest_paid']

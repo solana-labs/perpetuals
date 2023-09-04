@@ -11,6 +11,7 @@ from openpyxl.styles import PatternFill
 import openpyxl
 from openpyxl.utils.dataframe import dataframe_to_rows
 
+
 def fetch_asset_prices(assets, timestep, event):
     asset_prices = {}
     num_hr = math.floor(timestep / 60)
@@ -44,9 +45,20 @@ def fetch_asset_prices(assets, timestep, event):
             else:
                 problem = True
 
-            asset_prices.update({asset: [max_price, min_price, problem]})
+            time_stamp = df.loc[closest_idx, 't']
+
+            asset_prices.update({asset: [max_price, min_price, problem, time_stamp]})
 
     return asset_prices
+
+def initial_liquidity(asset_prices):
+    target_ratios = [0.23, 0.05, 0.25, 0.3, 0.18]
+    tot_val = asset_prices['BTC'][0] / target_ratios[0]
+    sol = (tot_val / asset_prices['SOL'][0]) * target_ratios[1]
+    eth = (tot_val / asset_prices['ETH'][0]) * target_ratios[2]
+    usdc = (tot_val / asset_prices['USDC'][0]) * target_ratios[3]
+    usdt = (tot_val / asset_prices['USDT'][0]) * target_ratios[4]
+    return {'BTC': 1, 'ETH': eth, 'SOL': sol, 'USDC': usdc, 'USDT': usdt}
 
 def get_asset_volatility(assets, timestep, event):
     asset_volatility = {}
@@ -61,7 +73,7 @@ def get_asset_volatility(assets, timestep, event):
         df = pd.read_csv(file_path) 
         try:
             closest_idx = (df['time']- minute).abs().idxmin()
-            close_prices = df.loc[closest_idx-10:closest_idx, 'price']
+            close_prices = df.loc[closest_idx-20:closest_idx, 'price']
             price_std = close_prices.std()
             price_avg = close_prices.mean()
             volatility = price_std / price_avg  # Volatility represented as average % standard deviation
@@ -93,13 +105,16 @@ def get_provider_balance(provider, asset_prices):
     return total_value
 
 def calculate_interest(position_size, duration, asset, pool, rate_params):
-    duration = duration/24
+    duration = duration/(24 * 60)
     optimal_utilization = rate_params[0]
     slope1 = rate_params[1]
     slope2 = rate_params[2]
 
     total_holdings = pool['holdings'][asset]
-    total_borrowed = pool['oi_long'][asset]
+    if asset.startswith('U'):
+        total_borrowed = pool['oi_short'][asset]
+    else:
+        total_borrowed = pool['oi_long'][asset]
 
     # Handle division by zero
     if total_holdings == 0:
@@ -1155,4 +1170,46 @@ def to_xslx(df, name):
     s.graphicalProperties.solidFill = "00FF00"
     contract_oi_price_sheet.add_chart(chart, "S37")
     
+    # Create a asset pricessheet
+    asset_prices_sheet = wb.create_sheet(title="Asset price charts")
+
+    asset_prices_sheet['A1'] = "BTC price"
+    values = Reference(sheet, min_col=74, min_row=3, max_col=74, max_row=timestamps)
+    chart = LineChart()
+    chart.add_data(values)
+    chart.title = "btc_price"
+    chart.x_axis.title = "Min"
+    chart.y_axis.title = "USD"
+    # Change bar filling and line color
+    s = chart.series[0]
+    s.graphicalProperties.line.solidFill = "00FF00"
+    s.graphicalProperties.solidFill = "00FF00"
+    asset_prices_sheet.add_chart(chart, "A3")
+
+    asset_prices_sheet['J1'] = "ETH price"
+    values = Reference(sheet, min_col=75, min_row=3, max_col=75, max_row=timestamps)
+    chart = LineChart()
+    chart.add_data(values)
+    chart.title = "eth_price"
+    chart.x_axis.title = "Min"
+    chart.y_axis.title = "USD"
+    # Change bar filling and line color
+    s = chart.series[0]
+    s.graphicalProperties.line.solidFill = "00FF00"
+    s.graphicalProperties.solidFill = "00FF00"
+    asset_prices_sheet.add_chart(chart, "J3")
+
+    asset_prices_sheet['S1'] = "SOL price"
+    values = Reference(sheet, min_col=76, min_row=3, max_col=76, max_row=timestamps)
+    chart = LineChart()
+    chart.add_data(values)
+    chart.title = "sol_price"
+    chart.x_axis.title = "Min"
+    chart.y_axis.title = "USD"
+    # Change bar filling and line color
+    s = chart.series[0]
+    s.graphicalProperties.line.solidFill = "00FF00"
+    s.graphicalProperties.solidFill = "00FF00"
+    asset_prices_sheet.add_chart(chart, "S3")
+
     wb.save(f'{name}.xlsx')
