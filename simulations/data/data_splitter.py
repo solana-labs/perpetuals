@@ -23,7 +23,7 @@ def split_files(dir):
             df['time'] = pd.to_datetime(df['t'])
             df = df.drop('t', axis=1) 
         else:
-            cols_to_drop = ['s', 't', 'c', 'o', 'h', 'l', 'v', 'slot', 'publishedSlot', 'confidence', 'emaPrice', 'emaDifference%', 'spread', 'spot_confidence%', 'spread%']
+            cols_to_drop = ['s', 'c', 'o', 'h', 'l', 'v', 'slot', 'publishedSlot', 'confidence', 'emaPrice', 'emaDifference%', 'spread', 'spot_confidence%', 'spread%']
             df = df.drop(cols_to_drop, axis=1) 
             # Convert the 'Date' column to datetime if needed
             df['time'] = pd.to_datetime(df['time'])
@@ -47,12 +47,45 @@ def split_files(dir):
         # Remove the original file
         os.remove(file_path)
 
+def fill_dir(num):
+    # create a directory called 1
+    directory = os.path.join(os.getcwd(), str(num))
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    # copy file btc-1.csv from dir BTC into new dir
+    file_path = os.path.join(os.getcwd(), 'Btc', f'btc-{num}.csv')
+    new_file_path = os.path.join(directory, f'btc-{num}.csv')
+    df = pd.read_csv(file_path)
+    df.to_csv(new_file_path, index=False)
+
+    file_path = os.path.join(os.getcwd(), 'Eth', f'eth-{num}.csv')
+    new_file_path = os.path.join(directory, f'eth-{num}.csv')
+    df = pd.read_csv(file_path)
+    df.to_csv(new_file_path, index=False)
+
+    file_path = os.path.join(os.getcwd(), 'Sol', f'sol-{num}.csv')
+    new_file_path = os.path.join(directory, f'sol-{num}.csv')
+    df = pd.read_csv(file_path)
+    df.to_csv(new_file_path, index=False)
+
+    file_path = os.path.join(os.getcwd(), 'Stables', f'USDC-{num}.csv')
+    new_file_path = os.path.join(directory, f'USDC-{num}.csv')
+    df = pd.read_csv(file_path)
+    df.to_csv(new_file_path, index=False)
+
+    file_path = os.path.join(os.getcwd(), 'Stables', f'USDT-{num}.csv')
+    new_file_path = os.path.join(directory, f'USDT-{num}.csv')
+    df = pd.read_csv(file_path)
+    df.to_csv(new_file_path, index=False)
+
+
 def main():
-    # for i in range(1,8):
-    #     split_files(i)
-    #     print(f'{i} splitted')
-    split_files(8)
-    #assets = ['BTC', 'ETH', 'SOL', 'USDT', 'USDC']
+    for i in range (1, 9):
+        fill_dir(i)
+        print(f'{i} dir created')
+        split_files(i)
+        print(f'{i} splitted')
 
 
 if __name__ == '__main__':

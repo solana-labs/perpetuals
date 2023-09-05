@@ -7,7 +7,6 @@ def liquidity_policy(params, substep, state_history, previous_state):
     liquidity_providers = copy.deepcopy(previous_state['liquidity_providers'])
     pools = copy.deepcopy(previous_state['pools'])
     timestep = previous_state['timestep']
-    print(timestep, 'liquidity')
 
     p = 0
     for pool_id in pools.keys():
@@ -33,13 +32,12 @@ def liquidity_policy(params, substep, state_history, previous_state):
                     liq_ratio = liquidity_provider['liquidity'][asset] * asset_prices[asset][0] / provider_balance
                     updated_liquidity[asset] = pool['holdings'][asset] * liq_ratio * liquidity_provider['pool_share'] / (pool['lp_shares'] * pool['pool_ratios'][asset])
                     pool['lps'][liquidity_provider_id][asset] = updated_liquidity[asset]
-
                 liquidity_provider['liquidity'] = updated_liquidity.copy()
 
             if liquidity_provider_id == 'genesis':
                 continue
 
-            provider_decision = liquidity_provider_decision(liquidity_provider, pool['yield'], asset_prices, asset_volatility)
+            provider_decision = liquidity_provider_decision(liquidity_provider, pool['yield'], asset_prices, asset_volatility, pool['pool_ratios'])
 
             for asset in provider_decision.keys():
                 if provider_decision[asset] == 0:
@@ -64,13 +62,19 @@ def liquidity_policy(params, substep, state_history, previous_state):
                 lot_size = provider_decision[asset]
 
                 # Fetch the fee amount
-                fee_perc = liquidity_fee(pool, asset, provider_decision, asset_prices, params['base_fees_swap'], params['om_fees_swap'])
+                fee_perc = liquidity_fee(pool, asset, provider_decision, asset_prices, params['lp_fees'])
                 # fee amount returns -1 if the provider decision if does not pass the constraints
                 if fee_perc == -1:
                     continue
                 # calculate the fee
                 fee_amount = abs(lot_size * fee_perc)
                 if fee_amount / lot_size > 0.07:
+                    continue
+                elif fee_amount / lot_size > 0.05 and random.random() < 0.6:
+                    continue
+                elif fee_amount / lot_size > 0.03 and random.random() < 0.3:
+                    continue
+                elif fee_amount / lot_size > 0.015 and random.random() < 0.1:
                     continue
                 # update the provider and pool values
                 res_tmp = provide_liquidity(pool, liquidity_provider, gen_prov, lot_size, asset, fee_amount, asset_prices)

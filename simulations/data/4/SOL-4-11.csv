@@ -1,2 +1,2 @@
-time,price,maxprice,minprice,use_spread,problem_indicator
-0,16.81,16.81,16.81,False,no problemo
+t,time,price,maxprice,minprice,use_spread,problem_indicator
+2023-01-13 11:00:00,0,16.81,16.81,16.81,False,no problemo

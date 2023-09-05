@@ -1,5 +1,5 @@
-time,price,maxprice,minprice,use_spread,problem_indicator
-0,15.86600751,15.86600751,15.86600751,False,no problemo
-1,15.862055,15.862055,15.862055,False,no problemo
-2,15.85855326,15.85855326,15.85855326,False,no problemo
-3,15.8445,15.8445,15.8445,False,no problemo
+t,time,price,maxprice,minprice,use_spread,problem_indicator
+2023-06-20 11:00:00,0,15.86600751,15.86600751,15.86600751,False,no problemo
+2023-06-20 11:01:00,1,15.862055,15.862055,15.862055,False,no problemo
+2023-06-20 11:02:00,2,15.85855326,15.85855326,15.85855326,False,no problemo
+2023-06-20 11:03:00,3,15.8445,15.8445,15.8445,False,no problemo

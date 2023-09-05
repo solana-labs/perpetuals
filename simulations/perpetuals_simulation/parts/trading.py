@@ -14,8 +14,6 @@ def trading_policy(params, substep, state_history, previous_state):
     num_of_swaps = 0
     gen_lp = copy.deepcopy(liquidity_providers['genesis'])
 
-    print(timestep, 'traders')
-
     p = 0
     for pool_id in pools.keys():
         pool = pools[pool_id]
@@ -117,7 +115,7 @@ def trading_policy(params, substep, state_history, previous_state):
 
         pools[pool_id] = pool
         p += 1
-        
+
     action = {
         'traders': traders,
         'pools': pools,

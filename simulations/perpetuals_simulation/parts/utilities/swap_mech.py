@@ -60,24 +60,55 @@ def swap_fee_calc(pool, token_in, token_in_amt, token_out, token_out_amt, base_f
     #pool = copy.deepcopy(pool)
     # return ratio_fee
     tvl = pool_total_holdings(pool, asset_prices)
-    fee_max = om_fees[0]
-    fee_optimal = om_fees[1]
+    if token_in in ['BTC', 'ETH', 'SOL']:
+        fee_max_in = om_fees['coins'][0]
+        fee_optimal_in = om_fees['coins'][1]
+    else:
+        fee_max_in = om_fees['stables'][0]
+        fee_optimal_in = om_fees['stables'][1]
+
+    if token_out in ['BTC', 'ETH', 'SOL']:
+        fee_max_out = om_fees['coins'][0]
+        fee_optimal_out = om_fees['coins'][1]
+    else:
+        fee_max_out = om_fees['stables'][0]
+        fee_optimal_out = om_fees['stables'][1]
 
     target_ratio_in = pool['target_ratios'][token_in]
     post_trade_ratio_in = (pool['holdings'][token_in] + token_in_amt) * float(asset_prices[token_in][0]) / tvl
-    max_ratio_in = target_ratio_in + pool['deviation']
+    max_ratio_in = pool['max_ratio'][token_in]
+    min_ratio_in = pool['min_ratio'][token_in]
+
 
     # Calculate the pool receiving swap fee
-    A_receiving = (fee_max - fee_optimal) / (max_ratio_in * 100 - target_ratio_in * 100) ** 3
-    receiving_fee = A_receiving * (post_trade_ratio_in * 100 - target_ratio_in * 100) ** 3 + fee_optimal
+    if post_trade_ratio_in > target_ratio_in:
+        hslope = (fee_max_in - fee_optimal_in) / (max_ratio_in - target_ratio_in)
+        hb = fee_optimal_in - target_ratio_in * hslope
+        receiving_fee = hslope * post_trade_ratio_in + hb
+    else:
+        lslope = (fee_max_in - fee_optimal_in) / (target_ratio_in - min_ratio_in)
+        lb = fee_optimal_in - target_ratio_in * lslope
+        receiving_fee = lslope * post_trade_ratio_in + lb
+
+    # A_receiving = (fee_max - fee_optimal) / (max_ratio_in * 100 - target_ratio_in * 100) ** 3
+    # receiving_fee = A_receiving * (post_trade_ratio_in * 100 - target_ratio_in * 100) ** 3 + fee_optimal
 
     target_ratio_out = pool['target_ratios'][token_out]
     post_trade_ratio_out = (pool['holdings'][token_out] - token_out_amt) * float(asset_prices[token_out][0]) / tvl
-    min_ratio_out = target_ratio_out - pool['deviation']
+    max_ratio_out = pool['max_ratio'][token_in]
+    min_ratio_out = pool['min_ratio'][token_out]
 
     # Calculate the pool paying swap fee
-    A_paying = (fee_max - fee_optimal) / (min_ratio_out * 100 - target_ratio_out * 100) ** 3
-    paying_fee = A_paying * (post_trade_ratio_out * 100 - target_ratio_out * 100) ** 3 + fee_optimal
+    if post_trade_ratio_out > target_ratio_out:
+        hslope = -(fee_max_out - fee_optimal_out) / (max_ratio_out - target_ratio_out)
+        hb = fee_optimal_out - target_ratio_out * hslope
+        paying_fee = hslope * post_trade_ratio_out + hb
+    else:
+        lslope = -(fee_max_out - fee_optimal_out) / (target_ratio_out - min_ratio_out)
+        lb = fee_optimal_out - target_ratio_out * lslope
+        paying_fee = lslope * post_trade_ratio_out + lb
+    # A_paying = (fee_max - fee_optimal) / (min_ratio_out * 100 - target_ratio_out * 100) ** 3
+    # paying_fee = A_paying * (post_trade_ratio_out * 100 - target_ratio_out * 100) ** 3 + fee_optimal
 
     # Get the pool receiving base fee and the pool paying base fee
     receiving_base_fee = base_fees[token_in]
@@ -114,10 +145,10 @@ def swap_tokens_pool(pool, token_in, token_in_amt, token_out, token_out_amt, swa
     post_ratio_in = pool['holdings'][token_in] * asset_prices[token_in][0] / tvl
     post_ratio_out = pool['holdings'][token_out] * asset_prices[token_out][0] / tvl
 
-    if pool['target_ratios'][token_in] - pool['deviation'] < post_ratio_in < pool['target_ratios'][token_in] + pool['deviation'] and pool['target_ratios'][token_out] - pool['deviation'] < post_ratio_out < pool['target_ratios'][token_out] + pool['deviation']:
-        return pool
-    else:
+    if post_ratio_out > pool['max_ratio'][token_out] or pool['min_ratio'][token_in] > post_ratio_in:
         return -1
+
+    return pool
     
 def update_gen_lp_swap(tmp_gen_lp, fee, asset):
     updated_gen_lp = copy.deepcopy(tmp_gen_lp)
