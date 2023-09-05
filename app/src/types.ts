@@ -9,6 +9,9 @@ export type Types = IdlTypes<Perpetuals>;
 
 export type InitParams = Types["InitParams"];
 
+export type InitStakingParams = Types["InitStakingParams"];
+export type InitUserStakingParams = Types["InitUserStakingParams"];
+
 export type OracleParams = Types["OracleParams"];
 export type PricingParams = Types["PricingParams"];
 export type Permissions = Types["Permissions"];

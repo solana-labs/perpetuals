@@ -1,7 +1,19 @@
 /// Command-line interface for basic admin functions
 
+import {
+  withCreateRealm,
+  getGovernanceProgramVersion,
+  MintMaxVoteWeightSource,
+  GoverningTokenConfigAccountArgs,
+  GoverningTokenType,
+  MintMaxVoteWeightSourceType,
+} from "@solana/spl-governance";
 import { BN } from "@coral-xyz/anchor";
-import { PublicKey } from "@solana/web3.js";
+import {
+  PublicKey,
+  Transaction,
+  TransactionInstruction,
+} from "@solana/web3.js";
 import { PerpetualsClient } from "./client";
 import { Command } from "commander";
 import {
@@ -15,6 +27,12 @@ import {
   SetCustomOraclePriceParams,
 } from "./types";
 
+const governanceProgram = new PublicKey(
+  "GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPCVZw"
+);
+
+const lmTokenMintDecimals = 6;
+
 let client: PerpetualsClient;
 
 function initClient(clusterUrl: string, adminKeyPath: string): void {
@@ -23,7 +41,16 @@ function initClient(clusterUrl: string, adminKeyPath: string): void {
   client.log("Client Initialized");
 }
 
-function init(adminSigners: PublicKey[], minSignatures: number): Promise<void> {
+function init(
+  adminSigners: PublicKey[],
+  minSignatures: number,
+  lmStakingRewardTokenMint: PublicKey,
+  governanceRealm: PublicKey,
+  coreContributorBucketAllocation: BN,
+  daoTreasuryBucketAllocation: BN,
+  polBucketAllocation: BN,
+  ecosystemBucketAllocation: BN
+): Promise<void> {
   // to be loaded from config file
   const perpetualsConfig: InitParams = {
     minSignatures: minSignatures,
@@ -35,9 +62,34 @@ function init(adminSigners: PublicKey[], minSignatures: number): Promise<void> {
     allowPnlWithdrawal: true,
     allowCollateralWithdrawal: true,
     allowSizeChange: true,
+    coreContributorBucketAllocation: coreContributorBucketAllocation.mul(
+      new BN(10 ** lmTokenMintDecimals)
+    ),
+    daoTreasuryBucketAllocation: daoTreasuryBucketAllocation.mul(
+      new BN(10 ** lmTokenMintDecimals)
+    ),
+    polBucketAllocation: polBucketAllocation.mul(
+      new BN(10 ** lmTokenMintDecimals)
+    ),
+    ecosystemBucketAllocation: ecosystemBucketAllocation.mul(
+      new BN(10 ** lmTokenMintDecimals)
+    ),
   };
 
-  return client.init(adminSigners, perpetualsConfig);
+  return client.init(
+    adminSigners,
+    lmStakingRewardTokenMint,
+    governanceProgram,
+    governanceRealm,
+    perpetualsConfig
+  );
+}
+
+function initLpStaking(
+  poolName: string,
+  stakingRewardTokenMint: PublicKey
+): Promise<void> {
+  return client.initLpStaking(poolName, stakingRewardTokenMint);
 }
 
 function setAuthority(
@@ -71,19 +123,34 @@ function removePool(poolName: string): Promise<void> {
   return client.removePool(poolName);
 }
 
+function getGovernanceTokenKey(): void {
+  client.prettyPrint(client.getGovernanceTokenKey());
+}
+
+function getGovernanceRealmKey(name: string): void {
+  client.prettyPrint(
+    PublicKey.findProgramAddressSync(
+      [Buffer.from("governance"), Buffer.from(name)],
+      governanceProgram
+    )[0]
+  );
+}
+
 async function addCustody(
   poolName: string,
   tokenMint: PublicKey,
   tokenOracle: PublicKey,
   isStable: boolean,
   isVirtual: boolean,
-  oracleType: keyof OracleParams["oracleType"] = "custom"
+  oracleType: keyof OracleParams["oracleType"] = "none"
 ): Promise<void> {
   // to be loaded from config file
   const oracleConfig: OracleParams = {
     maxPriceError: new BN(10_000),
     maxPriceAgeSec: 60,
-    oracleType: { [oracleType]: {} },
+    oracleType: {
+      [oracleType]: {},
+    },
     oracleAccount: tokenOracle,
   };
 
@@ -403,6 +470,81 @@ async function getSwapAmountAndFees(
   );
 }
 
+async function createGovernanceRealm(
+  name: string,
+  minCommunityWeightToCreateGovernance: BN
+): Promise<void> {
+  // Use the Admin as the authority
+  const realmAuthority = client.provider.wallet.publicKey;
+  const payer = realmAuthority;
+
+  const instructions: TransactionInstruction[] = [];
+
+  const programVersion = await getGovernanceProgramVersion(
+    client.provider.connection,
+    governanceProgram
+  );
+
+  const communityMint = client.getGovernanceTokenKey();
+
+  const communityMintMaxVoteWeightSource = new MintMaxVoteWeightSource({
+    /// Fraction (10^10 precision) of the governing mint supply is used as max vote weight
+    /// The default is 100% (10^10) to use all available mint supply for voting
+    type: MintMaxVoteWeightSourceType.SupplyFraction,
+
+    // 100%
+    value: new BN(100),
+  });
+
+  const communityTokenConfig: GoverningTokenConfigAccountArgs =
+    new GoverningTokenConfigAccountArgs({
+      tokenType: GoverningTokenType.Membership,
+      voterWeightAddin: undefined,
+      maxVoterWeightAddin: undefined,
+    });
+
+  const realmPubkey = await withCreateRealm(
+    instructions,
+    governanceProgram,
+    programVersion,
+    name,
+    realmAuthority,
+    communityMint,
+    payer,
+    undefined /* council mint */,
+    communityMintMaxVoteWeightSource,
+    // Governance token mint is 6 decimals
+    new BN(10 ** 6).mul(minCommunityWeightToCreateGovernance),
+    communityTokenConfig,
+    undefined /* councilTokenConfig */
+  );
+
+  const tx = new Transaction();
+
+  tx.add(...instructions);
+  tx.recentBlockhash = (
+    await client.provider.connection.getLatestBlockhash()
+  ).blockhash;
+  tx.feePayer = payer;
+
+  const signedTransaction = await client.provider.wallet.signTransaction(tx);
+
+  const txId = await client.provider.connection.sendRawTransaction(
+    signedTransaction.serialize()
+  );
+
+  const confirmationStatus =
+    await client.provider.connection.confirmTransaction(txId, "confirmed");
+
+  if (confirmationStatus.value.err) {
+    console.error(`Transaction failed: ${confirmationStatus.value.err}`);
+  } else {
+    console.log(`Transaction succeeded: ${txId}`);
+  }
+
+  console.log(`Realm Pubkey: ${realmPubkey.toBase58()}`);
+}
+
 async function getAum(poolName: string): Promise<void> {
   client.prettyPrint(await client.getAum(poolName));
 }
@@ -431,14 +573,91 @@ async function getAum(poolName: string): Promise<void> {
     });
 
   program
+    .command("get-governance-token-mint")
+    .description("Print governance token mint")
+    .action(async () => {
+      getGovernanceTokenKey();
+    });
+
+  program
+    .command("get-governance-realm-key")
+    .description("Print governance realm address")
+    .requiredOption("-n, --name <string>", "Name of the realm")
+    .action((options) => {
+      getGovernanceRealmKey(options["name"]);
+    });
+
+  program
+    .command("create-governance-realm")
+    .description("Create the governance realm using spl-governance progream")
+    .requiredOption("-n, --name <string>", "Name of the new realm")
+    .requiredOption(
+      "-m, --min-community-weight-to-create-governance <int>",
+      "Minimum of tokens required to create a new governance"
+    )
+    .action(async (options) => {
+      createGovernanceRealm(
+        options["name"],
+        new BN(options["--min-community-weight-to-create-governance"])
+      );
+    });
+
+  program
     .command("init")
     .description("Initialize the on-chain program")
     .requiredOption("-m, --min-signatures <int>", "Minimum signatures")
+    .requiredOption(
+      "-l, --lm-staking-reward-token-mint <string>",
+      "mint address of the staking reward token"
+    )
+    .requiredOption(
+      "-r, --governance-realm <string>",
+      "Governance realm address"
+    )
+    .requiredOption(
+      "-c, --core-contributor-bucket-allocation <int>",
+      "Core contributors allocation amount"
+    )
+    .requiredOption(
+      "-d, --dao-treasury-bucket-allocation <int>",
+      "DAO treasury allocation amount"
+    )
+    .requiredOption(
+      "-p, --pol-bucket-allocation <int>",
+      "POL bucket allocation amount"
+    )
+    .requiredOption(
+      "-e, --ecosystem-bucket-allocation <int>",
+      "Ecosystem allocation amount"
+    )
     .argument("<pubkey...>", "Admin public keys")
     .action(async (args, options) => {
+      console.log("args -> " + args);
+      console.log("options ->" + JSON.stringify(options, null, 2));
       await init(
         args.map((x) => new PublicKey(x)),
-        options.minSignatures
+        Number(options.minSignatures),
+        new PublicKey(options.lmStakingRewardTokenMint),
+        new PublicKey(options.governanceRealm),
+        new BN(options.coreContributorBucketAllocation),
+        new BN(options.daoTreasuryBucketAllocation),
+        new BN(options.polBucketAllocation),
+        new BN(options.ecosystemBucketAllocation)
+      );
+    });
+
+  program
+    .command("init-lp-staking")
+    .description("Initialize staking for given LP token mint")
+    .argument("<string>", "Pool name")
+    .requiredOption(
+      "-s, --staking-reward-token-mint <string>",
+      "Token mint to reward stakers with"
+    )
+    .action(async (poolName, options) => {
+      await initLpStaking(
+        poolName,
+        new PublicKey(options.stakingRewardTokenMint)
       );
     });
 
