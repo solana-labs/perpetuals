@@ -5,7 +5,6 @@ import {
   workspace,
   utils,
   BN,
-  BorshAccountsCoder,
 } from "@coral-xyz/anchor";
 import { Perpetuals } from "../../target/types/perpetuals";
 import {
@@ -43,6 +42,21 @@ import {
   SwapAmountAndFees,
   Custody,
 } from "./types";
+import {
+  GoverningTokenConfigAccountArgs,
+  GoverningTokenType,
+  MintMaxVoteWeightSource,
+  MintMaxVoteWeightSourceType,
+  getGovernanceProgramVersion,
+  getGoverningTokenHoldingAddress,
+  getRealmConfigAddress,
+  getTokenOwnerRecordAddress,
+  withCreateRealm,
+} from "@solana/spl-governance";
+
+const governanceProgram = new PublicKey(
+  "GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPCVZw"
+);
 
 export class PerpetualsClient {
   provider: AnchorProvider;
@@ -101,6 +115,13 @@ export class PerpetualsClient {
       return this.toString(10);
     };
   }
+
+  getVestPda = (
+    owner: PublicKey
+  ): {
+    publicKey: PublicKey;
+    bump: number;
+  } => this.findProgramAddress("vest", [owner]);
 
   findProgramAddress = (
     label: string,
@@ -182,6 +203,12 @@ export class PerpetualsClient {
       tokenMint,
     ]).publicKey;
   };
+
+  getGovernanceRealmKey = (realmName: string): PublicKey =>
+    PublicKey.findProgramAddressSync(
+      [Buffer.from("governance"), Buffer.from(realmName)],
+      governanceProgram
+    )[0];
 
   getGovernanceTokenKey = (): PublicKey => {
     return this.findProgramAddress("governance_token_mint").publicKey;
@@ -387,11 +414,85 @@ export class PerpetualsClient {
   ///////
   // instructions
 
+  createGovernanceRealm = async (
+    name: string,
+    minCommunityWeightToCreateGovernance: BN
+  ): Promise<PublicKey> => {
+    // Use the Admin as the authority
+    const realmAuthority = this.provider.wallet.publicKey;
+    const payer = realmAuthority;
+
+    const instructions: TransactionInstruction[] = [];
+
+    const programVersion = await getGovernanceProgramVersion(
+      this.provider.connection,
+      governanceProgram
+    );
+
+    const communityMint = this.getGovernanceTokenKey();
+
+    const communityMintMaxVoteWeightSource = new MintMaxVoteWeightSource({
+      /// Fraction (10^10 precision) of the governing mint supply is used as max vote weight
+      /// The default is 100% (10^10) to use all available mint supply for voting
+      type: MintMaxVoteWeightSourceType.SupplyFraction,
+
+      // 100%
+      value: new BN(100),
+    });
+
+    const communityTokenConfig: GoverningTokenConfigAccountArgs =
+      new GoverningTokenConfigAccountArgs({
+        tokenType: GoverningTokenType.Membership,
+        voterWeightAddin: undefined,
+        maxVoterWeightAddin: undefined,
+      });
+
+    const realmPubkey = await withCreateRealm(
+      instructions,
+      governanceProgram,
+      programVersion,
+      name,
+      realmAuthority,
+      communityMint,
+      payer,
+      undefined /* council mint */,
+      communityMintMaxVoteWeightSource,
+      // Governance token mint is 6 decimals
+      new BN(10 ** 6).mul(minCommunityWeightToCreateGovernance),
+      communityTokenConfig,
+      undefined /* councilTokenConfig */
+    );
+
+    const tx = new Transaction();
+
+    tx.add(...instructions);
+    tx.recentBlockhash = (
+      await this.provider.connection.getLatestBlockhash()
+    ).blockhash;
+    tx.feePayer = payer;
+
+    const signedTransaction = await this.provider.wallet.signTransaction(tx);
+
+    const txId = await this.provider.connection.sendRawTransaction(
+      signedTransaction.serialize()
+    );
+
+    const confirmationStatus =
+      await this.provider.connection.confirmTransaction(txId, "confirmed");
+
+    if (confirmationStatus.value.err) {
+      console.error(`Transaction failed: ${confirmationStatus.value.err}`);
+    } else {
+      console.log(`Transaction succeeded: ${txId}`);
+    }
+
+    return realmPubkey;
+  };
+
   init = async (
     admins: PublicKey[],
     lmStakingRewardTokenMint: PublicKey,
-    governance_program: PublicKey,
-    governance_realm: PublicKey,
+    governanceRealm: PublicKey,
     config: InitParams
   ): Promise<void> => {
     const perpetualsProgramData = PublicKey.findProgramAddressSync(
@@ -430,8 +531,8 @@ export class PerpetualsClient {
         perpetuals: this.perpetuals.publicKey,
         perpetualsProgram: this.program.programId,
         perpetualsProgramData,
-        governanceRealm: governance_realm,
-        governanceProgram: governance_program,
+        governanceRealm,
+        governanceProgram,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
@@ -1016,6 +1117,57 @@ export class PerpetualsClient {
         console.error(err);
         throw err;
       });
+  };
+
+  addVest = async (
+    beneficiaryWalet: PublicKey,
+    amount: BN,
+    unlockStartTimestamp: BN,
+    unlockEndTimestamp: BN
+  ): Promise<string> => {
+    const cortexAccount = await this.program.account.cortex.fetch(
+      this.cortex.publicKey
+    );
+
+    return this.program.methods
+      .addVest({
+        amount,
+        unlockStartTimestamp,
+        unlockEndTimestamp,
+      })
+      .accounts({
+        admin: this.admin.publicKey,
+        owner: beneficiaryWalet,
+        payer: this.provider.wallet.publicKey,
+        multisig: this.multisig.publicKey,
+        transferAuthority: this.authority.publicKey,
+        cortex: this.cortex.publicKey,
+        perpetuals: this.perpetuals.publicKey,
+        vest: this.getVestPda(beneficiaryWalet).publicKey,
+        lmTokenMint: this.lmTokenMint.publicKey,
+        governanceTokenMint: this.governanceTokenMint.publicKey,
+        governanceRealm: cortexAccount.governanceRealm,
+        governanceRealmConfig: await getRealmConfigAddress(
+          governanceProgram,
+          cortexAccount.governanceRealm
+        ),
+        governanceGoverningTokenHolding: await getGoverningTokenHoldingAddress(
+          governanceProgram,
+          cortexAccount.governanceRealm,
+          this.governanceTokenMint.publicKey
+        ),
+        governanceGoverningTokenOwnerRecord: await getTokenOwnerRecordAddress(
+          governanceProgram,
+          cortexAccount.governanceRealm,
+          this.governanceTokenMint.publicKey,
+          beneficiaryWalet
+        ),
+        governanceProgram,
+        systemProgram: SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        rent: SYSVAR_RENT_PUBKEY,
+      })
+      .rpc();
   };
 
   getOraclePrice = async (

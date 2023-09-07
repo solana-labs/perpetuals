@@ -240,3 +240,17 @@ i.e
 ```
 npx ts-node src/cli.ts -k ~/adrena-keypairs/admin.json get-custodies main-pool
 ```
+
+## Add vest
+
+```
+npx ts-node app/src/cli.ts -k <ADMIN_KEYPAIR> add-vest --beneficiary-wallet <WALLET> --amount <LM_TOKEN_AMOUNT> --unlock-start-timestamp <UNIX_TIMESTAMP> --unlock-end-timestamp <UNIX_TIMESTAMP>
+```
+
+Can use the following website to find timestamp: https://www.unixtimestamp.com/
+
+i.e
+
+```
+npx ts-node app/src/cli.ts -k ~/adrena-keypairs/admin.json add-vest --beneficiary-wallet 6hqz24NfaMwEvUna95p7haPqrh2urVwyVo1gLHEqUVXY --amount 10000 --unlock-start-timestamp 1694073600 --unlock-end-timestamp 1788768000
+```

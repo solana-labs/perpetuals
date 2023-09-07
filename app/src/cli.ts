@@ -1,19 +1,7 @@
 /// Command-line interface for basic admin functions
 
-import {
-  withCreateRealm,
-  getGovernanceProgramVersion,
-  MintMaxVoteWeightSource,
-  GoverningTokenConfigAccountArgs,
-  GoverningTokenType,
-  MintMaxVoteWeightSourceType,
-} from "@solana/spl-governance";
 import { BN } from "@coral-xyz/anchor";
-import {
-  PublicKey,
-  Transaction,
-  TransactionInstruction,
-} from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 import { PerpetualsClient } from "./client";
 import { Command } from "commander";
 import {
@@ -26,10 +14,6 @@ import {
   PricingParams,
   SetCustomOraclePriceParams,
 } from "./types";
-
-const governanceProgram = new PublicKey(
-  "GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPCVZw"
-);
 
 const lmTokenMintDecimals = 6;
 
@@ -79,7 +63,6 @@ function init(
   return client.init(
     adminSigners,
     lmStakingRewardTokenMint,
-    governanceProgram,
     governanceRealm,
     perpetualsConfig
   );
@@ -128,12 +111,7 @@ function getGovernanceTokenKey(): void {
 }
 
 function getGovernanceRealmKey(name: string): void {
-  client.prettyPrint(
-    PublicKey.findProgramAddressSync(
-      [Buffer.from("governance"), Buffer.from(name)],
-      governanceProgram
-    )[0]
-  );
+  client.prettyPrint(client.getGovernanceRealmKey(name));
 }
 
 async function addCustody(
@@ -474,79 +452,32 @@ async function createGovernanceRealm(
   name: string,
   minCommunityWeightToCreateGovernance: BN
 ): Promise<void> {
-  // Use the Admin as the authority
-  const realmAuthority = client.provider.wallet.publicKey;
-  const payer = realmAuthority;
-
-  const instructions: TransactionInstruction[] = [];
-
-  const programVersion = await getGovernanceProgramVersion(
-    client.provider.connection,
-    governanceProgram
-  );
-
-  const communityMint = client.getGovernanceTokenKey();
-
-  const communityMintMaxVoteWeightSource = new MintMaxVoteWeightSource({
-    /// Fraction (10^10 precision) of the governing mint supply is used as max vote weight
-    /// The default is 100% (10^10) to use all available mint supply for voting
-    type: MintMaxVoteWeightSourceType.SupplyFraction,
-
-    // 100%
-    value: new BN(100),
-  });
-
-  const communityTokenConfig: GoverningTokenConfigAccountArgs =
-    new GoverningTokenConfigAccountArgs({
-      tokenType: GoverningTokenType.Membership,
-      voterWeightAddin: undefined,
-      maxVoterWeightAddin: undefined,
-    });
-
-  const realmPubkey = await withCreateRealm(
-    instructions,
-    governanceProgram,
-    programVersion,
+  const realmPubkey = await client.createGovernanceRealm(
     name,
-    realmAuthority,
-    communityMint,
-    payer,
-    undefined /* council mint */,
-    communityMintMaxVoteWeightSource,
-    // Governance token mint is 6 decimals
-    new BN(10 ** 6).mul(minCommunityWeightToCreateGovernance),
-    communityTokenConfig,
-    undefined /* councilTokenConfig */
+    minCommunityWeightToCreateGovernance
   );
-
-  const tx = new Transaction();
-
-  tx.add(...instructions);
-  tx.recentBlockhash = (
-    await client.provider.connection.getLatestBlockhash()
-  ).blockhash;
-  tx.feePayer = payer;
-
-  const signedTransaction = await client.provider.wallet.signTransaction(tx);
-
-  const txId = await client.provider.connection.sendRawTransaction(
-    signedTransaction.serialize()
-  );
-
-  const confirmationStatus =
-    await client.provider.connection.confirmTransaction(txId, "confirmed");
-
-  if (confirmationStatus.value.err) {
-    console.error(`Transaction failed: ${confirmationStatus.value.err}`);
-  } else {
-    console.log(`Transaction succeeded: ${txId}`);
-  }
 
   console.log(`Realm Pubkey: ${realmPubkey.toBase58()}`);
 }
 
 async function getAum(poolName: string): Promise<void> {
   client.prettyPrint(await client.getAum(poolName));
+}
+
+async function addVest(
+  beneficiaryWalet: PublicKey,
+  amount: BN,
+  unlockStartTimestamp: BN,
+  unlockEndTimestamp: BN
+) {
+  const txId = client.addVest(
+    beneficiaryWalet,
+    amount.mul(new BN(10 ** lmTokenMintDecimals)),
+    unlockStartTimestamp,
+    unlockEndTimestamp
+  );
+
+  console.log(`TxId: ${txId}`);
 }
 
 (async function main() {
@@ -658,6 +589,31 @@ async function getAum(poolName: string): Promise<void> {
       await initLpStaking(
         poolName,
         new PublicKey(options.stakingRewardTokenMint)
+      );
+    });
+
+  program
+    .command("add-vest")
+    .description("Add vesting")
+    .requiredOption(
+      "-w, --beneficiary-wallet <string>",
+      "Wallet receiving tokens"
+    )
+    .requiredOption("-a, --amount <string>", "Token amount")
+    .requiredOption(
+      "-s, --unlock-start-timestamp <string>",
+      "Unlock start timestamp (i.e 1694085185)"
+    )
+    .requiredOption(
+      "-e, --unlock-end-timestamp <string>",
+      "Unlock end timestamp (i.e 1694085185)"
+    )
+    .action(async (options) => {
+      await addVest(
+        new PublicKey(options.beneficiaryWallet),
+        new BN(options.amount),
+        new BN(options.unlockStartTimestamp),
+        new BN(options.unlockEndTimestamp)
       );
     });
 
