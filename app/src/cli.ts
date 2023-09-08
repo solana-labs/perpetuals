@@ -106,12 +106,12 @@ function removePool(poolName: string): Promise<void> {
   return client.removePool(poolName);
 }
 
-function getGovernanceTokenKey(): void {
+function getDaoTokenKey(): void {
   client.prettyPrint(client.getGovernanceTokenKey());
 }
 
-function getGovernanceRealmKey(name: string): void {
-  client.prettyPrint(client.getGovernanceRealmKey(name));
+function getDaoRealmKey(name: string): void {
+  client.prettyPrint(client.getDaoRealmKey(name));
 }
 
 async function addCustody(
@@ -448,11 +448,11 @@ async function getSwapAmountAndFees(
   );
 }
 
-async function createGovernanceRealm(
+async function createDaoRealm(
   name: string,
   minCommunityWeightToCreateGovernance: BN
 ): Promise<void> {
-  const realmPubkey = await client.createGovernanceRealm(
+  const realmPubkey = await client.createDaoRealm(
     name,
     minCommunityWeightToCreateGovernance
   );
@@ -470,14 +470,18 @@ async function addVest(
   unlockStartTimestamp: BN,
   unlockEndTimestamp: BN
 ) {
-  const txId = client.addVest(
+  const txId = await client.addVest(
     beneficiaryWalet,
     amount.mul(new BN(10 ** lmTokenMintDecimals)),
     unlockStartTimestamp,
     unlockEndTimestamp
   );
 
-  console.log(`TxId: ${txId}`);
+  console.log(`Transaction succeeded: ${txId}`);
+}
+
+async function createDaoGovernance() {
+  // client.getDaoTokenKey();
 }
 
 (async function main() {
@@ -504,33 +508,41 @@ async function addVest(
     });
 
   program
-    .command("get-governance-token-mint")
+    .command("get-dao-token-mint")
     .description("Print governance token mint")
     .action(async () => {
-      getGovernanceTokenKey();
+      getDaoTokenKey();
     });
 
   program
-    .command("get-governance-realm-key")
+    .command("get-dao-realm-key")
     .description("Print governance realm address")
     .requiredOption("-n, --name <string>", "Name of the realm")
     .action((options) => {
-      getGovernanceRealmKey(options["name"]);
+      getDaoRealmKey(options["name"]);
     });
 
   program
-    .command("create-governance-realm")
-    .description("Create the governance realm using spl-governance progream")
+    .command("create-dao-realm")
+    .description("Create the governance realm using spl-governance program")
     .requiredOption("-n, --name <string>", "Name of the new realm")
     .requiredOption(
       "-m, --min-community-weight-to-create-governance <int>",
       "Minimum of tokens required to create a new governance"
     )
     .action(async (options) => {
-      createGovernanceRealm(
+      createDaoRealm(
         options["name"],
-        new BN(options["--min-community-weight-to-create-governance"])
+        new BN(options.minCommunityWeightToCreateGovernance)
       );
+    });
+
+  program
+    .command("create-dao-governance")
+    .description("Create a governance on realm using spl-governance program")
+    .requiredOption("-r, --realm-name <string>", "Name of the governance realm")
+    .action(async (options) => {
+      // createDaoGovernance(options.realmName);
     });
 
   program
@@ -618,6 +630,15 @@ async function addVest(
     });
 
   program
+    .command("claim-vest")
+    .description("Claim vesting for the wallet provided using -k")
+    .action(async () => {
+      const txId = await client.claimVest();
+
+      console.log(`Transaction succeeded: ${txId}`);
+    });
+
+  program
     .command("set-authority")
     .description("Set protocol admins")
     .requiredOption("-m, --min-signatures <int>", "Minimum signatures")
@@ -628,6 +649,9 @@ async function addVest(
         options.minSignatures
       );
     });
+
+  // orex private key
+  // 2pFs2KfVoA9eqTu9WncJ2RyLFvAUmUxWafG89SQ9XX7VCiZcSG659oo9c1WRwZFKMVbtAQBRhzi9Kcj7ib8uaFQS
 
   program
     .command("get-multisig")

@@ -51,6 +51,7 @@ import {
   getGoverningTokenHoldingAddress,
   getRealmConfigAddress,
   getTokenOwnerRecordAddress,
+  withCreateGovernance,
   withCreateRealm,
 } from "@solana/spl-governance";
 
@@ -204,7 +205,7 @@ export class PerpetualsClient {
     ]).publicKey;
   };
 
-  getGovernanceRealmKey = (realmName: string): PublicKey =>
+  getDaoRealmKey = (realmName: string): PublicKey =>
     PublicKey.findProgramAddressSync(
       [Buffer.from("governance"), Buffer.from(realmName)],
       governanceProgram
@@ -414,7 +415,22 @@ export class PerpetualsClient {
   ///////
   // instructions
 
-  createGovernanceRealm = async (
+  createDaoGovernance = async (realmName: string): Promise<string> => {
+    const realmPubkey = this.getDaoRealmKey(realmName);
+
+    const instructions: TransactionInstruction[] = [];
+
+    const programVersion = await getGovernanceProgramVersion(
+      this.provider.connection,
+      governanceProgram
+    );
+
+    // TODO
+    // withCreateGovernance(instructions, governanceProgram, programVersion);
+    return "";
+  };
+
+  createDaoRealm = async (
     name: string,
     minCommunityWeightToCreateGovernance: BN
   ): Promise<PublicKey> => {
@@ -487,6 +503,77 @@ export class PerpetualsClient {
     }
 
     return realmPubkey;
+  };
+
+  claimVest = async (): Promise<string> => {
+    const lmTokenAccount = await getAssociatedTokenAddress(
+      this.lmTokenMint.publicKey,
+      this.provider.wallet.publicKey
+    );
+
+    const cortexAccount = await this.program.account.cortex.fetch(
+      this.cortex.publicKey
+    );
+
+    const preInstructions: TransactionInstruction[] = [];
+
+    /*const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
+      units: 500_000,
+    });
+
+    preInstructions.push(modifyComputeUnits);*/
+
+    // Create LM ATA if doesn't exist
+    if (!(await this.provider.connection.getAccountInfo(lmTokenAccount))) {
+      preInstructions.push(
+        createAssociatedTokenAccountInstruction(
+          this.provider.wallet.publicKey,
+          lmTokenAccount,
+          this.provider.wallet.publicKey,
+          this.lmTokenMint.publicKey
+        )
+      );
+    }
+
+    return this.program.methods
+      .claimVest()
+      .accounts({
+        owner: this.provider.wallet.publicKey,
+        receivingAccount: lmTokenAccount,
+        transferAuthority: this.authority.publicKey,
+        cortex: this.cortex.publicKey,
+        perpetuals: this.perpetuals.publicKey,
+        vest: this.getVestPda(this.provider.wallet.publicKey).publicKey,
+        lmTokenMint: this.lmTokenMint.publicKey,
+        governanceTokenMint: this.governanceTokenMint.publicKey,
+        governanceRealm: cortexAccount.governanceRealm,
+        governanceRealmConfig: await getRealmConfigAddress(
+          governanceProgram,
+          cortexAccount.governanceRealm
+        ),
+        governanceGoverningTokenHolding: await getGoverningTokenHoldingAddress(
+          governanceProgram,
+          cortexAccount.governanceRealm,
+          this.governanceTokenMint.publicKey
+        ),
+        governanceGoverningTokenOwnerRecord: await getTokenOwnerRecordAddress(
+          governanceProgram,
+          cortexAccount.governanceRealm,
+          this.governanceTokenMint.publicKey,
+          this.provider.wallet.publicKey
+        ),
+        governanceProgram,
+        perpetualsProgram: this.program.programId,
+        systemProgram: SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        rent: SYSVAR_RENT_PUBKEY,
+      })
+      .preInstructions(preInstructions)
+      .rpc()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
   };
 
   init = async (
@@ -696,7 +783,7 @@ export class PerpetualsClient {
       signedTransaction.serialize()
     );
 
-    console.log(`txId: ${txId}`);
+    console.log(`Transaction succeeded: ${txId}`);
 
     const resp = await this.provider.connection.confirmTransaction({
       blockhash,
