@@ -650,9 +650,6 @@ async function createDaoGovernance() {
       );
     });
 
-  // orex private key
-  // 2pFs2KfVoA9eqTu9WncJ2RyLFvAUmUxWafG89SQ9XX7VCiZcSG659oo9c1WRwZFKMVbtAQBRhzi9Kcj7ib8uaFQS
-
   program
     .command("get-multisig")
     .description("Print multisig state")
