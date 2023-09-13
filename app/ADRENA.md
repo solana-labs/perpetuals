@@ -24,6 +24,8 @@ lp token mint: EqkG2sZrCw3dApo4LmeHvhAAEo7MwwjZNU2wxK5D6gbb
 
 Orex local wallet: CqJVUVbxJae8GfYsSooA5qzjHmoZusB1Hni7Ed1eEDeH
 
+liquidator: 2TV88CD47FWnVrr7dkR1aQGVNrdA1uVJKUk7E9umYeEx
+
 ## Upload program
 
 ./scripts/change_program_id.sh
@@ -253,4 +255,27 @@ i.e
 
 ```
 npx ts-node app/src/cli.ts -k ~/adrena-keypairs/admin.json add-vest --beneficiary-wallet 6hqz24NfaMwEvUna95p7haPqrh2urVwyVo1gLHEqUVXY --amount 10000 --unlock-start-timestamp 1694073600 --unlock-end-timestamp 1788768000
+```
+
+## Liquidator run
+
+Liquidator script run liquidations for one custody at a time.
+
+TOKEN_MINT: the token mint of the custody you wanna run liquidations for.
+
+```
+npx ts-node app/src/liquidator.ts -k <LIQUIDATOR_KEYPAIR> run <POOL_NAME> <TOKEN_MINT>
+```
+
+i.e
+
+```
+// ETH positions liquidation
+npx ts-node app/src/liquidator.ts -k ~/adrena-keypairs/liquidator.json run main-pool 3AHAG1ZSUnPz43XBFKRqnLwhdyz29WhHvYQgVrcheCwr
+
+// BTC positions liquidation
+npx ts-node app/src/liquidator.ts -k ~/adrena-keypairs/liquidator.json run main-pool HRvpfs8bKiUbLzSgT4LmKKugafZ8ePi5Vq7icJBC9dnM
+
+// SOL positions liquidation
+npx ts-node app/src/liquidator.ts -k ~/adrena-keypairs/liquidator.json run main-pool So11111111111111111111111111111111111111112
 ```
