@@ -28,8 +28,8 @@ pub async fn test_init(
             multisig: multisig_pda,
             transfer_authority: transfer_authority_pda,
             perpetuals: perpetuals_pda,
-            perpetuals_program: perpetuals::ID,
             perpetuals_program_data: perpetuals_program_data_pda,
+            perpetuals_program: perpetuals::ID,
             system_program: anchor_lang::system_program::ID,
             token_program: anchor_spl::token::ID,
         };

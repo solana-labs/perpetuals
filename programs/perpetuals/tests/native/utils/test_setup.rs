@@ -1,5 +1,5 @@
 use {
-    super::{get_program_data_pda, SetupCustodyInfo},
+    super::SetupCustodyInfo,
     crate::{
         instructions,
         utils::{self, fixtures},
@@ -13,12 +13,9 @@ use {
             pool::TokenRatios,
         },
     },
-    solana_program::{
-        bpf_loader_upgradeable, bpf_loader_upgradeable::UpgradeableLoaderState, pubkey::Pubkey,
-        rent::Rent, stake_history::Epoch,
-    },
+    solana_program::pubkey::Pubkey,
     solana_program_test::{ProgramTest, ProgramTestContext},
-    solana_sdk::{account, signature::Keypair, signer::Signer},
+    solana_sdk::{signature::Keypair, signer::Signer},
     std::collections::HashMap,
     tokio::sync::RwLock,
 };
@@ -143,24 +140,6 @@ impl TestSetup {
                     [users_param.len() + 3..(users_param.len() + 3 + multisig_members_names.len())],
             )
         };
-
-        let program_data_pda = get_program_data_pda().0;
-
-        let program_data = UpgradeableLoaderState::ProgramData {
-            slot: 1,
-            upgrade_authority_address: Some(program_authority_keypair.pubkey()),
-        };
-
-        let serialzed_program_data = bincode::serialize(&program_data).unwrap();
-
-        let program_data_account = account::Account {
-            lamports: Rent::default().minimum_balance(serialzed_program_data.len()),
-            data: serialzed_program_data,
-            owner: bpf_loader_upgradeable::ID,
-            executable: false,
-            rent_epoch: Epoch::default(),
-        };
-        program_test.add_account(program_data_pda, program_data_account);
 
         let users = {
             let mut users: HashMap<String, Keypair> = HashMap::new();
