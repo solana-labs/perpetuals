@@ -105,7 +105,7 @@ impl TestSetup {
         pool_name: &str,
         custodies_params: Vec<SetupCustodyWithLiquidityParams<'_>>,
     ) -> TestSetup {
-        let mut program_test = ProgramTest::default();
+        let mut program_test = ProgramTest::new("perpetuals", perpetuals::id(), None);
 
         // Initialize keypairs
         let keypairs: Vec<Keypair> = utils::create_and_fund_multiple_accounts(
@@ -173,9 +173,6 @@ impl TestSetup {
 
             mints
         };
-
-        // Deploy program
-        utils::add_perpetuals_program(&mut program_test, program_authority_keypair).await;
 
         // Start the client and connect to localnet validator
         let program_test_ctx: RwLock<ProgramTestContext> =

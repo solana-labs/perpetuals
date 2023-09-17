@@ -332,8 +332,13 @@ export class TestClient {
 
   init = async () => {
     try {
+      let programData = PublicKey.findProgramAddressSync(
+        [this.program.programId.toBuffer()],
+        new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
+      )[0];
+
       await this.program.methods
-        .testInit({
+        .init({
           minSignatures: 2,
           allowSwap: true,
           allowAddLiquidity: true,
@@ -349,6 +354,8 @@ export class TestClient {
           multisig: this.multisig.publicKey,
           transferAuthority: this.authority.publicKey,
           perpetuals: this.perpetuals.publicKey,
+          perpetualsProgramData: programData,
+          perpetualsProgram: this.program.programId,
           systemProgram: SystemProgram.programId,
           tokenProgram: spl.TOKEN_PROGRAM_ID,
         })

@@ -61,9 +61,7 @@ pub fn set_test_time<'info>(
     }
 
     // update time data
-    if cfg!(feature = "test") {
-        ctx.accounts.perpetuals.inception_time = params.time;
-    }
+    ctx.accounts.perpetuals.inception_time = params.time;
 
     Ok(0)
 }

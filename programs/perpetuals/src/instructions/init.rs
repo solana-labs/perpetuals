@@ -43,15 +43,11 @@ pub struct Init<'info> {
     )]
     pub perpetuals: Box<Account<'info, Perpetuals>>,
 
-    #[account(
-        constraint = perpetuals_program.programdata_address()? == Some(perpetuals_program_data.key())
-    )]
-    pub perpetuals_program: Program<'info, Perpetuals>,
+    /// CHECK: ProgramData account, doesn't work in tests
+    #[account()]
+    pub perpetuals_program_data: AccountInfo<'info /*, ProgramData*/>,
 
-    #[account(
-        constraint = perpetuals_program_data.upgrade_authority_address == Some(upgrade_authority.key())
-    )]
-    pub perpetuals_program_data: Account<'info, ProgramData>,
+    pub perpetuals_program: Program<'info, crate::program::Perpetuals>,
 
     system_program: Program<'info, System>,
     token_program: Program<'info, Token>,
@@ -72,6 +68,12 @@ pub struct InitParams {
 }
 
 pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
+    Perpetuals::validate_upgrade_authority(
+        ctx.accounts.upgrade_authority.key(),
+        &ctx.accounts.perpetuals_program_data.to_account_info(),
+        &ctx.accounts.perpetuals_program,
+    )?;
+
     // initialize multisig, this will fail if account is already initialized
     let mut multisig = ctx.accounts.multisig.load_init()?;
 
@@ -85,6 +87,7 @@ pub fn init(ctx: Context<Init>, params: &InitParams) -> Result<()> {
 
     // record perpetuals
     let perpetuals = ctx.accounts.perpetuals.as_mut();
+
     perpetuals.permissions.allow_swap = params.allow_swap;
     perpetuals.permissions.allow_add_liquidity = params.allow_add_liquidity;
     perpetuals.permissions.allow_remove_liquidity = params.allow_remove_liquidity;

@@ -114,10 +114,6 @@ pub mod perpetuals {
 
     // test instructions
 
-    pub fn test_init(ctx: Context<TestInit>, params: TestInitParams) -> Result<()> {
-        instructions::test_init(ctx, &params)
-    }
-
     pub fn set_test_time<'info>(
         ctx: Context<'_, '_, '_, 'info, SetTestTime<'info>>,
         params: SetTestTimeParams,

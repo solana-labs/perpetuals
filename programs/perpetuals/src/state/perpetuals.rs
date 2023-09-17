@@ -94,6 +94,32 @@ impl Perpetuals {
         }
     }
 
+    pub fn validate_upgrade_authority(
+        expected_upgrade_authority: Pubkey,
+        program_data: &AccountInfo,
+        program: &Program<crate::program::Perpetuals>,
+    ) -> Result<()> {
+        if let Some(programdata_address) = program.programdata_address()? {
+            require_keys_eq!(
+                programdata_address,
+                program_data.key(),
+                ErrorCode::InvalidProgramExecutable
+            );
+            let program_data: Account<ProgramData> = Account::try_from(program_data)?;
+            if let Some(current_upgrade_authority) = program_data.upgrade_authority_address {
+                if current_upgrade_authority != Pubkey::default() {
+                    require_keys_eq!(
+                        current_upgrade_authority,
+                        expected_upgrade_authority,
+                        ErrorCode::ConstraintOwner
+                    );
+                }
+            }
+        } // otherwise not upgradeable
+
+        Ok(())
+    }
+
     pub fn transfer_tokens<'info>(
         &self,
         from: AccountInfo<'info>,
