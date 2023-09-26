@@ -93,11 +93,14 @@ export interface Fees {
   closePosition: BN;
   liquidation: BN;
   protocolShare: BN;
+  fee_max: BN;
+  fee_optimal: BN;
 }
 
 export enum FeesMode {
   Fixed,
   Linear,
+  Optimal
 }
 
 export interface OracleParams {

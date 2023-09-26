@@ -174,6 +174,8 @@ describe("perpetuals", () => {
       closePosition: new BN(100),
       liquidation: new BN(100),
       protocolShare: new BN(10),
+      feeMax: new BN(250),
+      feeOptimal: new BN(10),
     };
     borrowRate = {
       baseRate: new BN(0),
@@ -266,6 +268,8 @@ describe("perpetuals", () => {
         closePosition: "100",
         liquidation: "100",
         protocolShare: "10",
+        feeMax: "250",
+        feeOptimal: "10",
       },
       borrowRate: {
         baseRate: "0",

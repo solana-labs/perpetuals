@@ -49,6 +49,8 @@ pub fn fees_linear_regular() -> Fees {
         close_position: 100,
         liquidation: 50,
         protocol_share: 25,
+        fee_max: 0,
+        fee_optimal: 0,
     }
 }
 

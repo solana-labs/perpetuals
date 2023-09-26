@@ -125,6 +125,8 @@ async function addCustody(
     closePosition: new BN(100),
     liquidation: new BN(100),
     protocolShare: new BN(10),
+    feeMax: new BN(250),
+    feeOptimal: new BN(10),
   };
   const borrowRate: BorrowRateParams = {
     baseRate: new BN(0),
