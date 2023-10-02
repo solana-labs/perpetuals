@@ -143,8 +143,8 @@ async function addCustody(
     maxLeverage: new BN(1_000_000),
     maxPayoffMult: new BN(10_000),
     maxUtilization: new BN(10_000),
-    maxPositionLockedUsd: new BN(1_000_000_000),
-    maxTotalLockedUsd: new BN(1_000_000_000),
+    maxPositionLockedUsd: new BN(0),
+    maxTotalLockedUsd: new BN(0),
   };
   const permissions: Permissions = {
     allowSwap: true,
@@ -481,7 +481,21 @@ async function addVest(
 }
 
 async function createDaoGovernance() {
-  // client.getDaoTokenKey();
+  // TODO
+}
+
+async function testAdminRemoveCollateralFromUserPosition(
+  poolName: string,
+  position: PublicKey,
+  collateralUsd: number
+) {
+  const txId = await client.testAdminRemoveCollateralFromUserPosition(
+    poolName,
+    position,
+    new BN(collateralUsd * 10 ** 6)
+  );
+
+  console.log(`Transaction succeeded: ${txId}`);
 }
 
 (async function main() {
@@ -808,6 +822,25 @@ async function createDaoGovernance() {
         options.price,
         options.collateral,
         options.size
+      );
+    });
+
+  program
+    .command("test-admin-remove-collateral-from-user-position")
+    .description(
+      "Admin to remove collateral from user perpetuals position. Use this to makes a position liquidable."
+    )
+    .argument("<string>", "Pool name")
+    .argument("<pubkey>", "Position")
+    .requiredOption(
+      "-c, --collateral-usd <int>",
+      "Amount of collateral to remove from position"
+    )
+    .action(async (poolName, position, options) => {
+      await testAdminRemoveCollateralFromUserPosition(
+        poolName,
+        new PublicKey(position),
+        options.collateralUsd
       );
     });
 

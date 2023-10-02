@@ -340,6 +340,7 @@ pub async fn basic_interactions() {
             },
             &cortex_stake_reward_mint,
             &test_setup.governance_realm_pda,
+            &lm_token_mint_pda,
         )
         .await
         .unwrap();

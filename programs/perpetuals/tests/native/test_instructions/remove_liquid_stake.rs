@@ -17,11 +17,12 @@ pub async fn remove_liquid_stake(
     params: RemoveLiquidStakeParams,
     staking_reward_token_mint: &Pubkey,
     governance_realm_pda: &Pubkey,
+    staked_token_mint: &Pubkey,
 ) -> std::result::Result<(), BanksClientError> {
     // ==== GIVEN =============================================================
     let transfer_authority_pda = pda::get_transfer_authority_pda().0;
     let lm_token_mint_pda = pda::get_lm_token_mint_pda().0;
-    let staking_pda = pda::get_staking_pda(&lm_token_mint_pda).0;
+    let staking_pda = pda::get_staking_pda(&staked_token_mint).0;
     let user_staking_pda = pda::get_user_staking_pda(&owner.pubkey(), &staking_pda).0;
     let perpetuals_pda = pda::get_perpetuals_pda().0;
     let cortex_pda = pda::get_cortex_pda().0;
@@ -31,6 +32,8 @@ pub async fn remove_liquid_stake(
         pda::get_staking_lm_reward_token_vault_pda(&staking_pda).0;
     let governance_token_mint_pda = pda::get_governance_token_mint_pda().0;
 
+    let staked_token_account_address =
+        utils::find_associated_token_account(&owner.pubkey(), &staked_token_mint).0;
     let lm_token_account_address =
         utils::find_associated_token_account(&owner.pubkey(), &lm_token_mint_pda).0;
     let reward_token_account_address =
@@ -59,7 +62,7 @@ pub async fn remove_liquid_stake(
         utils::get_account::<UserStaking>(program_test_ctx, user_staking_pda).await;
 
     let owner_staked_token_account_before =
-        utils::get_token_account_balance(program_test_ctx, lm_token_account_address).await;
+        utils::get_token_account_balance(program_test_ctx, staked_token_account_address).await;
 
     let stakes_claim_cron_thread_address = pda::get_thread_address(
         &user_staking_thread_authority_pda,
@@ -73,6 +76,7 @@ pub async fn remove_liquid_stake(
         program_test_ctx,
         perpetuals::accounts::RemoveLiquidStake {
             owner: owner.pubkey(),
+            staked_token_account: staked_token_account_address,
             lm_token_account: lm_token_account_address,
             reward_token_account: reward_token_account_address,
             staking_staked_token_vault: staking_staked_token_vault_pda,
@@ -117,7 +121,7 @@ pub async fn remove_liquid_stake(
         utils::get_account::<UserStaking>(program_test_ctx, user_staking_pda).await;
 
     let owner_staked_token_account_after =
-        utils::get_token_account_balance(program_test_ctx, lm_token_account_address).await;
+        utils::get_token_account_balance(program_test_ctx, staked_token_account_address).await;
 
     // Check staking account
     {

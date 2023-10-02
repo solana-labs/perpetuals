@@ -1,0 +1,204 @@
+//! TestAdminRevomeCollateral instruction handler
+
+use {
+    crate::{
+        error::PerpetualsError,
+        math,
+        state::{
+            cortex::Cortex, custody::Custody, multisig::Multisig, oracle::OraclePrice,
+            perpetuals::Perpetuals, pool::Pool, position::Position,
+        },
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::token::{Token, TokenAccount},
+    solana_program::program_error::ProgramError,
+};
+
+// One Admin can decrease a position, only in test /!\
+
+#[derive(Accounts)]
+#[instruction(params: TestAdminRemoveCollateralParams)]
+pub struct TestAdminRevomeCollateral<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    /// CHECK: any owner position
+    pub owner: AccountInfo<'info>,
+
+    #[account(
+        seeds = [b"multisig"],
+        bump = multisig.load()?.bump,
+        constraint = multisig.load()?.is_signer(&admin.key())? == true,
+    )]
+    pub multisig: AccountLoader<'info, Multisig>,
+
+    #[account(
+        mut,
+        constraint = receiving_account.mint == custody.mint,
+        has_one = owner
+    )]
+    pub receiving_account: Box<Account<'info, TokenAccount>>,
+
+    /// CHECK: empty PDA, authority for token accounts
+    #[account(
+        seeds = [b"transfer_authority"],
+        bump = perpetuals.transfer_authority_bump
+    )]
+    pub transfer_authority: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"cortex"],
+        bump = cortex.bump
+    )]
+    pub cortex: Box<Account<'info, Cortex>>,
+
+    #[account(
+        seeds = [b"perpetuals"],
+        bump = perpetuals.perpetuals_bump
+    )]
+    pub perpetuals: Box<Account<'info, Perpetuals>>,
+
+    #[account(
+        mut,
+        seeds = [b"pool",
+                 pool.name.as_bytes()],
+        bump = pool.bump
+    )]
+    pub pool: Box<Account<'info, Pool>>,
+
+    #[account(
+        mut,
+        has_one = owner,
+        seeds = [b"position",
+                 owner.key().as_ref(),
+                 pool.key().as_ref(),
+                 custody.key().as_ref(),
+                 &[position.side as u8]],
+        bump = position.bump
+    )]
+    pub position: Box<Account<'info, Position>>,
+
+    #[account(
+        mut,
+        constraint = position.custody == custody.key()
+    )]
+    pub custody: Box<Account<'info, Custody>>,
+
+    /// CHECK: oracle account for the collateral token
+    #[account(
+        constraint = custody_oracle_account.key() == custody.oracle.oracle_account
+    )]
+    pub custody_oracle_account: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        constraint = position.collateral_custody == collateral_custody.key()
+    )]
+    pub collateral_custody: Box<Account<'info, Custody>>,
+
+    /// CHECK: oracle account for the collateral token
+    #[account(
+        constraint = collateral_custody_oracle_account.key() == collateral_custody.oracle.oracle_account
+    )]
+    pub collateral_custody_oracle_account: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"custody_token_account",
+                 pool.key().as_ref(),
+                 collateral_custody.mint.as_ref()],
+        bump = collateral_custody.token_account_bump
+    )]
+    pub collateral_custody_token_account: Box<Account<'info, TokenAccount>>,
+
+    perpetuals_program: Program<'info, Perpetuals>,
+    token_program: Program<'info, Token>,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct TestAdminRemoveCollateralParams {
+    collateral_usd: u64,
+}
+
+pub fn test_admin_remove_collateral(
+    ctx: Context<TestAdminRevomeCollateral>,
+    params: &TestAdminRemoveCollateralParams,
+) -> Result<()> {
+    if !cfg!(feature = "devnet") {
+        return err!(PerpetualsError::InvalidEnvironment);
+    }
+
+    // check permissions
+    msg!("Check permissions");
+    let perpetuals = ctx.accounts.perpetuals.as_mut();
+    let collateral_custody = ctx.accounts.collateral_custody.as_mut();
+
+    // validate inputs
+    msg!("Validate inputs");
+    let position = ctx.accounts.position.as_mut();
+    if params.collateral_usd == 0 || params.collateral_usd >= position.collateral_usd {
+        return Err(ProgramError::InvalidArgument.into());
+    }
+
+    // compute position price
+    let curtime = perpetuals.get_time()?;
+
+    let collateral_token_price = OraclePrice::new_from_oracle(
+        &ctx.accounts
+            .collateral_custody_oracle_account
+            .to_account_info(),
+        &collateral_custody.oracle,
+        curtime,
+        false,
+    )?;
+
+    let collateral_token_ema_price = OraclePrice::new_from_oracle(
+        &ctx.accounts
+            .collateral_custody_oracle_account
+            .to_account_info(),
+        &collateral_custody.oracle,
+        curtime,
+        collateral_custody.pricing.use_ema,
+    )?;
+
+    let max_collateral_price = if collateral_token_price > collateral_token_ema_price {
+        collateral_token_price
+    } else {
+        collateral_token_ema_price
+    };
+
+    // compute amount to transfer
+    let collateral = max_collateral_price
+        .get_token_amount(params.collateral_usd, collateral_custody.decimals)?;
+    if collateral > position.collateral_amount {
+        return Err(ProgramError::InsufficientFunds.into());
+    }
+    msg!("Amount out: {}", collateral);
+
+    // update existing position
+    msg!("Update existing position");
+    position.update_time = perpetuals.get_time()?;
+    position.collateral_usd = math::checked_sub(position.collateral_usd, params.collateral_usd)?;
+    position.collateral_amount = math::checked_sub(position.collateral_amount, collateral)?;
+
+    // transfer tokens
+    msg!("Transfer tokens");
+    perpetuals.transfer_tokens(
+        ctx.accounts
+            .collateral_custody_token_account
+            .to_account_info(),
+        ctx.accounts.receiving_account.to_account_info(),
+        ctx.accounts.transfer_authority.to_account_info(),
+        ctx.accounts.token_program.to_account_info(),
+        collateral,
+    )?;
+
+    // update custody stats
+    msg!("Update custody stats");
+
+    collateral_custody.assets.collateral =
+        math::checked_sub(collateral_custody.assets.collateral, collateral)?;
+
+    Ok(())
+}

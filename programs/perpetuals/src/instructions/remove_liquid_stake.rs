@@ -8,7 +8,7 @@ use {
         state::{
             cortex::Cortex,
             perpetuals::Perpetuals,
-            staking::Staking,
+            staking::{Staking, StakingType},
             user_staking::{UserStaking, USER_STAKING_THREAD_AUTHORITY_SEED},
         },
     },
@@ -21,6 +21,13 @@ use {
 pub struct RemoveLiquidStake<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
+
+    #[account(
+        mut,
+        token::mint = staking.staked_token_mint,
+        has_one = owner
+    )]
+    pub staked_token_account: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
@@ -220,23 +227,25 @@ pub fn remove_liquid_stake(
             );
         }
 
-        // Revoke 1:1 governing power allocated to the stake
-        {
-            perpetuals.remove_governing_power(
-                ctx.accounts.transfer_authority.to_account_info(),
-                ctx.accounts.owner.to_account_info(),
-                ctx.accounts
-                    .governance_governing_token_owner_record
-                    .to_account_info(),
-                ctx.accounts.governance_token_mint.to_account_info(),
-                ctx.accounts.governance_realm.to_account_info(),
-                ctx.accounts.governance_realm_config.to_account_info(),
-                ctx.accounts
-                    .governance_governing_token_holding
-                    .to_account_info(),
-                ctx.accounts.governance_program.to_account_info(),
-                params.amount,
-            )?;
+        if staking.staking_type == StakingType::LM {
+            // Revoke 1:1 governing power allocated to the stake
+            {
+                perpetuals.remove_governing_power(
+                    ctx.accounts.transfer_authority.to_account_info(),
+                    ctx.accounts.owner.to_account_info(),
+                    ctx.accounts
+                        .governance_governing_token_owner_record
+                        .to_account_info(),
+                    ctx.accounts.governance_token_mint.to_account_info(),
+                    ctx.accounts.governance_realm.to_account_info(),
+                    ctx.accounts.governance_realm_config.to_account_info(),
+                    ctx.accounts
+                        .governance_governing_token_holding
+                        .to_account_info(),
+                    ctx.accounts.governance_program.to_account_info(),
+                    params.amount,
+                )?;
+            }
         }
 
         // apply delta to user stake
@@ -303,7 +312,7 @@ pub fn remove_liquid_stake(
 
         perpetuals.transfer_tokens(
             ctx.accounts.staking_staked_token_vault.to_account_info(),
-            ctx.accounts.lm_token_account.to_account_info(),
+            ctx.accounts.staked_token_account.to_account_info(),
             ctx.accounts.transfer_authority.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
             params.amount,

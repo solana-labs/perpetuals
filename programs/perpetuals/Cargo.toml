@@ -20,7 +20,8 @@ no-idl = []
 no-log-ix-name = []
 cpi = []
 test = []
-default = ["cpi"]
+devnet = []
+default = ["cpi", "devnet"]
 
 [dependencies]
 anchor-lang = { version = "0.27.0", features = ["init-if-needed"]}

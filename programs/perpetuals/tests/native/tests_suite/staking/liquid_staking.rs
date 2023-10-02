@@ -524,6 +524,7 @@ pub async fn liquid_staking() {
         },
         &cortex_stake_reward_mint,
         &test_setup.governance_realm_pda,
+        &lm_token_mint_pda,
     )
     .await
     .unwrap();
@@ -540,6 +541,7 @@ pub async fn liquid_staking() {
         },
         &cortex_stake_reward_mint,
         &test_setup.governance_realm_pda,
+        &lm_token_mint_pda,
     )
     .await
     .is_err());
@@ -552,6 +554,7 @@ pub async fn liquid_staking() {
         RemoveLiquidStakeParams { amount: 0 },
         &cortex_stake_reward_mint,
         &test_setup.governance_realm_pda,
+        &lm_token_mint_pda,
     )
     .await
     .is_err());
@@ -566,6 +569,7 @@ pub async fn liquid_staking() {
         },
         &cortex_stake_reward_mint,
         &test_setup.governance_realm_pda,
+        &lm_token_mint_pda,
     )
     .await
     .unwrap();

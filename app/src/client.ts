@@ -369,7 +369,7 @@ export class PerpetualsClient {
     const positions = await this.provider.connection.getProgramAccounts(
       this.program.programId,
       {
-        filters: [{ dataSize: 232 }, { memcmp: { bytes: data, offset: 40 } }],
+        filters: [{ dataSize: 240 }, { memcmp: { bytes: data, offset: 40 } }],
       }
     );
 
@@ -1142,6 +1142,57 @@ export class PerpetualsClient {
           poolName,
           collateralMint
         ),
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .rpc()
+      .catch((err) => {
+        console.error(err);
+        throw err;
+      });
+  };
+
+  testAdminRemoveCollateralFromUserPosition = async (
+    poolName: string,
+    position: PublicKey,
+    collateralUsd: BN
+  ): Promise<string> => {
+    const positionAccount = await this.program.account.position.fetch(position);
+    const owner = positionAccount.owner;
+
+    const [custodyAccount, collateralCustodyAccount] = await Promise.all([
+      this.program.account.custody.fetch(positionAccount.custody),
+      this.program.account.custody.fetch(positionAccount.collateralCustody),
+    ]);
+
+    const receivingAccount = await getAssociatedTokenAddress(
+      custodyAccount.mint,
+      owner
+    );
+
+    return this.program.methods
+      .testAdminRemoveCollateral({
+        collateralUsd,
+      })
+      .accounts({
+        admin: this.provider.wallet.publicKey,
+        owner,
+        multisig: this.multisig.publicKey,
+        receivingAccount,
+        transferAuthority: this.authority.publicKey,
+        cortex: this.cortex.publicKey,
+        perpetuals: this.perpetuals.publicKey,
+        pool: this.getPoolKey(poolName),
+        position,
+        custody: positionAccount.custody,
+        custodyOracleAccount: custodyAccount.oracle.oracleAccount,
+        collateralCustody: positionAccount.collateralCustody,
+        collateralCustodyOracleAccount:
+          collateralCustodyAccount.oracle.oracleAccount,
+        collateralCustodyTokenAccount: this.getCustodyTokenAccountKey(
+          poolName,
+          collateralCustodyAccount.mint
+        ),
+        perpetualsProgram: this.program.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .rpc()

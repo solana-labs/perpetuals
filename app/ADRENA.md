@@ -31,6 +31,32 @@ liquidator: 2TV88CD47FWnVrr7dkR1aQGVNrdA1uVJKUk7E9umYeEx
 ./scripts/change_program_id.sh
 anchor deploy --program-name perpetuals --provider.cluster devnet --program-keypair ./target/deploy/perpetuals-keypair.json
 
+### Upload IDL
+
+#### First time
+
+```
+anchor idl init --filepath <PATH_TO_IDL> --provider.cluster <CLUSTER> <PROGRAM_ID>
+```
+
+i.e
+
+```
+anchor idl init --filepath ./target/idl/perpetuals.json --provider.cluster devnet CfbwNZaAL4izRqLsnxixx76uQy9GE6PBy917i57jVbia
+```
+
+#### nth time
+
+```
+anchor idl upgrade --filepath <PATH_TO_IDL> --provider.cluster <CLUSTER> <PROGRAM_ID>
+```
+
+i.e
+
+```
+anchor idl upgrade --filepath ./target/idl/perpetuals.json --provider.cluster devnet CfbwNZaAL4izRqLsnxixx76uQy9GE6PBy917i57jVbia
+```
+
 ### Give program authority to admin (to be able to init)
 
 ```
@@ -52,7 +78,7 @@ solana program set-upgrade-authority <PROGRAM_ADDRESS> --new-upgrade-authority <
 i.e
 
 ```
-solana program set-upgrade-authority CfbwNZaAL4izRqLsnxixx76uQy9GE6PBy917i57jVbia --new-upgrade-authority CqJVUVbxJae8GfYsSooA5qzjHmoZusB1Hni7Ed1eEDeH -k 5vAooJKJxWXVPNb13dBq1jPsuE3RTbMCfYuounMJcAvb
+solana program set-upgrade-authority CfbwNZaAL4izRqLsnxixx76uQy9GE6PBy917i57jVbia --new-upgrade-authority CqJVUVbxJae8GfYsSooA5qzjHmoZusB1Hni7Ed1eEDeH -k ~/adrena-keypairs/admin.json
 ```
 
 ## Get governance realm key
@@ -256,6 +282,8 @@ i.e
 ```
 npx ts-node app/src/cli.ts -k ~/adrena-keypairs/admin.json add-vest --beneficiary-wallet 6hqz24NfaMwEvUna95p7haPqrh2urVwyVo1gLHEqUVXY --amount 10000 --unlock-start-timestamp 1694073600 --unlock-end-timestamp 1788768000
 ```
+
+## Admin remove collateral from user position
 
 ## Liquidator run
 

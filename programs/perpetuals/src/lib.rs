@@ -140,6 +140,13 @@ pub mod perpetuals {
         instructions::set_test_time(ctx, &params)
     }
 
+    pub fn test_admin_remove_collateral(
+        ctx: Context<TestAdminRevomeCollateral>,
+        params: TestAdminRemoveCollateralParams,
+    ) -> Result<()> {
+        instructions::test_admin_remove_collateral(ctx, &params)
+    }
+
     // public instructions
 
     pub fn swap(ctx: Context<Swap>, params: SwapParams) -> Result<()> {

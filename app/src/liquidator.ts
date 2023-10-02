@@ -23,6 +23,8 @@ async function processLiquidations(
   // read all positions
   const positions = await client.getPoolTokenPositions(poolName, tokenMint);
 
+  console.log("positions", positions);
+
   let undercollateralized = 0;
   let liquidated = 0;
   for (const position of positions) {
@@ -43,6 +45,8 @@ async function processLiquidations(
       collateralMint,
       positionSide
     );
+
+    console.log("position state", state);
 
     if (state === 1) {
       // liquidate over-leveraged positions
