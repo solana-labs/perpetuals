@@ -1,6 +1,11 @@
 import * as anchor from "@coral-xyz/anchor";
 import { TestClient } from "./test_client";
-import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
+import {
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  SYSVAR_RENT_PUBKEY,
+} from "@solana/web3.js";
 import * as spl from "@solana/spl-token";
 import { expect, assert } from "chai";
 import BN from "bn.js";
@@ -124,7 +129,7 @@ describe("perpetuals", () => {
     expect(JSON.stringify(pool)).to.equal(JSON.stringify(poolExpected));
 
     await tc.removePool();
-    tc.ensureFails(tc.program.account.pool.fetch(tc.pool.publicKey));
+    await tc.ensureFails(tc.program.account.pool.fetch(tc.pool.publicKey));
 
     await tc.addPool("test pool");
   });
@@ -135,6 +140,7 @@ describe("perpetuals", () => {
       maxPriceAgeSec: 60,
       oracleType: { custom: {} },
       oracleAccount: tc.custodies[0].oracleAccount,
+      oracleAuthority: tc.oracleAuthority.publicKey,
     };
     pricing = {
       useEma: true,
@@ -227,6 +233,7 @@ describe("perpetuals", () => {
       oracle: {
         oracleAccount: tc.custodies[0].oracleAccount,
         oracleType: { custom: {} },
+        oracleAuthority: tc.oracleAuthority.publicKey,
         maxPriceError: "10000",
         maxPriceAgeSec: 60,
       },
@@ -352,7 +359,9 @@ describe("perpetuals", () => {
     );
 
     await tc.removeCustody(tc.custodies[1], ratios1);
-    tc.ensureFails(tc.program.account.custody.fetch(tc.custodies[1].custody));
+    await tc.ensureFails(
+      tc.program.account.custody.fetch(tc.custodies[1].custody)
+    );
 
     await tc.addCustody(
       tc.custodies[1],
@@ -406,6 +415,102 @@ describe("perpetuals", () => {
       publishTime: oracle.publishTime,
     };
     expect(JSON.stringify(oracle)).to.equal(JSON.stringify(oracleExpected));
+  });
+
+  it("setCustomOraclePricePermissionless", async () => {
+    await tc.setCustomOraclePricePermissionless(
+      tc.oracleAuthority,
+      500,
+      tc.custodies[0]
+    );
+
+    let oracle = await tc.program.account.customOracle.fetch(
+      tc.custodies[0].oracleAccount
+    );
+    let oracleExpected = {
+      price: new BN(500000),
+      expo: -3,
+      conf: new BN(10),
+      ema: new BN(500000),
+      publishTime: oracle.publishTime,
+    };
+    expect(JSON.stringify(oracle)).to.equal(JSON.stringify(oracleExpected));
+
+    // Updating the permissionless price oracle with an older publish time should no-op.
+    await tc.setCustomOraclePricePermissionless(
+      tc.oracleAuthority,
+      400,
+      tc.custodies[0],
+      tc.getTime() - 20
+    );
+    oracle = await tc.program.account.customOracle.fetch(
+      tc.custodies[0].oracleAccount
+    );
+    // Oracle's value is still 500 instead of the attempted 400.
+    expect(JSON.stringify(oracle)).to.equal(JSON.stringify(oracleExpected));
+
+    // Try permissionless oracle update with increased & priority compute.
+    await tc.setCustomOraclePricePermissionless(
+      tc.oracleAuthority,
+      1000,
+      tc.custodies[0],
+      tc.getTime() + 10,
+      null,
+      null,
+      true
+    );
+    oracle = await tc.program.account.customOracle.fetch(
+      tc.custodies[0].oracleAccount
+    );
+    expect(JSON.stringify(oracle)).to.equal(
+      JSON.stringify({
+        ...oracleExpected,
+        price: new BN(1000000),
+        ema: new BN(1000000),
+        publishTime: oracle.publishTime,
+      })
+    );
+
+    // after test, set price back to the expected for other test cases.
+    await tc.setCustomOraclePricePermissionless(
+      tc.oracleAuthority,
+      123,
+      tc.custodies[0],
+      tc.getTime() + 20
+    );
+  });
+
+  it("setCustomOraclePricePermissionless Errors", async () => {
+    // Attempting to update with a payload signed by a bogus key should fail.
+    let bogusKeypair = Keypair.generate();
+    await tc.ensureFails(
+      tc.setCustomOraclePricePermissionless(bogusKeypair, 100, tc.custodies[1])
+    );
+
+    // Sending the permissionless update without signature verification should fail.
+    await tc.ensureFails(
+      tc.setCustomOraclePricePermissionless(
+        tc.oracleAuthority,
+        100,
+        tc.custodies[1],
+        null,
+        true
+      )
+    );
+
+    // Sending the permissionless update with malformed message should fail.
+    let randomMessage = Buffer.alloc(68);
+    randomMessage.fill(0xab);
+    await tc.ensureFails(
+      tc.setCustomOraclePricePermissionless(
+        tc.oracleAuthority,
+        100,
+        tc.custodies[1],
+        null,
+        null,
+        randomMessage
+      )
+    );
   });
 
   it("setTestTime", async () => {
@@ -531,7 +636,7 @@ describe("perpetuals", () => {
       tc.users[0].positionAccountsLong[0],
       tc.custodies[0]
     );
-    tc.ensureFails(
+    await tc.ensureFails(
       tc.program.account.position.fetch(tc.users[0].positionAccountsLong[0])
     );
   });
@@ -554,7 +659,7 @@ describe("perpetuals", () => {
       tc.users[0].positionAccountsLong[0],
       tc.custodies[0]
     );
-    tc.ensureFails(
+    await tc.ensureFails(
       tc.program.account.position.fetch(tc.users[0].positionAccountsLong[0])
     );
   });

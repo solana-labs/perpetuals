@@ -89,12 +89,12 @@ pub fn set_custom_oracle_price<'info>(
     }
 
     // update oracle data
-    let oracle_account = ctx.accounts.oracle_account.as_mut();
-    oracle_account.price = params.price;
-    oracle_account.expo = params.expo;
-    oracle_account.conf = params.conf;
-    oracle_account.ema = params.ema;
-    oracle_account.publish_time = params.publish_time;
-
+    ctx.accounts.oracle_account.set(
+        params.price,
+        params.expo,
+        params.conf,
+        params.ema,
+        params.publish_time,
+    );
     Ok(0)
 }

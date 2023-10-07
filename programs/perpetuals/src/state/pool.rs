@@ -1144,6 +1144,7 @@ mod test {
         let oracle = OracleParams {
             oracle_account: Pubkey::default(),
             oracle_type: OracleType::Custom,
+            oracle_authority: Pubkey::default(),
             max_price_error: 100,
             max_price_age_sec: 1,
         };
