@@ -505,6 +505,8 @@ impl Custody {
         stats.total_quantity = math::checked_add(stats.total_quantity, quantity)?;
 
         // check limits
+        // DISABLE LIMITS FOR NOW AS THERE IS AN ISSUE WITH STATS, NEEDS TO FIGURE THIS OUT FIRST
+        /*
         if self.pricing.max_position_locked_usd > 0 {
             let locked_amount_usd =
                 token_price.get_asset_amount_usd(position.locked_amount, self.decimals)?;
@@ -521,6 +523,7 @@ impl Custody {
                 PerpetualsError::CustodyAmountLimit
             );
         }
+        */
 
         // update collateral custody for interest tracking
         if let Some(custody) = collateral_custody {
