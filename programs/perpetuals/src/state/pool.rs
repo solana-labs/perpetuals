@@ -125,6 +125,7 @@ impl Pool {
         locked_amount: u64,
         collateral_custody: &Custody,
     ) -> Result<u64> {
+        // The "optimal" algorithm is always used to compute the fee for entering a position.
         // entry_fee = custody.fees.open_position * utilization_fee * size
         // where utilization_fee = 1 + custody.fees.utilization_mult * (new_utilization - optimal_utilization) / (1 - optimal_utilization);
 
@@ -957,9 +958,37 @@ impl Pool {
         require!(!custody.is_virtual, PerpetualsError::InstructionNotAllowed);
 
         if custody.fees.mode == FeesMode::Fixed {
-            return Self::get_fee_amount(base_fee, std::cmp::max(amount_add, amount_remove));
+            Self::get_fee_amount(base_fee, std::cmp::max(amount_add, amount_remove))
+        } else if custody.fees.mode == FeesMode::Linear {
+            self.get_fee_linear(
+                token_id,
+                base_fee,
+                amount_add,
+                amount_remove,
+                custody,
+                token_price,
+            )
+        } else {
+            self.get_fee_optimal(
+                token_id,
+                base_fee,
+                amount_add,
+                amount_remove,
+                custody,
+                token_price,
+            )
         }
+    }
 
+    fn get_fee_linear(
+        &self,
+        token_id: usize,
+        base_fee: u64,
+        amount_add: u64,
+        amount_remove: u64,
+        custody: &Custody,
+        token_price: &OraclePrice,
+    ) -> Result<u64> {
         // if token ratio is improved:
         //    fee = base_fee / ratio_fee
         // otherwise:
@@ -1035,6 +1064,63 @@ impl Pool {
             std::cmp::max(amount_add, amount_remove),
         )
     }
+
+    fn get_fee_optimal(
+        &self,
+        token_id: usize,
+        base_fee: u64,
+        amount_add: u64,
+        amount_remove: u64,
+        custody: &Custody,
+        token_price: &OraclePrice,
+    ) -> Result<u64> {
+        // Fee calculations must temporarily be in i64 because of negative slope.
+        let fee_max: i64 = custody.fees.fee_max as i64;
+        let fee_optimal: i64 = custody.fees.fee_optimal as i64;
+
+        let target_ratio: i64 = self.ratios[token_id].target as i64;
+        let min_ratio: i64 = self.ratios[token_id].min as i64;
+        let max_ratio: i64 = self.ratios[token_id].max as i64;
+        let post_lp_ratio: i64 =
+            self.get_new_ratio(amount_add, amount_remove, custody, token_price)? as i64;
+
+        let base_fee: i64 = base_fee as i64;
+
+        let slope_denominator: i64 = if post_lp_ratio > target_ratio {
+            math::checked_sub(max_ratio, target_ratio)?
+        } else {
+            math::checked_sub(target_ratio, min_ratio)?
+        };
+
+        let slope_numerator: i64 = if amount_add != 0 {
+            if post_lp_ratio > max_ratio {
+                return err!(PerpetualsError::TokenRatioOutOfRange);
+            }
+            fee_max - fee_optimal
+        } else {
+            if post_lp_ratio < min_ratio {
+                return err!(PerpetualsError::TokenRatioOutOfRange);
+            }
+            fee_optimal - fee_max
+        };
+
+        // Delay applying slope_denominator until the very end to avoid losing precision.
+        // b = fee_optimal - target_ratio * slope
+        // lp_fee = slope * post_lp_ratio + b
+        let b: i64 = math::checked_sub(
+            math::checked_mul(fee_optimal, slope_denominator)?,
+            math::checked_mul(target_ratio, slope_numerator)?,
+        )?;
+        let lp_fee: i64 = math::checked_div(
+            math::checked_add(math::checked_mul(slope_numerator, post_lp_ratio)?, b)?,
+            slope_denominator,
+        )?;
+
+        Self::get_fee_amount(
+            math::checked_as_u64(math::checked_add(lp_fee, base_fee)?)?,
+            std::cmp::max(amount_add, amount_remove),
+        )
+    }
 }
 
 #[cfg(test)]
@@ -1096,12 +1182,14 @@ mod test {
             swap_out: 100,
             stable_swap_in: 100,
             stable_swap_out: 100,
-            add_liquidity: 200,
-            remove_liquidity: 300,
+            add_liquidity: 0,
+            remove_liquidity: 0,
             open_position: 100,
             close_position: 0,
             liquidation: 50,
             protocol_share: 25,
+            fee_max: 0,
+            fee_optimal: 0,
         };
 
         let custody = Custody {
@@ -1569,6 +1657,83 @@ mod test {
                 &token_price,
             )
             .unwrap()
+        );
+
+        // Test Optimal fees
+        custody.fees.mode = FeesMode::Optimal;
+        custody.fees.fee_max = 250; // 0.025
+        custody.fees.fee_optimal = 10; // 0.001
+        assert_eq!(
+            18_000_000, /* 0.1% fee because we approach target ratio. */
+            pool.get_fee(
+                0,
+                custody.fees.add_liquidity,
+                scale(18, custody.decimals),
+                0,
+                &custody,
+                &token_price,
+            )
+            .unwrap()
+        );
+        assert_eq!(
+            4_014_000_000, /* 2.23% fee because we exceed target ratio, nearing max ratio. */
+            pool.get_fee(
+                0,
+                custody.fees.add_liquidity,
+                scale(180, custody.decimals),
+                0,
+                &custody,
+                &token_price,
+            )
+            .unwrap()
+        );
+        assert_eq!(
+            13_100_000, /* 1.31% fee for removing a little liquidity. */
+            pool.get_fee(
+                0,
+                custody.fees.remove_liquidity,
+                0,
+                scale(1, custody.decimals),
+                &custody,
+                &token_price,
+            )
+            .unwrap()
+        );
+        assert_eq!(
+            231_000_000, /* 2.31% fee because almost all liquidity is removed. */
+            pool.get_fee(
+                0,
+                custody.fees.remove_liquidity,
+                0,
+                scale(10, custody.decimals),
+                &custody,
+                &token_price,
+            )
+            .unwrap()
+        );
+        // Removing too much liquidity takes the token ratio out of range.
+        assert_eq!(
+            err!(PerpetualsError::TokenRatioOutOfRange),
+            pool.get_fee(
+                0,
+                custody.fees.remove_liquidity,
+                0,
+                scale(15, custody.decimals),
+                &custody,
+                &token_price,
+            )
+        );
+        // Adding too much liquidity takes the token ratio out of range.
+        assert_eq!(
+            err!(PerpetualsError::TokenRatioOutOfRange),
+            pool.get_fee(
+                0,
+                custody.fees.add_liquidity,
+                scale(1800, custody.decimals),
+                0,
+                &custody,
+                &token_price,
+            )
         );
     }
 

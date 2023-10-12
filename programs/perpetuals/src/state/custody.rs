@@ -15,6 +15,7 @@ use {
 pub enum FeesMode {
     Fixed,
     Linear,
+    Optimal,
 }
 
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
@@ -33,6 +34,9 @@ pub struct Fees {
     pub close_position: u64,
     pub liquidation: u64,
     pub protocol_share: u64,
+    // configs for optimal fee mode
+    pub fee_max: u64,
+    pub fee_optimal: u64,
 }
 
 #[derive(Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize, Default, Debug)]
@@ -218,6 +222,8 @@ impl Fees {
             && self.close_position as u128 <= Perpetuals::BPS_POWER
             && self.liquidation as u128 <= Perpetuals::BPS_POWER
             && self.protocol_share as u128 <= Perpetuals::BPS_POWER
+            && self.fee_max as u128 <= Perpetuals::BPS_POWER
+            && self.fee_optimal as u128 <= Perpetuals::BPS_POWER
     }
 }
 
