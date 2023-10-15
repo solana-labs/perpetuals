@@ -238,4 +238,13 @@ pub mod perpetuals {
     ) -> Result<u64> {
         instructions::get_lp_token_price(ctx, &params)
     }
+
+    // This instruction must be part of a larger transaction where the **first** instruction
+    // is an ed25519 verification of the serialized oracle price update params.
+    pub fn set_custom_oracle_price_permissionless(
+        ctx: Context<SetCustomOraclePricePermissionless>,
+        params: SetCustomOraclePricePermissionlessParams,
+    ) -> Result<()> {
+        instructions::set_custom_oracle_price_permissionless(ctx, &params)
+    }
 }

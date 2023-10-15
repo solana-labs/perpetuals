@@ -33,6 +33,8 @@ pub struct OraclePrice {
 pub struct OracleParams {
     pub oracle_account: Pubkey,
     pub oracle_type: OracleType,
+    // The oracle_authority pubkey is allowed to sign permissionless off-chain price updates.
+    pub oracle_authority: Pubkey,
     pub max_price_error: u64,
     pub max_price_age_sec: u32,
 }
@@ -49,6 +51,14 @@ pub struct CustomOracle {
 
 impl CustomOracle {
     pub const LEN: usize = 8 + std::mem::size_of::<CustomOracle>();
+
+    pub fn set(&mut self, price: u64, expo: i32, conf: u64, ema: u64, publish_time: i64) {
+        self.price = price;
+        self.expo = expo;
+        self.conf = conf;
+        self.ema = ema;
+        self.publish_time = publish_time;
+    }
 }
 
 impl PartialOrd for OraclePrice {

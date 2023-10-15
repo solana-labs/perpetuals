@@ -12,6 +12,7 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from "@solana/web3.js";
+import * as nacl from "tweetnacl";
 import * as spl from "@solana/spl-token";
 import BN from "bn.js";
 
@@ -25,6 +26,7 @@ export class TestClient {
   admins: Keypair[];
   feesAccount: PublicKey;
   adminMetas: AccountMeta[];
+  oracleAuthority: Keypair;
 
   // pdas
   multisig: { publicKey: PublicKey; bump: number };
@@ -75,6 +77,8 @@ export class TestClient {
         pubkey: admin.publicKey,
       });
     }
+
+    this.oracleAuthority = Keypair.generate();
 
     // pdas
     this.multisig = this.findProgramAddress("multisig");
@@ -703,6 +707,78 @@ export class TestClient {
         }
         throw err;
       }
+    }
+  };
+
+  setCustomOraclePricePermissionless = async (
+    oracleAuthority: Keypair,
+    price: number,
+    custody,
+    publishTime?,
+    noSignatureVerification?,
+    messageOverwrite?,
+    increaseComputeLimits?
+  ) => {
+    let setCustomOraclePricePermissionlessParams = {
+      custodyAccount: custody.custody,
+      price: new BN(price * 1000),
+      expo: -3,
+      conf: new BN(10),
+      ema: new BN(price * 1000),
+      publishTime:
+        publishTime != null ? new BN(publishTime) : new BN(this.getTime()),
+    };
+
+    let message =
+      messageOverwrite != null
+        ? messageOverwrite
+        : this.program._coder.types.encode(
+            "SetCustomOraclePricePermissionlessParams",
+            setCustomOraclePricePermissionlessParams
+          );
+
+    const signature = nacl.sign.detached(message, oracleAuthority.secretKey);
+
+    let tx = this.program.methods
+      .setCustomOraclePricePermissionless(
+        setCustomOraclePricePermissionlessParams
+      )
+      .accounts({
+        perpetuals: this.perpetuals.publicKey,
+        pool: this.pool.publicKey,
+        custody: custody.custody,
+        oracleAccount: custody.oracleAccount,
+        systemProgram: SystemProgram.programId,
+        ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+      });
+
+    if (noSignatureVerification == null) {
+      tx = tx.preInstructions([
+        anchor.web3.Ed25519Program.createInstructionWithPublicKey({
+          publicKey: oracleAuthority.publicKey.toBytes(),
+          message: message,
+          signature: signature,
+        }),
+      ]);
+    }
+    if (increaseComputeLimits != null) {
+      tx = tx.preInstructions([
+        anchor.web3.ComputeBudgetProgram.setComputeUnitLimit({
+          units: 1000000,
+        }),
+        anchor.web3.ComputeBudgetProgram.setComputeUnitPrice({
+          microLamports: 10,
+        }),
+      ]);
+    }
+
+    try {
+      await tx.rpc();
+    } catch (err) {
+      if (this.printErrors) {
+        console.log(err);
+      }
+      throw err;
     }
   };
 

@@ -205,14 +205,10 @@ impl TestSetup {
 
         // Initialize users token accounts for each mints
         {
-            let mints_pubkeys: Vec<Pubkey> =
-                mints.values().into_iter().map(|info| info.pubkey).collect();
+            let mints_pubkeys: Vec<Pubkey> = mints.values().map(|info| info.pubkey).collect();
 
-            let users_pubkeys: Vec<Pubkey> = users
-                .values()
-                .into_iter()
-                .map(|keypair| keypair.pubkey())
-                .collect();
+            let users_pubkeys: Vec<Pubkey> =
+                users.values().map(|keypair| keypair.pubkey()).collect();
 
             utils::initialize_users_token_accounts(&program_test_ctx, mints_pubkeys, users_pubkeys)
                 .await;
@@ -355,11 +351,8 @@ impl TestSetup {
 
         // Initialize users token accounts for lp token mint
         {
-            let users_pubkeys: Vec<Pubkey> = users
-                .values()
-                .into_iter()
-                .map(|keypair| keypair.pubkey())
-                .collect();
+            let users_pubkeys: Vec<Pubkey> =
+                users.values().map(|keypair| keypair.pubkey()).collect();
 
             utils::initialize_users_token_accounts(
                 &program_test_ctx,
