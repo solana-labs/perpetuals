@@ -122,6 +122,8 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     let position = ctx.accounts.position.as_mut();
     let pool = ctx.accounts.pool.as_mut();
 
+    let use_collateral_custody = position.side == Side::Short || custody.is_virtual;
+
     // compute exit price
     let curtime = perpetuals.get_time()?;
 
@@ -180,7 +182,7 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
     )?;
 
     let fee_amount_usd = token_ema_price.get_asset_amount_usd(fee_amount, custody.decimals)?;
-    if position.side == Side::Short || custody.is_virtual {
+    if use_collateral_custody {
         fee_amount = collateral_token_ema_price
             .get_token_amount(fee_amount_usd, collateral_custody.decimals)?;
     }
@@ -243,60 +245,42 @@ pub fn close_position(ctx: Context<ClosePosition>, params: &ClosePositionParams)
             math::checked_sub(collateral_custody.assets.owned, protocol_fee)?;
     }
 
-    // if custody and collateral_custody accounts are the same, ensure that data is in sync
-    if position.side == Side::Long && !custody.is_virtual {
-        collateral_custody.volume_stats.close_position_usd = collateral_custody
-            .volume_stats
-            .close_position_usd
-            .wrapping_add(position.size_usd);
-
-        if position.side == Side::Long {
-            collateral_custody.trade_stats.oi_long_usd = collateral_custody
-                .trade_stats
-                .oi_long_usd
-                .saturating_sub(position.size_usd);
-        } else {
-            collateral_custody.trade_stats.oi_short_usd = collateral_custody
-                .trade_stats
-                .oi_short_usd
-                .saturating_sub(position.size_usd);
-        }
-
-        collateral_custody.trade_stats.profit_usd = collateral_custody
-            .trade_stats
-            .profit_usd
-            .wrapping_add(profit_usd);
-        collateral_custody.trade_stats.loss_usd = collateral_custody
-            .trade_stats
-            .loss_usd
-            .wrapping_add(loss_usd);
-
-        collateral_custody.remove_position(position, curtime, None)?;
-        collateral_custody.update_borrow_rate(curtime)?;
+    // when custody and collateral_custody are the same, sync the accounts to avoid
+    // overrides when accounts get saved at the end of the ix
+    if !use_collateral_custody {
         *custody = collateral_custody.clone();
+    }
+
+    custody.volume_stats.close_position_usd = custody
+        .volume_stats
+        .close_position_usd
+        .wrapping_add(position.size_usd);
+
+    if position.side == Side::Long {
+        custody.trade_stats.oi_long_usd = custody
+            .trade_stats
+            .oi_long_usd
+            .saturating_sub(position.size_usd);
     } else {
-        custody.volume_stats.close_position_usd = custody
-            .volume_stats
-            .close_position_usd
-            .wrapping_add(position.size_usd);
+        custody.trade_stats.oi_short_usd = custody
+            .trade_stats
+            .oi_short_usd
+            .saturating_sub(position.size_usd);
+    }
 
-        if position.side == Side::Long {
-            custody.trade_stats.oi_long_usd = custody
-                .trade_stats
-                .oi_long_usd
-                .saturating_sub(position.size_usd);
-        } else {
-            custody.trade_stats.oi_short_usd = custody
-                .trade_stats
-                .oi_short_usd
-                .saturating_sub(position.size_usd);
-        }
+    custody.trade_stats.profit_usd = custody.trade_stats.profit_usd.wrapping_add(profit_usd);
+    custody.trade_stats.loss_usd = custody.trade_stats.loss_usd.wrapping_add(loss_usd);
 
-        custody.trade_stats.profit_usd = custody.trade_stats.profit_usd.wrapping_add(profit_usd);
-        custody.trade_stats.loss_usd = custody.trade_stats.loss_usd.wrapping_add(loss_usd);
-
+    if use_collateral_custody {
         custody.remove_position(position, curtime, Some(collateral_custody))?;
+
         collateral_custody.update_borrow_rate(curtime)?;
+    } else {
+        custody.remove_position(position, curtime, None)?;
+
+        custody.update_borrow_rate(curtime)?;
+
+        *collateral_custody = custody.clone();
     }
 
     Ok(())

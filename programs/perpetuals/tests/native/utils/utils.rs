@@ -20,6 +20,17 @@ use {
 
 pub const ANCHOR_DISCRIMINATOR_SIZE: usize = 8;
 
+#[macro_export]
+macro_rules! assert_unchanged {
+    ($before:expr, $after:expr) => {
+        assert_eq!(
+            $before, $after,
+            "Values are not the same: {:?} != {:?}",
+            $before, $after
+        );
+    };
+}
+
 pub fn create_and_fund_account(address: &Pubkey, program_test: &mut ProgramTest) {
     program_test.add_account(
         *address,

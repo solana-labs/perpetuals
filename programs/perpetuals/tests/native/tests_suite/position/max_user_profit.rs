@@ -102,6 +102,7 @@ pub async fn max_user_profit() {
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
         eth_mint,
+        None,
         OpenPositionParams {
             // max price paid (slippage implied)
             price: utils::scale(1_550, ETH_DECIMALS),
@@ -147,8 +148,6 @@ pub async fn max_user_profit() {
         &test_setup.program_test_ctx,
         martin,
         &test_setup.payer_keypair,
-        &test_setup.pool_pda,
-        eth_mint,
         &position_pda,
         ClosePositionParams {
             // lowest exit price paid (slippage implied)

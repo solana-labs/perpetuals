@@ -108,6 +108,7 @@ pub async fn liquidate_position() {
         &test_setup.payer_keypair,
         &test_setup.pool_pda,
         eth_mint,
+        None,
         OpenPositionParams {
             // max price paid (slippage implied)
             price: utils::scale(1_550, ETH_DECIMALS),
