@@ -24,31 +24,36 @@ devnet = []
 default = ["cpi", "devnet"]
 
 [dependencies]
-anchor-lang = { version = "0.27.0", features = ["init-if-needed"]}
-anchor-spl = "0.27.0"
+anchor-lang = { version = "0.28.0", features = ["init-if-needed"] }
+anchor-spl = "0.28.0"
 
 # need it because using zero_copy (anchor 0.27.0 breaking change)
 # https://github.com/coral-xyz/anchor/blob/master/CHANGELOG.md
-bytemuck = { version = "1.4.0", features = ["derive", "min_const_generics"]}
+bytemuck = { version = "1.4.0", features = ["derive", "min_const_generics"] }
 
-solana-program = "=1.14.16"
-solana-security-txt = "1.1.0"
-ahash = "0.7.6"
+solana-program = "1.16"
+solana-security-txt = "1.1.1"
+ahash = "0.8.0"
 num-traits = "0.2.15"
 num = "0.4.0"
 
-pyth-sdk-solana = "0.7.2"
-spl-governance = { tag = "governance-v3.1.0", git = "https://github.com/solana-labs/solana-program-library", features = ["no-entrypoint"] }
+pyth-sdk-solana = "0.8.0"
+spl-governance = { tag = "governance-v3.1.0", git = "https://github.com/solana-labs/solana-program-library", features = [
+    "no-entrypoint",
+] }
 
-clockwork-sdk = { version = "=2.0.17" }
+clockwork-sdk = { git = "https://github.com/AdrenaDEX/clockwork.git", branch = "anchor-0.28.0" }
+# clockwork-sdk = { version = "=2.0.17" }
 
 [dev-dependencies]
-solana-program-test = "=1.14.16"
-solana-sdk = "=1.14.16"
-tokio = { version = "1.0.0", features = ["macros"]}
-bonfida-test-utils = "0.2.1"
+solana-program-test = "1.16"
+solana-sdk = "1.16"
+tokio = { version = "1.0.0", features = ["macros"] }
+bonfida-test-utils = "0.3.13"
 bincode = "1.3.3"
 proptest = "1.1.0"
-clockwork-thread-program = { version = "=2.0.17" } 
-clockwork-network-program = { version = "=2.0.17" }
+clockwork-thread-program = { git = "https://github.com/AdrenaDEX/clockwork.git", branch = "anchor-0.28.0" }
+clockwork-network-program = { git = "https://github.com/AdrenaDEX/clockwork.git", branch = "anchor-0.28.0" }
+# clockwork-thread-program = { version = "=2.0.17" }
+# clockwork-network-program = { version = "=2.0.17" }
 maplit = "1.0.2"
