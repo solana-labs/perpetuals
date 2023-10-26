@@ -85,6 +85,7 @@ async function addCustody(
     maxPriceAgeSec: 60,
     oracleType: { [oracleType]: {} },
     oracleAccount: tokenOracle,
+    oracleAuthority: PublicKey.default, // By default, permissionless oracle price update is not allowed.
   };
 
   const pricingConfig: PricingParams = {
